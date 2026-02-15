@@ -110,3 +110,7 @@ Quality gates are enforced in `.github/workflows/quality-gates.yml`.
 ## License
 
 MIT. See `LICENSE`.
+
+## Attribution
+
+This project was developed with assistance from large language models (LLMs).
