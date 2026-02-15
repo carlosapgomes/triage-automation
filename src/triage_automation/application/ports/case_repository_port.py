@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from triage_automation.domain.case_status import CaseStatus
@@ -60,3 +60,12 @@ class CaseRepositoryPort(Protocol):
         agency_record_extracted_at: datetime | None = None,
     ) -> None:
         """Persist PDF source, extracted/cleaned text, and optional record extraction fields."""
+
+    async def store_llm1_artifacts(
+        self,
+        *,
+        case_id: UUID,
+        structured_data_json: dict[str, Any],
+        summary_text: str,
+    ) -> None:
+        """Persist validated LLM1 structured payload and summary text."""

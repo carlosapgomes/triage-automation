@@ -134,3 +134,24 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         async with self._session_factory() as session:
             await session.execute(statement)
             await session.commit()
+
+    async def store_llm1_artifacts(
+        self,
+        *,
+        case_id: UUID,
+        structured_data_json: dict[str, Any],
+        summary_text: str,
+    ) -> None:
+        statement = (
+            sa.update(cases)
+            .where(cases.c.case_id == case_id)
+            .values(
+                structured_data_json=structured_data_json,
+                summary_text=summary_text,
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            await session.execute(statement)
+            await session.commit()

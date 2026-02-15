@@ -33,11 +33,11 @@ Excluded: LLM2 and policy cross-check logic.
 - `uv run mypy src apps`
 
 ## Checklist
-- [ ] spec section referenced
-- [ ] failing tests written
-- [ ] edge cases included
-- [ ] minimal implementation complete
-- [ ] tests pass
-- [ ] lint passes
-- [ ] type checks pass
-- [ ] stop and do not start next slice
+- [x] spec section referenced
+- [x] failing tests written
+- [x] edge cases included
+- [x] minimal implementation complete
+- [x] tests pass
+- [x] lint passes
+- [x] type checks pass
+- [x] stop and do not start next slice
