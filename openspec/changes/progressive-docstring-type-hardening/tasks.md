@@ -1,7 +1,7 @@
 ## 1. Baseline Policy and Guardrail Setup
 
 - [x] 1.1 Define docstring/type enforcement baseline and scope in config comments and project context notes (`tasks/01-baseline-policy.md`)
-- [ ] 1.2 Add initial non-breaking `ruff`/`mypy` ratchet configuration that targets first package group only (`tasks/02-initial-tooling-ratchet.md`)
+- [x] 1.2 Add initial non-breaking `ruff`/`mypy` ratchet configuration that targets first package group only (`tasks/02-initial-tooling-ratchet.md`)
 
 ## 2. Progressive Package Ratchet Slices
 

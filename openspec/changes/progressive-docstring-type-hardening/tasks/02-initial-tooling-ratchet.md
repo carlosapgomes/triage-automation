@@ -26,9 +26,9 @@ Excluded: multi-package remediation.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] targeted rules enabled
-- [ ] unrelated packages unaffected
-- [ ] checks pass
+- [x] targeted rules enabled
+- [x] unrelated packages unaffected
+- [x] checks pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

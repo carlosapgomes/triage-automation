@@ -7,3 +7,16 @@ target-version = "py312"
 
 [lint]
 select = ["E", "F", "I", "UP"]
+# Task 1.2 initial ratchet: enforce a minimal docstring/type baseline for the
+# first target package group (`application`) while keeping other package groups
+# relaxed until their dedicated remediation slices.
+extend-select = ["D100", "ANN001", "ANN201"]
+
+[lint.per-file-ignores]
+# Non-targeted groups for task 1.2 (explicitly deferred to later slices).
+"src/triage_automation/config/**/*.py" = ["D100", "ANN001", "ANN201"]
+"src/triage_automation/domain/**/*.py" = ["D100", "ANN001", "ANN201"]
+"src/triage_automation/infrastructure/**/*.py" = ["D100", "ANN001", "ANN201"]
+"apps/**/*.py" = ["D100", "ANN001", "ANN201"]
+"tests/**/*.py" = ["D100", "ANN001", "ANN201"]
+"alembic/**/*.py" = ["D100", "ANN001", "ANN201"]
