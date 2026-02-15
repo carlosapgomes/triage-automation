@@ -10,6 +10,12 @@ from pydantic import ValidationError
 
 from triage_automation.application.dto.llm1_models import Llm1Response
 from triage_automation.application.dto.llm2_models import Llm2Response
+from triage_automation.application.services.prompt_template_service import (
+    PROMPT_NAME_LLM2_SYSTEM,
+    PROMPT_NAME_LLM2_USER,
+    MissingActivePromptTemplateError,
+    PromptTemplateService,
+)
 from triage_automation.domain.policy.eda_policy import (
     EdaPolicyPrecheckInput,
     Llm2PolicyAlignmentInput,
@@ -25,6 +31,10 @@ class Llm2ServiceResult:
 
     suggested_action_json: dict[str, object]
     contradictions: list[dict[str, object]]
+    prompt_system_name: str
+    prompt_system_version: int
+    prompt_user_name: str
+    prompt_user_version: int
 
 
 @dataclass(frozen=True)
@@ -41,8 +51,18 @@ class Llm2RetriableError(RuntimeError):
 class Llm2Service:
     """Execute LLM2 call, enforce schema, and apply deterministic policy rules."""
 
-    def __init__(self, *, llm_client: LlmClientPort) -> None:
+    def __init__(
+        self,
+        *,
+        llm_client: LlmClientPort,
+        prompt_templates: PromptTemplateService | None = None,
+        system_prompt_name: str = PROMPT_NAME_LLM2_SYSTEM,
+        user_prompt_name: str = PROMPT_NAME_LLM2_USER,
+    ) -> None:
         self._llm_client = llm_client
+        self._prompt_templates = prompt_templates
+        self._system_prompt_name = system_prompt_name
+        self._user_prompt_name = user_prompt_name
 
     async def run(
         self,
@@ -60,8 +80,16 @@ class Llm2Service:
                 details=f"LLM1 payload invalid for LLM2 input: {error}",
             ) from error
 
-        system_prompt = _render_system_prompt()
+        (
+            system_prompt,
+            user_prompt_template,
+            system_prompt_name,
+            system_prompt_version,
+            user_prompt_name,
+            user_prompt_version,
+        ) = await self._load_prompts()
         user_prompt = _render_user_prompt(
+            template=user_prompt_template,
             case_id=case_id,
             agency_record_number=agency_record_number,
             llm1_structured_data=llm1_structured_data,
@@ -146,10 +174,42 @@ class Llm2Service:
         return Llm2ServiceResult(
             suggested_action_json=normalized,
             contradictions=contradictions,
+            prompt_system_name=system_prompt_name,
+            prompt_system_version=system_prompt_version,
+            prompt_user_name=user_prompt_name,
+            prompt_user_version=user_prompt_version,
+        )
+
+    async def _load_prompts(self) -> tuple[str, str, str, int, str, int]:
+        if self._prompt_templates is None:
+            return (
+                _default_system_prompt(),
+                _default_user_prompt_template(),
+                self._system_prompt_name,
+                0,
+                self._user_prompt_name,
+                0,
+            )
+
+        try:
+            pair = await self._prompt_templates.get_required_active_prompt_pair(
+                system_prompt_name=self._system_prompt_name,
+                user_prompt_name=self._user_prompt_name,
+            )
+        except MissingActivePromptTemplateError as error:
+            raise Llm2RetriableError(cause="llm2", details=str(error)) from error
+
+        return (
+            pair.system.content,
+            pair.user.content,
+            pair.system.name,
+            pair.system.version,
+            pair.user.name,
+            pair.user.version,
         )
 
 
-def _render_system_prompt() -> str:
+def _default_system_prompt() -> str:
     return (
         "Voce e um assistente de apoio a triagem de Endoscopia Digestiva Alta (EDA). "
         "Responda apenas com JSON valido no schema v1.1, em pt-BR. "
@@ -157,8 +217,13 @@ def _render_system_prompt() -> str:
     )
 
 
+def _default_user_prompt_template() -> str:
+    return "Tarefa: sugerir accept/deny e recomendacao de suporte para triagem de EDA."
+
+
 def _render_user_prompt(
     *,
+    template: str,
     case_id: UUID,
     agency_record_number: str,
     llm1_structured_data: dict[str, object],
@@ -170,7 +235,7 @@ def _render_user_prompt(
     )
     llm1_json = json.dumps(llm1_structured_data, ensure_ascii=False)
     return (
-        "Tarefa: sugerir accept/deny e recomendacao de suporte para triagem de EDA.\n\n"
+        f"{template}\n\n"
         f"case_id: {case_id}\n"
         f"agency_record_number: {agency_record_number}\n\n"
         f"Dados extraidos (JSON do LLM1):\n{llm1_json}\n\n"

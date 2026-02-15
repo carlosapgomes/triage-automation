@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from triage_automation.application.ports.prompt_template_repository_port import (
     PromptTemplateRecord,
     PromptTemplateRepositoryPort,
@@ -11,6 +13,14 @@ PROMPT_NAME_LLM1_SYSTEM = "llm1_system"
 PROMPT_NAME_LLM1_USER = "llm1_user"
 PROMPT_NAME_LLM2_SYSTEM = "llm2_system"
 PROMPT_NAME_LLM2_USER = "llm2_user"
+
+
+@dataclass(frozen=True)
+class ActivePromptTemplatePair:
+    """Active system/user prompt pair loaded for a specific LLM stage."""
+
+    system: PromptTemplateRecord
+    user: PromptTemplateRecord
 
 
 class MissingActivePromptTemplateError(LookupError):
@@ -34,3 +44,15 @@ class PromptTemplateService:
         if prompt is None:
             raise MissingActivePromptTemplateError(name=name)
         return prompt
+
+    async def get_required_active_prompt_pair(
+        self,
+        *,
+        system_prompt_name: str,
+        user_prompt_name: str,
+    ) -> ActivePromptTemplatePair:
+        """Return required active system/user prompt pair by configured names."""
+
+        system_prompt = await self.get_required_active_prompt(name=system_prompt_name)
+        user_prompt = await self.get_required_active_prompt(name=user_prompt_name)
+        return ActivePromptTemplatePair(system=system_prompt, user=user_prompt)

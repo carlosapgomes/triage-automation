@@ -37,14 +37,14 @@ Excluded: prompt editing APIs or UI.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] spec section referenced
-- [ ] failing tests written
-- [ ] edge cases included
-- [ ] minimal implementation
-- [ ] tests pass
-- [ ] lint passes
-- [ ] type checks pass
-- [ ] no triage workflow behavior change
+- [x] spec section referenced
+- [x] failing tests written
+- [x] edge cases included
+- [x] minimal implementation
+- [x] tests pass
+- [x] lint passes
+- [x] type checks pass
+- [x] no triage workflow behavior change
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

@@ -113,6 +113,15 @@ class ProcessPdfCaseService:
                     clean_text=record_result.cleaned_text,
                 )
             except Llm1RetriableError as error:
+                if self._audit_repository is not None:
+                    await self._audit_repository.append_event(
+                        AuditEventCreateInput(
+                            case_id=case_id,
+                            actor_type="system",
+                            event_type="LLM1_FAILED",
+                            payload={"error": str(error)},
+                        )
+                    )
                 raise ProcessPdfCaseRetriableError(cause="llm1", details=str(error)) from error
 
             await self._case_repository.store_llm1_artifacts(
@@ -120,6 +129,20 @@ class ProcessPdfCaseService:
                 structured_data_json=llm1_result.structured_data_json,
                 summary_text=llm1_result.summary_text,
             )
+            if self._audit_repository is not None:
+                await self._audit_repository.append_event(
+                    AuditEventCreateInput(
+                        case_id=case_id,
+                        actor_type="system",
+                        event_type="LLM1_STRUCTURED_SUMMARY_OK",
+                        payload=build_llm_prompt_version_audit_payload(
+                            system_prompt_name=llm1_result.prompt_system_name,
+                            system_prompt_version=llm1_result.prompt_system_version,
+                            user_prompt_name=llm1_result.prompt_user_name,
+                            user_prompt_version=llm1_result.prompt_user_version,
+                        ),
+                    )
+                )
 
             if self._llm2_service is not None:
                 await self._case_repository.update_status(
@@ -133,12 +156,37 @@ class ProcessPdfCaseService:
                         llm1_structured_data=llm1_result.structured_data_json,
                     )
                 except Llm2RetriableError as error:
+                    if self._audit_repository is not None:
+                        await self._audit_repository.append_event(
+                            AuditEventCreateInput(
+                                case_id=case_id,
+                                actor_type="system",
+                                event_type="LLM2_FAILED",
+                                payload={"error": str(error)},
+                            )
+                        )
                     raise ProcessPdfCaseRetriableError(cause="llm2", details=str(error)) from error
 
                 await self._case_repository.store_llm2_artifacts(
                     case_id=case_id,
                     suggested_action_json=llm2_result.suggested_action_json,
                 )
+                if self._audit_repository is not None:
+                    llm2_payload = build_llm_prompt_version_audit_payload(
+                        system_prompt_name=llm2_result.prompt_system_name,
+                        system_prompt_version=llm2_result.prompt_system_version,
+                        user_prompt_name=llm2_result.prompt_user_name,
+                        user_prompt_version=llm2_result.prompt_user_version,
+                    )
+                    llm2_payload["suggestion"] = llm2_result.suggested_action_json.get("suggestion")
+                    await self._audit_repository.append_event(
+                        AuditEventCreateInput(
+                            case_id=case_id,
+                            actor_type="system",
+                            event_type="LLM2_SUGGESTION_OK",
+                            payload=llm2_payload,
+                        )
+                    )
 
                 if llm2_result.contradictions and self._audit_repository is not None:
                     await self._audit_repository.append_event(
@@ -160,3 +208,20 @@ class ProcessPdfCaseService:
                 )
 
         return record_result.cleaned_text
+
+
+def build_llm_prompt_version_audit_payload(
+    *,
+    system_prompt_name: str,
+    system_prompt_version: int,
+    user_prompt_name: str,
+    user_prompt_version: int,
+) -> dict[str, object]:
+    """Build deterministic audit payload with prompt template names and versions."""
+
+    return {
+        "prompt_system_name": system_prompt_name,
+        "prompt_system_version": system_prompt_version,
+        "prompt_user_name": user_prompt_name,
+        "prompt_user_version": user_prompt_version,
+    }
