@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
@@ -168,21 +168,39 @@ class MatrixHttpClient:
         )
         return response.body_bytes
 
+    async def sync(self, *, since: str | None, timeout_ms: int) -> dict[str, object]:
+        """Fetch Matrix sync response for timeline polling."""
+
+        query: dict[str, str] = {"timeout": str(timeout_ms)}
+        if since is not None and since:
+            query["since"] = since
+        path = f"/_matrix/client/v3/sync?{urlencode(query)}"
+        return await self._request_json(
+            operation="sync",
+            method="GET",
+            path=path,
+            payload={},
+        )
+
     async def _request_json(
         self,
         *,
         operation: str,
         method: str,
         path: str,
-        payload: dict[str, object],
+        payload: dict[str, object] | None,
     ) -> dict[str, object]:
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        body = (
+            json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            if payload is not None
+            else None
+        )
         response = await self._request_bytes(
             operation=operation,
             method=method,
             path=path,
             body=body,
-            content_type="application/json",
+            content_type="application/json" if payload is not None else None,
         )
         try:
             decoded = json.loads(response.body_bytes.decode("utf-8"))

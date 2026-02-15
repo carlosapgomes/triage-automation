@@ -30,11 +30,11 @@ Excluded: reaction and Room-3 reply routing.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] Room-1 intake events are routed through existing service
-- [ ] unsupported events are ignored safely
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] Room-1 intake events are routed through existing service
+- [x] unsupported events are ignored safely
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

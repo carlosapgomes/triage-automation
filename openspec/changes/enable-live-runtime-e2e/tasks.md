@@ -16,7 +16,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 ## 3. Matrix Live Adapters and Event Routing
 
 - [x] 3.1 Implement concrete Matrix adapter ports (`send_text`, `reply_text`, `redact_event`, `download_mxc`) (`tasks/06-matrix-adapter-ports.md`)
-- [ ] 3.2 Implement Room-1 PDF intake listener routing in `bot-matrix` runtime (`tasks/07-room1-intake-listener.md`)
+- [x] 3.2 Implement Room-1 PDF intake listener routing in `bot-matrix` runtime (`tasks/07-room1-intake-listener.md`)
 - [ ] 3.3 Implement reaction listener routing (Room-1 cleanup trigger, Room-2/3 audit thumbs) (`tasks/08-reaction-listener-routing.md`)
 - [ ] 3.4 Implement Room-3 reply listener routing with strict parser/re-prompt behavior (`tasks/09-room3-reply-listener.md`)
 
