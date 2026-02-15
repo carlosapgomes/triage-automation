@@ -30,11 +30,11 @@ Excluded: new template formats or scheduling behavior changes.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] strict Room-3 parser behavior remains unchanged
-- [ ] invalid replies re-prompt and remain in WAIT_APPT
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] strict Room-3 parser behavior remains unchanged
+- [x] invalid replies re-prompt and remain in WAIT_APPT
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

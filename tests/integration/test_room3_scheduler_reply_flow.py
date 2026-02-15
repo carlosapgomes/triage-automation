@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from alembic.config import Config
 
 from alembic import command
+from apps.bot_matrix.main import poll_room3_reply_events_once
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
 from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
@@ -22,6 +23,16 @@ from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRe
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
 from triage_automation.infrastructure.db.session import create_session_factory
+
+
+class _FakeSyncClient:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self._payload = payload
+        self.calls: list[tuple[str | None, int]] = []
+
+    async def sync(self, *, since: str | None, timeout_ms: int) -> dict[str, object]:
+        self.calls.append((since, timeout_ms))
+        return self._payload
 
 
 class FakeMatrixPoster:
@@ -86,6 +97,49 @@ def _build_service(async_url: str, matrix_poster: FakeMatrixPoster) -> Room3Repl
         job_queue=SqlAlchemyJobQueueRepository(session_factory),
         matrix_poster=matrix_poster,
     )
+
+
+def _sync_payload(
+    *,
+    next_batch: str,
+    room_id: str,
+    events: list[dict[str, object]],
+) -> dict[str, object]:
+    return {
+        "next_batch": next_batch,
+        "rooms": {
+            "join": {
+                room_id: {
+                    "timeline": {
+                        "events": events,
+                    }
+                }
+            }
+        },
+    }
+
+
+def _room3_reply_event(
+    *,
+    event_id: str,
+    sender: str,
+    body: str,
+    reply_to_event_id: str,
+) -> dict[str, object]:
+    return {
+        "type": "m.room.message",
+        "event_id": event_id,
+        "sender": sender,
+        "content": {
+            "msgtype": "m.text",
+            "body": body,
+            "m.relates_to": {
+                "m.in_reply_to": {
+                    "event_id": reply_to_event_id,
+                }
+            },
+        },
+    }
 
 
 @pytest.mark.asyncio
@@ -253,3 +307,123 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
 
     assert status == "APPT_CONFIRMED"
     assert job_type == "post_room1_final_appt"
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_routes_valid_room3_reply_to_service(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_listener_valid.db")
+    case_id, request_event_id = await _setup_wait_appt_case(
+        async_url,
+        origin_event_id="$origin-room3-listener-valid",
+    )
+    matrix_poster = FakeMatrixPoster()
+    service = _build_service(async_url, matrix_poster)
+
+    body = (
+        "16-02-2026 14:30 BRT\n"
+        "location: Sala 2\n"
+        "instructions: Jejum 8h\n"
+        f"case: {case_id}"
+    )
+    sync_client = _FakeSyncClient(
+        _sync_payload(
+            next_batch="s-room3-valid",
+            room_id="!room3:example.org",
+            events=[
+                _room3_reply_event(
+                    event_id="$scheduler-listener-valid",
+                    sender="@scheduler:example.org",
+                    body=body,
+                    reply_to_event_id=request_event_id,
+                )
+            ],
+        )
+    )
+
+    next_since, routed_count = await poll_room3_reply_events_once(
+        matrix_client=sync_client,
+        room3_reply_service=service,
+        room3_id="!room3:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room3-valid"
+    assert routed_count == 1
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        status = connection.execute(
+            sa.text("SELECT status FROM cases WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+        job_type = connection.execute(
+            sa.text(
+                "SELECT job_type FROM jobs WHERE case_id = :case_id "
+                "ORDER BY job_id DESC LIMIT 1"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert status == "APPT_CONFIRMED"
+    assert job_type == "post_room1_final_appt"
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_invalid_template_reprompts_and_keeps_wait_appt(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_listener_invalid.db")
+    case_id, request_event_id = await _setup_wait_appt_case(
+        async_url,
+        origin_event_id="$origin-room3-listener-invalid",
+    )
+    matrix_poster = FakeMatrixPoster()
+    service = _build_service(async_url, matrix_poster)
+
+    sync_client = _FakeSyncClient(
+        _sync_payload(
+            next_batch="s-room3-invalid",
+            room_id="!room3:example.org",
+            events=[
+                _room3_reply_event(
+                    event_id="$scheduler-listener-invalid",
+                    sender="@scheduler:example.org",
+                    body=f"hello\ncase: {case_id}",
+                    reply_to_event_id=request_event_id,
+                )
+            ],
+        )
+    )
+
+    next_since, routed_count = await poll_room3_reply_events_once(
+        matrix_client=sync_client,
+        room3_reply_service=service,
+        room3_id="!room3:example.org",
+        bot_user_id="@bot:example.org",
+        since_token="s-prev",
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room3-invalid"
+    assert routed_count == 1
+    assert len(matrix_poster.reply_calls) == 1
+    assert matrix_poster.reply_calls[0][1] == "$scheduler-listener-invalid"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        status = connection.execute(
+            sa.text("SELECT status FROM cases WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+        reprompt_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_messages WHERE case_id = :case_id "
+                "AND kind = 'bot_reformat_prompt_room3'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert status == "WAIT_APPT"
+    assert int(reprompt_count) == 1
