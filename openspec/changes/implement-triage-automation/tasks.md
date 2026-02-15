@@ -8,7 +8,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 02. Runtime Config and Docker Compose Baseline (`tasks/02-config-compose.md`)
 - [x] 03. Initial Postgres Schema and Migrations (`tasks/03-db-schema-migrations.md`)
 - [x] 04. Domain Status and Transition Guards (`tasks/04-state-transitions.md`)
-- [ ] 05. Case/Audit/Message Repositories (`tasks/05-case-audit-message-repos.md`)
+- [x] 05. Case/Audit/Message Repositories (`tasks/05-case-audit-message-repos.md`)
 - [ ] 06. Postgres Job Queue (SKIP LOCKED) (`tasks/06-job-queue-skip-locked.md`)
 - [ ] 07. Worker Runtime and Boot Reconciliation (`tasks/07-worker-runtime-reconciliation.md`)
 - [ ] 08. Room-1 PDF Intake Flow (`tasks/08-room1-intake.md`)
