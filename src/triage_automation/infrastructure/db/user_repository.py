@@ -20,7 +20,7 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
-    async def get_active_by_email(self, *, email: str) -> UserRecord | None:
+    async def get_by_email(self, *, email: str) -> UserRecord | None:
         statement = sa.select(
             users.c.id,
             users.c.email,
@@ -29,10 +29,7 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
             users.c.is_active,
             users.c.created_at,
             users.c.updated_at,
-        ).where(
-            users.c.email == email,
-            users.c.is_active.is_(True),
-        ).limit(1)
+        ).where(users.c.email == email).limit(1)
 
         async with self._session_factory() as session:
             result = await session.execute(statement)
@@ -52,3 +49,9 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
             created_at=cast(datetime, row["created_at"]),
             updated_at=cast(datetime, row["updated_at"]),
         )
+
+    async def get_active_by_email(self, *, email: str) -> UserRecord | None:
+        user = await self.get_by_email(email=email)
+        if user is None or not user.is_active:
+            return None
+        return user
