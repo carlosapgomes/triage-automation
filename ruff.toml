@@ -17,5 +17,8 @@ extend-select = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
 [lint.per-file-ignores]
 # Non-targeted groups for task 1.2 (explicitly deferred to later slices).
 "src/triage_automation/config/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
+# Task 3.1 decision: tests remain excluded from docstring/type lint rules.
+# Rationale: prioritize test readability and avoid boilerplate churn while
+# retaining correctness via pytest and core lint rules (E/F/I/UP).
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
 "alembic/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]

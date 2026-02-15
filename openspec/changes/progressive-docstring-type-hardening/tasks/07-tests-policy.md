@@ -28,9 +28,9 @@ Excluded: production business logic changes.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] test policy encoded in tooling
-- [ ] full test suite passes
-- [ ] checks pass
+- [x] test policy encoded in tooling
+- [x] full test suite passes
+- [x] checks pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
