@@ -19,6 +19,8 @@ class SqlAlchemyAuthEventRepository(AuthEventRepositoryPort):
         self._session_factory = session_factory
 
     async def append_event(self, payload: AuthEventCreateInput) -> int:
+        """Insert an auth audit event row and return its numeric id."""
+
         statement = sa.insert(auth_events).values(
             user_id=payload.user_id,
             event_type=payload.event_type,

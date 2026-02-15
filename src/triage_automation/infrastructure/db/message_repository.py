@@ -30,6 +30,8 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
         self._session_factory = session_factory
 
     async def add_message(self, payload: CaseMessageCreateInput) -> int:
+        """Insert case message mapping and return inserted numeric id."""
+
         statement = sa.insert(case_messages).values(
             case_id=payload.case_id,
             room_id=payload.room_id,
@@ -52,6 +54,8 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
         return int(inserted_id)
 
     async def has_message_kind(self, *, case_id: UUID, room_id: str, kind: str) -> bool:
+        """Return whether case already has message of `kind` in the given room."""
+
         statement = sa.select(sa.literal(True)).where(
             case_messages.c.case_id == case_id,
             case_messages.c.room_id == room_id,
@@ -70,6 +74,8 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
         event_id: str,
         kind: str,
     ) -> UUID | None:
+        """Resolve case id by room/event pair constrained to message kind."""
+
         statement = sa.select(case_messages.c.case_id).where(
             case_messages.c.room_id == room_id,
             case_messages.c.event_id == event_id,
@@ -92,6 +98,8 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
         room_id: str,
         event_id: str,
     ) -> CaseMessageLookup | None:
+        """Return mapped case id and kind for a room/event pair."""
+
         statement = sa.select(
             case_messages.c.case_id,
             case_messages.c.kind,
@@ -115,6 +123,8 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
         )
 
     async def list_message_refs_for_case(self, *, case_id: UUID) -> list[CaseMessageRef]:
+        """List all room/event references stored for a case."""
+
         statement = sa.select(
             case_messages.c.room_id,
             case_messages.c.event_id,

@@ -26,6 +26,8 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         self._session_factory = session_factory
 
     async def enqueue(self, payload: JobEnqueueInput) -> JobRecord:
+        """Insert queued job row and return persisted job record."""
+
         values: dict[str, Any] = {
             "case_id": payload.case_id,
             "job_type": payload.job_type,
@@ -44,6 +46,8 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         return _to_job_record(result.mappings().one())
 
     async def claim_due_jobs(self, *, limit: int) -> list[JobRecord]:
+        """Claim due queued jobs, marking them running, and return claimed rows."""
+
         if limit < 1:
             return []
 
@@ -91,6 +95,8 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         return [_to_job_record(row) for row in result.mappings().all()]
 
     async def mark_done(self, *, job_id: int) -> None:
+        """Mark a job as done."""
+
         statement = (
             sa.update(jobs)
             .where(jobs.c.job_id == job_id)
@@ -102,6 +108,8 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
             await session.commit()
 
     async def mark_failed(self, *, job_id: int, last_error: str) -> None:
+        """Mark a job as failed without retry scheduling."""
+
         statement = (
             sa.update(jobs)
             .where(jobs.c.job_id == job_id)
@@ -123,6 +131,8 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         run_after: datetime,
         last_error: str,
     ) -> JobRecord:
+        """Requeue job with incremented attempts and next run_after timestamp."""
+
         statement = (
             sa.update(jobs)
             .where(jobs.c.job_id == job_id)
@@ -143,6 +153,8 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         return _to_job_record(result.mappings().one())
 
     async def mark_dead(self, *, job_id: int, last_error: str) -> JobRecord:
+        """Dead-letter a job with incremented attempts and error context."""
+
         statement = (
             sa.update(jobs)
             .where(jobs.c.job_id == job_id)
@@ -162,6 +174,8 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         return _to_job_record(result.mappings().one())
 
     async def has_active_job(self, *, case_id: UUID, job_type: str) -> bool:
+        """Return whether case has queued/running job of the given type."""
+
         statement = sa.select(sa.literal(True)).where(
             jobs.c.case_id == case_id,
             jobs.c.job_type == job_type,

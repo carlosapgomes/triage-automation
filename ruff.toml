@@ -17,14 +17,6 @@ extend-select = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
 [lint.per-file-ignores]
 # Non-targeted groups for task 1.2 (explicitly deferred to later slices).
 "src/triage_automation/config/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
-"src/triage_automation/infrastructure/**/*.py" = [
-  "D100",
-  "D101",
-  "D102",
-  "D103",
-  "ANN001",
-  "ANN201",
-]
 "apps/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
 "tests/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]
 "alembic/**/*.py" = ["D100", "D101", "D102", "D103", "ANN001", "ANN201"]

@@ -19,4 +19,6 @@ class StaticLlmClient:
         self._response_text = response_text
 
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
+        """Return static response text regardless of input prompts."""
+
         return self._response_text

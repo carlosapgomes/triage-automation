@@ -47,6 +47,8 @@ class SqlAlchemyPriorCaseQueries(PriorCaseQueryPort):
         agency_record_number: str,
         now: datetime | None = None,
     ) -> PriorCaseContext:
+        """Return seven-day prior-case context for Room-2 widget enrichment."""
+
         reference_now = now or datetime.now(tz=UTC)
         window_start = reference_now - timedelta(days=7)
 

@@ -21,6 +21,8 @@ class SqlAlchemyPromptTemplateRepository(PromptTemplateRepositoryPort):
         self._session_factory = session_factory
 
     async def get_active_by_name(self, *, name: str) -> PromptTemplateRecord | None:
+        """Return latest active template version for the provided prompt name."""
+
         statement = (
             sa.select(
                 prompt_templates.c.name,

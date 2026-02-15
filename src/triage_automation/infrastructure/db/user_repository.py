@@ -21,6 +21,8 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
         self._session_factory = session_factory
 
     async def get_by_email(self, *, email: str) -> UserRecord | None:
+        """Return user by normalized email, including inactive users."""
+
         statement = sa.select(
             users.c.id,
             users.c.email,
@@ -51,6 +53,8 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
         )
 
     async def get_active_by_email(self, *, email: str) -> UserRecord | None:
+        """Return active user by normalized email or None."""
+
         user = await self.get_by_email(email=email)
         if user is None or not user.is_active:
             return None

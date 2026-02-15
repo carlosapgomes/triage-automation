@@ -52,6 +52,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         self._session_factory = session_factory
 
     async def create_case(self, payload: CaseCreateInput) -> CaseRecord:
+        """Insert a new case row and return the created case record."""
+
         statement = (
             sa.insert(cases)
             .values(
@@ -88,6 +90,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         return _to_case_record(row)
 
     async def get_case_by_origin_event_id(self, origin_event_id: str) -> CaseRecord | None:
+        """Return case by Room-1 origin event id when present."""
+
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
@@ -111,6 +115,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         *,
         case_id: UUID,
     ) -> CaseRoom2WidgetSnapshot | None:
+        """Return fields required to render the Room-2 doctor widget."""
+
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
@@ -141,6 +147,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         *,
         case_id: UUID,
     ) -> CaseDoctorDecisionSnapshot | None:
+        """Return status and doctor decision timestamp for webhook handling."""
+
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
@@ -164,6 +172,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         self,
         payload: DoctorDecisionUpdateInput,
     ) -> bool:
+        """Apply doctor decision only when case is still waiting for doctor input."""
+
         target_status = (
             CaseStatus.DOCTOR_DENIED
             if payload.decision == "deny"
@@ -197,6 +207,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         self,
         payload: SchedulerDecisionUpdateInput,
     ) -> bool:
+        """Apply scheduler decision only when case is in WAIT_APPT state."""
+
         target_status = (
             CaseStatus.APPT_CONFIRMED
             if payload.appointment_status == "confirmed"
@@ -232,6 +244,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         *,
         case_id: UUID,
     ) -> CaseFinalReplySnapshot | None:
+        """Return final-reply context fields used to compose Room-1 responses."""
+
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
@@ -271,6 +285,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         case_id: UUID,
         room1_final_reply_event_id: str,
     ) -> bool:
+        """Store Room-1 final reply event id and transition to cleanup-wait state."""
+
         statement = (
             sa.update(cases)
             .where(
@@ -296,6 +312,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         *,
         room1_final_reply_event_id: str,
     ) -> Room1FinalReplyReactionSnapshot | None:
+        """Return cleanup-trigger snapshot by Room-1 final reply event id."""
+
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
@@ -321,6 +339,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         case_id: UUID,
         reactor_user_id: str,
     ) -> bool:
+        """Atomically claim first cleanup trigger and transition to CLEANUP_RUNNING."""
+
         statement = (
             sa.update(cases)
             .where(
@@ -343,6 +363,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         return int(result.rowcount or 0) == 1
 
     async def mark_cleanup_completed(self, *, case_id: UUID) -> None:
+        """Mark cleanup completion timestamp and transition case to CLEANED."""
+
         statement = (
             sa.update(cases)
             .where(cases.c.case_id == case_id)
@@ -358,6 +380,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             await session.commit()
 
     async def list_non_terminal_cases_for_recovery(self) -> list[CaseRecoverySnapshot]:
+        """List non-cleaned cases for startup recovery reconciliation."""
+
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
@@ -383,6 +407,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         return snapshots
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
+        """Update case status and touch updated_at timestamp."""
+
         statement = (
             sa.update(cases)
             .where(cases.c.case_id == case_id)
@@ -402,6 +428,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         agency_record_number: str | None = None,
         agency_record_extracted_at: datetime | None = None,
     ) -> None:
+        """Persist extracted PDF text and optional agency record metadata."""
+
         statement = (
             sa.update(cases)
             .where(cases.c.case_id == case_id)
@@ -425,6 +453,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         structured_data_json: dict[str, Any],
         summary_text: str,
     ) -> None:
+        """Persist validated LLM1 structured payload and summary text."""
+
         statement = (
             sa.update(cases)
             .where(cases.c.case_id == case_id)
@@ -445,6 +475,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         case_id: UUID,
         suggested_action_json: dict[str, Any],
     ) -> None:
+        """Persist validated and reconciled LLM2 suggestion payload."""
+
         statement = (
             sa.update(cases)
             .where(cases.c.case_id == case_id)

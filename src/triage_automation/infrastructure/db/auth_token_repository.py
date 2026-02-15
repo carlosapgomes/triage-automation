@@ -24,6 +24,8 @@ class SqlAlchemyAuthTokenRepository(AuthTokenRepositoryPort):
         self._session_factory = session_factory
 
     async def create_token(self, payload: AuthTokenCreateInput) -> AuthTokenRecord:
+        """Persist a token hash row and return the inserted token record."""
+
         statement = sa.insert(auth_tokens).values(
             user_id=payload.user_id,
             token_hash=payload.token_hash,
@@ -38,6 +40,8 @@ class SqlAlchemyAuthTokenRepository(AuthTokenRepositoryPort):
         return _to_auth_token_record(row)
 
     async def get_active_by_hash(self, *, token_hash: str) -> AuthTokenRecord | None:
+        """Return active token by hash when not revoked and not expired."""
+
         now = datetime.now(tz=UTC)
         statement = sa.select(*auth_tokens.c).where(
             auth_tokens.c.token_hash == token_hash,

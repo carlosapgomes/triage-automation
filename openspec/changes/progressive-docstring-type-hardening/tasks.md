@@ -7,7 +7,7 @@
 
 - [x] 2.1 Ratchet `src/triage_automation/application` for public docstrings and typed public signatures (`tasks/03-ratchet-application.md`)
 - [x] 2.2 Ratchet `src/triage_automation/domain` with same policy and remediation (`tasks/04-ratchet-domain.md`)
-- [ ] 2.3 Ratchet `src/triage_automation/infrastructure` with same policy and remediation (`tasks/05-ratchet-infrastructure.md`)
+- [x] 2.3 Ratchet `src/triage_automation/infrastructure` with same policy and remediation (`tasks/05-ratchet-infrastructure.md`)
 - [ ] 2.4 Ratchet `apps/` entrypoints and shared wiring modules (`tasks/06-ratchet-apps.md`)
 
 ## 3. Test and CI Enforcement
