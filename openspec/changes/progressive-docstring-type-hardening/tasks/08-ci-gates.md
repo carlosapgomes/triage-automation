@@ -27,9 +27,9 @@ Excluded: new product features.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] CI enforces ratchet checks
-- [ ] local workflow documented
-- [ ] checks pass locally
+- [x] CI enforces ratchet checks
+- [x] local workflow documented
+- [x] checks pass locally
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

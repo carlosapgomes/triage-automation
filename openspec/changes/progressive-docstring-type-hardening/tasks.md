@@ -13,7 +13,7 @@
 ## 3. Test and CI Enforcement
 
 - [x] 3.1 Apply agreed docstring/type policy to tests (or codify scoped exclusions) with deterministic rationale (`tasks/07-tests-policy.md`)
-- [ ] 3.2 Enforce ratchet gates in CI and local verification workflow (`tasks/08-ci-gates.md`)
+- [x] 3.2 Enforce ratchet gates in CI and local verification workflow (`tasks/08-ci-gates.md`)
 
 ## 4. Final Hardening Verification
 
