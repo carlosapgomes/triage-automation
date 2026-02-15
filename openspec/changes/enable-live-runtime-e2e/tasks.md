@@ -5,7 +5,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 ## 1. Runtime Orchestration Baseline
 
 - [x] 1.1 Serve `bot-api` as a real ASGI process and align compose command (`tasks/01-bot-api-asgi-runtime.md`)
-- [ ] 1.2 Expand runtime settings for live execution (Matrix bot auth, polling/runtime flags, LLM mode toggles) (`tasks/02-runtime-settings-expansion.md`)
+- [x] 1.2 Expand runtime settings for live execution (Matrix bot auth, polling/runtime flags, LLM mode toggles) (`tasks/02-runtime-settings-expansion.md`)
 
 ## 2. Worker Live Handler Wiring
 

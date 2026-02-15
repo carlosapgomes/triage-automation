@@ -30,11 +30,11 @@ Excluded: implementing runtime behavior that consumes these settings.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] new runtime settings are typed and documented
-- [ ] `.env.example` remains sanitized
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] new runtime settings are typed and documented
+- [x] `.env.example` remains sanitized
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
