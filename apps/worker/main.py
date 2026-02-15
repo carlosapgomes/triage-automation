@@ -25,7 +25,10 @@ from triage_automation.application.services.post_room3_request_service import (
 )
 from triage_automation.application.services.process_pdf_case_service import ProcessPdfCaseService
 from triage_automation.application.services.prompt_template_service import PromptTemplateService
-from triage_automation.application.services.recovery_service import RecoveryService
+from triage_automation.application.services.recovery_service import (
+    RecoveryResult,
+    RecoveryService,
+)
 from triage_automation.application.services.worker_runtime import JobHandler, WorkerRuntime
 from triage_automation.config.settings import Settings, load_settings
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
@@ -102,6 +105,14 @@ class WorkerRuntimeServices:
     post_room3_request_service: PostRoom3RequestService
     post_room1_final_service: PostRoom1FinalService
     execute_cleanup_service: ExecuteCleanupService
+
+
+@dataclass(frozen=True)
+class WorkerStartupResult:
+    """Result summary for worker boot reconciliation and recovery scan."""
+
+    reconciled_jobs: int
+    recovery: RecoveryResult
 
 
 def build_worker_handlers(
@@ -287,18 +298,27 @@ def _require_pdf_mxc_url(job: JobRecord) -> str:
     raise ValueError("process_pdf_case job missing payload.pdf_mxc_url")
 
 
-async def _run_worker() -> None:
-    settings = load_settings()
+async def run_worker_startup(
+    *,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> WorkerStartupResult:
+    """Run startup reconciliation and recovery scan before runtime polling."""
 
-    session_factory = create_session_factory(settings.database_url)
-    await reconcile_running_jobs(session_factory)
-
+    reconciled_jobs = await reconcile_running_jobs(session_factory)
     queue = SqlAlchemyJobQueueRepository(session_factory)
-    await RecoveryService(
+    recovery = await RecoveryService(
         case_repository=SqlAlchemyCaseRepository(session_factory),
         audit_repository=SqlAlchemyAuditRepository(session_factory),
         job_queue=queue,
     ).recover()
+    return WorkerStartupResult(reconciled_jobs=reconciled_jobs, recovery=recovery)
+
+
+async def _run_worker() -> None:
+    settings = load_settings()
+
+    session_factory = create_session_factory(settings.database_url)
+    await run_worker_startup(session_factory=session_factory)
 
     runtime = build_worker_runtime(
         settings=settings,

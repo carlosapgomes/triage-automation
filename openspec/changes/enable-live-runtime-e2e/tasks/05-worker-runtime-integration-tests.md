@@ -29,11 +29,11 @@ Excluded: unrelated feature additions.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] runtime recovery and retry/dead-letter paths are covered
-- [ ] no behavior drift from existing contracts
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] runtime recovery and retry/dead-letter paths are covered
+- [x] no behavior drift from existing contracts
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

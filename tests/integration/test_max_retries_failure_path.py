@@ -8,11 +8,13 @@ import sqlalchemy as sa
 from alembic.config import Config
 
 from alembic import command
+from apps.worker.main import build_worker_runtime
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobRecord
 from triage_automation.application.services.job_failure_service import JobFailureService
 from triage_automation.application.services.recovery_service import RecoveryService
 from triage_automation.application.services.worker_runtime import WorkerRuntime
+from triage_automation.config.settings import Settings
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
@@ -48,6 +50,26 @@ async def _create_case(
         )
     )
     return created.case_id
+
+
+def _runtime_settings(*, database_url: str) -> Settings:
+    return Settings.model_construct(
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        matrix_homeserver_url="https://matrix.example.org",
+        matrix_bot_user_id="@bot:example.org",
+        matrix_access_token="matrix-token",
+        matrix_sync_timeout_ms=30_000,
+        matrix_poll_interval_seconds=0.0,
+        worker_poll_interval_seconds=0.0,
+        webhook_public_url="https://webhook.example.org",
+        database_url=database_url,
+        webhook_hmac_secret="secret",
+        llm_runtime_mode="deterministic",
+        openai_api_key=None,
+        log_level="INFO",
+    )
 
 
 @pytest.mark.asyncio
@@ -200,3 +222,59 @@ async def test_recovery_scan_enqueues_missing_jobs_once_without_duplicates(tmp_p
     assert by_case[doctor_accepted_case.hex] == ["post_room3_request"]
     assert by_case[failed_case.hex] == ["post_room1_final_failure"]
     assert by_case[cleanup_running_case.hex] == ["execute_cleanup"]
+
+
+@pytest.mark.asyncio
+async def test_runtime_wiring_dead_letters_at_max_attempts_boundary(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "runtime_dead_letter_boundary.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    queue_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case_id = await _create_case(
+        case_repo,
+        status=CaseStatus.WAIT_DOCTOR,
+        origin_event_id="$origin-runtime-dead-letter",
+    )
+    job = await queue_repo.enqueue(
+        JobEnqueueInput(
+            case_id=case_id,
+            job_type="post_room3_request",
+            payload={},
+            max_attempts=1,
+        )
+    )
+
+    runtime = build_worker_runtime(
+        settings=_runtime_settings(database_url=async_url),
+        session_factory=session_factory,
+    )
+
+    claimed_count = await runtime.run_once()
+
+    assert claimed_count == 1
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        job_row = connection.execute(
+            sa.text("SELECT status, attempts, last_error FROM jobs WHERE job_id = :job_id"),
+            {"job_id": job.job_id},
+        ).mappings().one()
+        case_row = connection.execute(
+            sa.text("SELECT status FROM cases WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        failure_job_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE case_id = :case_id AND job_type = 'post_room1_final_failure'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert job_row["status"] == "dead"
+    assert int(job_row["attempts"]) == 1
+    assert "not ready for Room-3 request post" in str(job_row["last_error"])
+    assert case_row["status"] == "FAILED"
+    assert int(failure_job_count) == 1
