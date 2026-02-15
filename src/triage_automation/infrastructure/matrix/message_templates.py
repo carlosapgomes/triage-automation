@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from uuid import UUID
 
 
@@ -69,5 +70,46 @@ def build_room3_invalid_format_reprompt(*, case_id: UUID) -> str:
         "DENIED:\n"
         "denied\n"
         "reason: ...\n"
+        f"case: {case_id}"
+    )
+
+
+def build_room1_final_accepted_message(
+    *,
+    case_id: UUID,
+    appointment_at: datetime,
+    location: str,
+    instructions: str,
+) -> str:
+    """Build Room-1 accepted final reply template."""
+
+    return (
+        "✅ accepted\n"
+        f"appointment: {appointment_at.strftime('%d-%m-%Y %H:%M')} BRT\n"
+        f"location: {location}\n"
+        f"instructions: {instructions}\n"
+        f"case: {case_id}"
+    )
+
+
+def build_room1_final_denied_triage_message(*, case_id: UUID, reason: str) -> str:
+    """Build Room-1 triage denied final reply template."""
+
+    return f"❌ denied (triage)\nreason: {reason}\ncase: {case_id}"
+
+
+def build_room1_final_denied_appointment_message(*, case_id: UUID, reason: str) -> str:
+    """Build Room-1 appointment denied final reply template."""
+
+    return f"❌ denied (appointment)\nreason: {reason}\ncase: {case_id}"
+
+
+def build_room1_final_failure_message(*, case_id: UUID, cause: str, details: str) -> str:
+    """Build Room-1 processing failed final reply template."""
+
+    return (
+        "⚠️ processing failed\n"
+        f"cause: {cause}\n"
+        f"details: {details}\n"
         f"case: {case_id}"
     )

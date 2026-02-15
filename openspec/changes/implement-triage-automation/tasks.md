@@ -20,7 +20,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 14. HMAC Webhook and Doctor Decision Handling (`tasks/14-webhook-doctor-decision.md`)
 - [x] 15. Room-3 Request Posting (`tasks/15-room3-request.md`)
 - [x] 16. Room-3 Reply Parsing and Strict Re-prompt (`tasks/16-room3-parser-reprompt.md`)
-- [ ] 17. Room-1 Final Replies + Cleanup CAS Trigger (`tasks/17-final-reply-reaction-cas.md`)
+- [x] 17. Room-1 Final Replies + Cleanup CAS Trigger (`tasks/17-final-reply-reaction-cas.md`)
 - [ ] 18. Cleanup Execution + Retry Exhaustion + Recovery E2E (`tasks/18-cleanup-retry-recovery-e2e.md`)
 - [ ] 19. Prompt Templates Schema and Constraints (`tasks/19-prompt-templates-schema.md`)
 - [ ] 20. Prompt Template Repository and Active Version Service (`tasks/20-prompt-template-repository.md`)

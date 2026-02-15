@@ -14,11 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from triage_automation.application.ports.case_repository_port import (
     CaseCreateInput,
     CaseDoctorDecisionSnapshot,
+    CaseFinalReplySnapshot,
     CaseRecord,
     CaseRepositoryPort,
     CaseRoom2WidgetSnapshot,
     DoctorDecisionUpdateInput,
     DuplicateCaseOriginEventError,
+    Room1FinalReplyReactionSnapshot,
     SchedulerDecisionUpdateInput,
 )
 from triage_automation.domain.case_status import CaseStatus
@@ -214,6 +216,121 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 appointment_reason=payload.appointment_reason,
                 appointment_decided_at=sa.func.current_timestamp(),
                 status=target_status.value,
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            result = cast(CursorResult[Any], await session.execute(statement))
+            await session.commit()
+
+        return int(result.rowcount or 0) == 1
+
+    async def get_case_final_reply_snapshot(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseFinalReplySnapshot | None:
+        statement = sa.select(
+            cases.c.case_id,
+            cases.c.status,
+            cases.c.room1_origin_room_id,
+            cases.c.room1_origin_event_id,
+            cases.c.room1_final_reply_event_id,
+            cases.c.doctor_reason,
+            cases.c.appointment_at,
+            cases.c.appointment_location,
+            cases.c.appointment_instructions,
+            cases.c.appointment_reason,
+        ).where(cases.c.case_id == case_id)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        row = result.mappings().first()
+        if row is None:
+            return None
+
+        return CaseFinalReplySnapshot(
+            case_id=cast("Any", row["case_id"]),
+            status=CaseStatus(cast(str, row["status"])),
+            room1_origin_room_id=cast(str, row["room1_origin_room_id"]),
+            room1_origin_event_id=cast(str, row["room1_origin_event_id"]),
+            room1_final_reply_event_id=cast(str | None, row["room1_final_reply_event_id"]),
+            doctor_reason=cast(str | None, row["doctor_reason"]),
+            appointment_at=cast(datetime | None, row["appointment_at"]),
+            appointment_location=cast(str | None, row["appointment_location"]),
+            appointment_instructions=cast(str | None, row["appointment_instructions"]),
+            appointment_reason=cast(str | None, row["appointment_reason"]),
+        )
+
+    async def mark_room1_final_reply_posted(
+        self,
+        *,
+        case_id: UUID,
+        room1_final_reply_event_id: str,
+    ) -> bool:
+        statement = (
+            sa.update(cases)
+            .where(
+                cases.c.case_id == case_id,
+                cases.c.room1_final_reply_event_id.is_(None),
+            )
+            .values(
+                room1_final_reply_event_id=room1_final_reply_event_id,
+                room1_final_reply_posted_at=sa.func.current_timestamp(),
+                status=CaseStatus.WAIT_R1_CLEANUP_THUMBS.value,
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            result = cast(CursorResult[Any], await session.execute(statement))
+            await session.commit()
+
+        return int(result.rowcount or 0) == 1
+
+    async def get_by_room1_final_reply_event_id(
+        self,
+        *,
+        room1_final_reply_event_id: str,
+    ) -> Room1FinalReplyReactionSnapshot | None:
+        statement = sa.select(
+            cases.c.case_id,
+            cases.c.status,
+            cases.c.cleanup_triggered_at,
+        ).where(cases.c.room1_final_reply_event_id == room1_final_reply_event_id)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        row = result.mappings().first()
+        if row is None:
+            return None
+
+        return Room1FinalReplyReactionSnapshot(
+            case_id=cast("Any", row["case_id"]),
+            status=CaseStatus(cast(str, row["status"])),
+            cleanup_triggered_at=cast(datetime | None, row["cleanup_triggered_at"]),
+        )
+
+    async def claim_cleanup_trigger_if_first(
+        self,
+        *,
+        case_id: UUID,
+        reactor_user_id: str,
+    ) -> bool:
+        statement = (
+            sa.update(cases)
+            .where(
+                cases.c.case_id == case_id,
+                cases.c.status == CaseStatus.WAIT_R1_CLEANUP_THUMBS.value,
+                cases.c.cleanup_triggered_at.is_(None),
+            )
+            .values(
+                cleanup_triggered_at=sa.func.current_timestamp(),
+                cleanup_triggered_by_user_id=reactor_user_id,
+                status=CaseStatus.CLEANUP_RUNNING.value,
                 updated_at=sa.func.current_timestamp(),
             )
         )

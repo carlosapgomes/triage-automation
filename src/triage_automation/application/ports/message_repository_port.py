@@ -22,6 +22,14 @@ class CaseMessageCreateInput:
     sender_user_id: str | None = None
 
 
+@dataclass(frozen=True)
+class CaseMessageLookup:
+    """Resolved case message mapping for room/event lookups."""
+
+    case_id: UUID
+    kind: str
+
+
 class MessageRepositoryPort(Protocol):
     """Async case message repository contract."""
 
@@ -39,3 +47,11 @@ class MessageRepositoryPort(Protocol):
         kind: str,
     ) -> UUID | None:
         """Resolve case_id for a known room/event/kind mapping."""
+
+    async def get_case_message_by_room_event(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+    ) -> CaseMessageLookup | None:
+        """Resolve case_id and kind for a room/event mapping."""

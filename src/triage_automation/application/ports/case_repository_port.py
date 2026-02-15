@@ -83,6 +83,31 @@ class SchedulerDecisionUpdateInput:
     appointment_reason: str | None
 
 
+@dataclass(frozen=True)
+class CaseFinalReplySnapshot:
+    """Case fields required by Room-1 final reply posting handlers."""
+
+    case_id: UUID
+    status: CaseStatus
+    room1_origin_room_id: str
+    room1_origin_event_id: str
+    room1_final_reply_event_id: str | None
+    doctor_reason: str | None
+    appointment_at: datetime | None
+    appointment_location: str | None
+    appointment_instructions: str | None
+    appointment_reason: str | None
+
+
+@dataclass(frozen=True)
+class Room1FinalReplyReactionSnapshot:
+    """Case fields required by Room-1 final reaction cleanup trigger logic."""
+
+    case_id: UUID
+    status: CaseStatus
+    cleanup_triggered_at: datetime | None
+
+
 class CaseRepositoryPort(Protocol):
     """Async case repository contract."""
 
@@ -117,6 +142,36 @@ class CaseRepositoryPort(Protocol):
         payload: SchedulerDecisionUpdateInput,
     ) -> bool:
         """CAS update from WAIT_APPT to appointment decision state; returns whether applied."""
+
+    async def get_case_final_reply_snapshot(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseFinalReplySnapshot | None:
+        """Load case fields needed to render and post final Room-1 reply message."""
+
+    async def mark_room1_final_reply_posted(
+        self,
+        *,
+        case_id: UUID,
+        room1_final_reply_event_id: str,
+    ) -> bool:
+        """Set final reply linkage and transition to WAIT_R1_CLEANUP_THUMBS once."""
+
+    async def get_by_room1_final_reply_event_id(
+        self,
+        *,
+        room1_final_reply_event_id: str,
+    ) -> Room1FinalReplyReactionSnapshot | None:
+        """Resolve case by Room-1 final reply event id for cleanup reaction routing."""
+
+    async def claim_cleanup_trigger_if_first(
+        self,
+        *,
+        case_id: UUID,
+        reactor_user_id: str,
+    ) -> bool:
+        """CAS claim of cleanup trigger (first thumbs only) and move status to CLEANUP_RUNNING."""
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""

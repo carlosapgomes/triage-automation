@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
+    CaseMessageLookup,
     DuplicateCaseMessageError,
     MessageRepositoryPort,
 )
@@ -83,3 +84,31 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
         if isinstance(case_id, UUID):
             return case_id
         return UUID(str(case_id))
+
+    async def get_case_message_by_room_event(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+    ) -> CaseMessageLookup | None:
+        statement = sa.select(
+            case_messages.c.case_id,
+            case_messages.c.kind,
+        ).where(
+            case_messages.c.room_id == room_id,
+            case_messages.c.event_id == event_id,
+        ).limit(1)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+
+        row = result.mappings().first()
+        if row is None:
+            return None
+
+        raw_case_id = row["case_id"]
+        case_id = raw_case_id if isinstance(raw_case_id, UUID) else UUID(str(raw_case_id))
+        return CaseMessageLookup(
+            case_id=case_id,
+            kind=str(row["kind"]),
+        )
