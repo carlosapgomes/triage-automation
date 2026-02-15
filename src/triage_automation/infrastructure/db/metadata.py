@@ -145,3 +145,37 @@ jobs = sa.Table(
 
 sa.Index("ix_jobs_status_run_after", jobs.c.status, jobs.c.run_after)
 sa.Index("ix_jobs_case_id", jobs.c.case_id)
+
+prompt_templates = sa.Table(
+    "prompt_templates",
+    metadata,
+    sa.Column("id", sa.Uuid(), primary_key=True, nullable=False),
+    sa.Column("name", sa.Text(), nullable=False),
+    sa.Column("version", sa.Integer(), nullable=False),
+    sa.Column("content", sa.Text(), nullable=False),
+    sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+    sa.Column(
+        "created_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.Column(
+        "updated_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.Column("updated_by_user_id", sa.Uuid(), nullable=True),
+    sa.UniqueConstraint("name", "version", name="uq_prompt_templates_name_version"),
+    sa.CheckConstraint("version > 0", name="ck_prompt_templates_version_positive"),
+)
+
+sa.Index("ix_prompt_templates_name", prompt_templates.c.name)
+sa.Index(
+    "ux_prompt_templates_name_active_true",
+    prompt_templates.c.name,
+    unique=True,
+    sqlite_where=sa.text("is_active = 1"),
+    postgresql_where=sa.text("is_active = true"),
+)
