@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Triage automation services"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+  "pydantic>=2.11.9,<3",
+  "pydantic-settings>=2.11.0,<3",
+]
 
 [dependency-groups]
 dev = [
