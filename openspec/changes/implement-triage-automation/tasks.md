@@ -11,7 +11,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 05. Case/Audit/Message Repositories (`tasks/05-case-audit-message-repos.md`)
 - [x] 06. Postgres Job Queue (SKIP LOCKED) (`tasks/06-job-queue-skip-locked.md`)
 - [x] 07. Worker Runtime and Boot Reconciliation (`tasks/07-worker-runtime-reconciliation.md`)
-- [ ] 08. Room-1 PDF Intake Flow (`tasks/08-room1-intake.md`)
+- [x] 08. Room-1 PDF Intake Flow (`tasks/08-room1-intake.md`)
 - [ ] 09. PDF Download and Text Extraction (`tasks/09-process-pdf-download-extract.md`)
 - [ ] 10. Record Number Extraction and Stripping (`tasks/10-record-number-strip.md`)
 - [ ] 11. LLM1 Integration and Validation (`tasks/11-llm1-validation.md`)
