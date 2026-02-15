@@ -30,11 +30,11 @@ Excluded: Room-3 reply parsing flow.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] Room-1 cleanup trigger semantics remain unchanged
-- [ ] Room-2/3 thumbs remain audit-only
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] Room-1 cleanup trigger semantics remain unchanged
+- [x] Room-2/3 thumbs remain audit-only
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

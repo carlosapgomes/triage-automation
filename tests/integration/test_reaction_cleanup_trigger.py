@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from alembic.config import Config
 
 from alembic import command
+from apps.bot_matrix.main import poll_reaction_events_once
 from triage_automation.application.ports.case_repository_port import CaseCreateInput
 from triage_automation.application.ports.message_repository_port import CaseMessageCreateInput
 from triage_automation.application.services.reaction_service import (
@@ -23,6 +24,16 @@ from triage_automation.infrastructure.db.message_repository import SqlAlchemyMes
 from triage_automation.infrastructure.db.session import create_session_factory
 
 
+class _FakeSyncClient:
+    def __init__(self, sync_payload: dict[str, object]) -> None:
+        self._sync_payload = sync_payload
+        self.calls: list[tuple[str | None, int]] = []
+
+    async def sync(self, *, since: str | None, timeout_ms: int) -> dict[str, object]:
+        self.calls.append((since, timeout_ms))
+        return self._sync_payload
+
+
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
     db_path = tmp_path / filename
     sync_url = f"sqlite+pysqlite:///{db_path}"
@@ -33,6 +44,43 @@ def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
     command.upgrade(alembic_config, "head")
 
     return sync_url, async_url
+
+
+def _reaction_event(
+    *,
+    event_id: str,
+    sender: str,
+    related_event_id: str,
+    key: str = "👍",
+) -> dict[str, object]:
+    return {
+        "type": "m.reaction",
+        "event_id": event_id,
+        "sender": sender,
+        "content": {
+            "m.relates_to": {
+                "rel_type": "m.annotation",
+                "event_id": related_event_id,
+                "key": key,
+            }
+        },
+    }
+
+
+def _sync_payload_with_room_events(
+    *,
+    next_batch: str,
+    by_room: dict[str, list[dict[str, object]]],
+) -> dict[str, object]:
+    return {
+        "next_batch": next_batch,
+        "rooms": {
+            "join": {
+                room_id: {"timeline": {"events": events}}
+                for room_id, events in by_room.items()
+            }
+        },
+    }
 
 
 @pytest.mark.asyncio
@@ -216,5 +264,206 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
         ).scalar_one()
 
     assert int(cleanup_job_count) == 0
+    assert int(room2_audit) == 1
+    assert int(room3_audit) == 1
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_routes_room1_thumbs_to_cleanup_trigger_path(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "reaction_listener_room1.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    job_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_R1_CLEANUP_THUMBS,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-reaction-runtime-room1",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET room1_final_reply_event_id = :event_id "
+                "WHERE case_id = :case_id"
+            ),
+            {"event_id": "$room1-final-runtime-1", "case_id": case.case_id.hex},
+        )
+
+    service = ReactionService(
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        job_queue=job_repo,
+    )
+    sync_client = _FakeSyncClient(
+        _sync_payload_with_room_events(
+            next_batch="s-room1",
+            by_room={
+                "!room1:example.org": [
+                    _reaction_event(
+                        event_id="$reaction-runtime-room1",
+                        sender="@nurse:example.org",
+                        related_event_id="$room1-final-runtime-1",
+                    )
+                ]
+            },
+        )
+    )
+
+    next_since, routed_count = await poll_reaction_events_once(
+        matrix_client=sync_client,
+        reaction_service=service,
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room1"
+    assert routed_count == 1
+
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, cleanup_triggered_at FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+        cleanup_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs WHERE case_id = :case_id "
+                "AND job_type = 'execute_cleanup'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    assert case_row["status"] == "CLEANUP_RUNNING"
+    assert case_row["cleanup_triggered_at"] is not None
+    assert int(cleanup_jobs) == 1
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "reaction_listener_room2_room3.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    job_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-reaction-runtime-room23",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    await message_repo.add_message(
+        CaseMessageCreateInput(
+            case_id=case.case_id,
+            room_id="!room2:example.org",
+            event_id="$room2-ack-runtime",
+            sender_user_id=None,
+            kind="bot_ack",
+        )
+    )
+    await message_repo.add_message(
+        CaseMessageCreateInput(
+            case_id=case.case_id,
+            room_id="!room3:example.org",
+            event_id="$room3-ack-runtime",
+            sender_user_id=None,
+            kind="bot_ack",
+        )
+    )
+
+    service = ReactionService(
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        job_queue=job_repo,
+    )
+    sync_client = _FakeSyncClient(
+        _sync_payload_with_room_events(
+            next_batch="s-room23",
+            by_room={
+                "!room2:example.org": [
+                    _reaction_event(
+                        event_id="$reaction-runtime-room2",
+                        sender="@doctor:example.org",
+                        related_event_id="$room2-ack-runtime",
+                    )
+                ],
+                "!room3:example.org": [
+                    _reaction_event(
+                        event_id="$reaction-runtime-room3",
+                        sender="@scheduler:example.org",
+                        related_event_id="$room3-ack-runtime",
+                    )
+                ],
+            },
+        )
+    )
+
+    next_since, routed_count = await poll_reaction_events_once(
+        matrix_client=sync_client,
+        reaction_service=service,
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        bot_user_id="@bot:example.org",
+        since_token="s-prev",
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room23"
+    assert routed_count == 2
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        cleanup_jobs = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM jobs WHERE case_id = :case_id "
+                "AND job_type = 'execute_cleanup'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room2_audit = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
+                "AND event_type = 'ROOM2_ACK_THUMBS_UP_RECEIVED'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+        room3_audit = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
+                "AND event_type = 'ROOM3_ACK_THUMBS_UP_RECEIVED'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    assert int(cleanup_jobs) == 0
     assert int(room2_audit) == 1
     assert int(room3_audit) == 1
