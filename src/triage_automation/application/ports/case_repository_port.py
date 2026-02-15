@@ -46,3 +46,15 @@ class CaseRepositoryPort(Protocol):
 
     async def get_case_by_origin_event_id(self, origin_event_id: str) -> CaseRecord | None:
         """Retrieve case by Room-1 origin event id."""
+
+    async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
+        """Update case status and touch updated_at timestamp."""
+
+    async def store_pdf_extraction(
+        self,
+        *,
+        case_id: UUID,
+        pdf_mxc_url: str,
+        extracted_text: str,
+    ) -> None:
+        """Persist PDF source and extracted text fields."""

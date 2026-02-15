@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, cast
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.engine import RowMapping
@@ -96,3 +97,35 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         if row is None:
             return None
         return _to_case_record(row)
+
+    async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
+        statement = (
+            sa.update(cases)
+            .where(cases.c.case_id == case_id)
+            .values(status=status.value, updated_at=sa.func.current_timestamp())
+        )
+
+        async with self._session_factory() as session:
+            await session.execute(statement)
+            await session.commit()
+
+    async def store_pdf_extraction(
+        self,
+        *,
+        case_id: UUID,
+        pdf_mxc_url: str,
+        extracted_text: str,
+    ) -> None:
+        statement = (
+            sa.update(cases)
+            .where(cases.c.case_id == case_id)
+            .values(
+                pdf_mxc_url=pdf_mxc_url,
+                extracted_text=extracted_text,
+                updated_at=sa.func.current_timestamp(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            await session.execute(statement)
+            await session.commit()
