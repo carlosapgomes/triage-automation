@@ -42,6 +42,7 @@ from triage_automation.infrastructure.db.prompt_template_repository import (
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.worker_bootstrap import reconcile_running_jobs
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
+from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
 from triage_automation.infrastructure.matrix.mxc_downloader import MatrixMxcDownloader
 from triage_automation.infrastructure.pdf.text_extractor import PdfTextExtractor
 
@@ -60,26 +61,6 @@ class MatrixRuntimeClientPort(Protocol):
 
     async def download_mxc(self, mxc_url: str) -> bytes:
         """Download raw bytes for an MXC URI."""
-
-
-class _PlaceholderMatrixRuntimeClient:
-    """Fallback runtime Matrix client until live adapter wiring is implemented."""
-
-    async def send_text(self, *, room_id: str, body: str) -> str:
-        _ = room_id, body
-        raise NotImplementedError("runtime Matrix send_text adapter is not configured yet")
-
-    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
-        _ = room_id, event_id, body
-        raise NotImplementedError("runtime Matrix reply_text adapter is not configured yet")
-
-    async def redact_event(self, *, room_id: str, event_id: str) -> None:
-        _ = room_id, event_id
-        raise NotImplementedError("runtime Matrix redact_event adapter is not configured yet")
-
-    async def download_mxc(self, mxc_url: str) -> bytes:
-        _ = mxc_url
-        raise NotImplementedError("runtime Matrix download_mxc adapter is not configured yet")
 
 
 class _PlaceholderLlmClient:
@@ -258,7 +239,11 @@ def build_worker_runtime(
 ) -> WorkerRuntime:
     """Build worker runtime with composed repositories, handlers, and failure hooks."""
 
-    runtime_matrix_client = matrix_client or _PlaceholderMatrixRuntimeClient()
+    runtime_matrix_client = matrix_client or MatrixHttpClient(
+        homeserver_url=str(settings.matrix_homeserver_url),
+        access_token=settings.matrix_access_token,
+        timeout_seconds=settings.matrix_sync_timeout_ms / 1000,
+    )
     runtime_llm1_client = llm1_client or _PlaceholderLlmClient(stage="llm1")
     runtime_llm2_client = llm2_client or _PlaceholderLlmClient(stage="llm2")
 

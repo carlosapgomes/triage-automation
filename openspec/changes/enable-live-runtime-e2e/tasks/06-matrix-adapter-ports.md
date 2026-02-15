@@ -29,11 +29,11 @@ Excluded: event loop routing logic (next slices).
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] all required Matrix ports have concrete implementations
-- [ ] adapters contain no business logic
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] all required Matrix ports have concrete implementations
+- [x] adapters contain no business logic
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
