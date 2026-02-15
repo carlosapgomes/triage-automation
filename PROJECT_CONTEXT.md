@@ -60,6 +60,8 @@ Dependency direction:
 - Invalid Room-3 scheduler reply always gets strict re-prompt and remains in `WAIT_APPT`.
 - Webhook auth mode for now: HMAC only.
 - On startup reconciliation, stale `jobs.status='running'` must be reset to `queued` with unchanged `attempts`.
+- Auth foundation token strategy: opaque tokens (not JWT).
+- Prompt bootstrap strategy: seed default active prompt templates in migration.
 
 ## Core Data Model (Authoritative)
 - `cases`: case lifecycle, decisions, appointment fields, final-reply and cleanup timestamps, artifacts.
@@ -80,6 +82,7 @@ Implementation note: although the enum includes `R1_FINAL_REPLY_POSTED`, current
   - `uv run pytest ...`
   - `uv run ruff check .`
   - `uv run mypy src apps`
+- Commit after each completed slice with a meaningful message before moving to the next slice.
 - Stop after the slice completes. Do not pre-implement future slices.
 
 ## Pre-Slice Read Sequence

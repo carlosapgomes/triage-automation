@@ -19,11 +19,13 @@ Excluded: prompt editing APIs or UI.
 - LLM2 loads active prompt by configured prompt name.
 - If active prompt missing, job fails explicitly and is retriable.
 - Audit event payload includes prompt name and version used.
+- Default configured prompt names resolve to seeded rows: `llm1_system`, `llm1_user`, `llm2_system`, `llm2_user`.
 
 ## Implementation steps
 1. Inject prompt template service into LLM services.
 2. Replace static prompt source with active DB prompt retrieval.
 3. Append prompt version metadata in audit events.
+4. Wire default prompt-name config to seeded names.
 
 ## Refactor steps
 - Move prompt loading into shared helper to avoid duplication.

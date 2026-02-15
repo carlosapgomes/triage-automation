@@ -4,7 +4,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 
 ## Progress
 
-- [ ] 01. Project Bootstrap and Quality Gates (`tasks/01-bootstrap-quality-gates.md`)
+- [x] 01. Project Bootstrap and Quality Gates (`tasks/01-bootstrap-quality-gates.md`)
 - [ ] 02. Runtime Config and Docker Compose Baseline (`tasks/02-config-compose.md`)
 - [ ] 03. Initial Postgres Schema and Migrations (`tasks/03-db-schema-migrations.md`)
 - [ ] 04. Domain Status and Transition Guards (`tasks/04-state-transitions.md`)
@@ -35,5 +35,15 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 1. Read `PROJECT_CONTEXT.md`.
 2. Open `tasks.md` and pick the first unchecked slice.
 3. Execute only that slice file.
-4. Mark it complete in this file after verification (`pytest`, `ruff`, `mypy`).
-5. Stop before starting the next slice.
+4. Verify slice with `pytest`, `ruff`, and `mypy`.
+5. Commit that slice with a meaningful message.
+6. Mark it complete in this file.
+7. Stop before starting the next slice.
+
+## Commit Rule
+
+- Commit after every slice completion.
+- Commit scope must be only the current slice.
+- Commit message format:
+  - `slice-XX: <short meaningful summary>`
+  - Example: `slice-08: implement Room-1 PDF intake idempotency and queue enqueue`
