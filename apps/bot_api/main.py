@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import ValidationError
 
@@ -29,6 +30,9 @@ from triage_automation.infrastructure.http.auth_router import build_auth_router
 from triage_automation.infrastructure.http.hmac_auth import verify_hmac_signature
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
+
+BOT_API_HOST = "0.0.0.0"
+BOT_API_PORT = 8000
 
 
 def build_decision_service(database_url: str) -> HandleDoctorDecisionService:
@@ -140,10 +144,42 @@ def create_app(
     return app
 
 
-def main() -> None:
-    """Load configuration for bot-api process startup validation."""
+def build_runtime_app(
+    *,
+    webhook_hmac_secret: str | None = None,
+    decision_service: HandleDoctorDecisionService | None = None,
+    auth_service: AuthService | None = None,
+    auth_token_repository: AuthTokenRepositoryPort | None = None,
+    token_service: OpaqueTokenService | None = None,
+    database_url: str | None = None,
+) -> FastAPI:
+    """Build runtime FastAPI application preserving existing endpoint contracts."""
 
-    load_settings()
+    return create_app(
+        webhook_hmac_secret=webhook_hmac_secret,
+        decision_service=decision_service,
+        auth_service=auth_service,
+        auth_token_repository=auth_token_repository,
+        token_service=token_service,
+        database_url=database_url,
+    )
+
+
+def run_asgi_server(*, host: str = BOT_API_HOST, port: int = BOT_API_PORT) -> None:
+    """Run bot-api as a long-lived ASGI process using application factory mode."""
+
+    uvicorn.run(
+        "apps.bot_api.main:create_app",
+        host=host,
+        port=port,
+        factory=True,
+    )
+
+
+def main() -> None:
+    """Run bot-api runtime process."""
+
+    run_asgi_server()
 
 
 if __name__ == "__main__":

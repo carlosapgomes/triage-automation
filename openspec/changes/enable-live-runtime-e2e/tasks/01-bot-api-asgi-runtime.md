@@ -30,11 +30,11 @@ Excluded: new API routes, payload contract changes, business logic redesign.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing tests written first
-- [ ] bot-api serves existing routes in runtime mode
-- [ ] no webhook/login behavior change
-- [ ] public docstrings and typed signatures preserved
-- [ ] verification commands pass
+- [x] failing tests written first
+- [x] bot-api serves existing routes in runtime mode
+- [x] no webhook/login behavior change
+- [x] public docstrings and typed signatures preserved
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
