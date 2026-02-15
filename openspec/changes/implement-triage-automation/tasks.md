@@ -7,7 +7,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 - [x] 01. Project Bootstrap and Quality Gates (`tasks/01-bootstrap-quality-gates.md`)
 - [x] 02. Runtime Config and Docker Compose Baseline (`tasks/02-config-compose.md`)
 - [x] 03. Initial Postgres Schema and Migrations (`tasks/03-db-schema-migrations.md`)
-- [ ] 04. Domain Status and Transition Guards (`tasks/04-state-transitions.md`)
+- [x] 04. Domain Status and Transition Guards (`tasks/04-state-transitions.md`)
 - [ ] 05. Case/Audit/Message Repositories (`tasks/05-case-audit-message-repos.md`)
 - [ ] 06. Postgres Job Queue (SKIP LOCKED) (`tasks/06-job-queue-skip-locked.md`)
 - [ ] 07. Worker Runtime and Boot Reconciliation (`tasks/07-worker-runtime-reconciliation.md`)
