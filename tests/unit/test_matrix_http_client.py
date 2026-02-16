@@ -144,6 +144,34 @@ async def test_download_mxc_fetches_media_bytes() -> None:
     assert transport.calls[0]["method"] == "GET"
     assert (
         str(transport.calls[0]["url"])
+        == "https://matrix.example.org/_matrix/client/v1/media/download/example.org/media-id"
+    )
+
+
+@pytest.mark.asyncio
+async def test_download_mxc_falls_back_to_media_v3_when_client_v1_returns_not_found() -> None:
+    transport = _QueuedTransport(
+        responses=[
+            MatrixHttpResponse(status_code=404, body_bytes=b'{"errcode":"M_NOT_FOUND"}'),
+            MatrixHttpResponse(status_code=200, body_bytes=b"%PDF..."),
+        ]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    payload = await client.download_mxc("mxc://example.org/media-id")
+
+    assert payload == b"%PDF..."
+    assert len(transport.calls) == 2
+    assert (
+        str(transport.calls[0]["url"])
+        == "https://matrix.example.org/_matrix/client/v1/media/download/example.org/media-id"
+    )
+    assert (
+        str(transport.calls[1]["url"])
         == "https://matrix.example.org/_matrix/media/v3/download/example.org/media-id"
     )
 

@@ -28,7 +28,9 @@ class MatrixMxcDownloader:
         try:
             payload = await self._media_client.download_mxc(mxc_url)
         except Exception as error:  # noqa: BLE001
-            raise MxcDownloadError(f"Failed to download MXC content: {mxc_url}") from error
+            raise MxcDownloadError(
+                f"Failed to download MXC content: {mxc_url} ({error})"
+            ) from error
 
         if not payload:
             raise MxcDownloadError(f"Downloaded empty payload for MXC URI: {mxc_url}")

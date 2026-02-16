@@ -46,6 +46,12 @@ class MatrixTransportError(MatrixAdapterError):
 class MatrixRequestError(MatrixAdapterError):
     """Raised when Matrix responds with a non-success HTTP status code."""
 
+    def __init__(self, *, operation: str, status_code: int, details: str) -> None:
+        self.operation = operation
+        self.status_code = status_code
+        self.details = details
+        super().__init__(f"{operation} failed with status {status_code}: {details}")
+
 
 class UrllibMatrixHttpTransport:
     """urllib-based async transport implementation for Matrix HTTP calls."""
@@ -163,18 +169,39 @@ class MatrixHttpClient:
         """Download MXC media payload bytes."""
 
         server_name, media_id = _parse_mxc_url(mxc_url)
-        path = (
-            "/_matrix/media/v3/download/"
-            f"{quote(server_name, safe='')}/{quote(media_id, safe='')}"
-        )
-        response = await self._request_bytes(
-            operation="download_mxc",
-            method="GET",
-            path=path,
-            body=None,
-            content_type=None,
-        )
-        return response.body_bytes
+        candidate_paths = [
+            (
+                "/_matrix/client/v1/media/download/"
+                f"{quote(server_name, safe='')}/{quote(media_id, safe='')}"
+            ),
+            (
+                "/_matrix/media/v3/download/"
+                f"{quote(server_name, safe='')}/{quote(media_id, safe='')}"
+            ),
+        ]
+
+        last_error: MatrixRequestError | None = None
+        for path in candidate_paths:
+            try:
+                response = await self._request_bytes(
+                    operation="download_mxc",
+                    method="GET",
+                    path=path,
+                    body=None,
+                    content_type=None,
+                )
+                return response.body_bytes
+            except MatrixRequestError as error:
+                # Some homeservers expose authenticated media on client/v1 only.
+                if error.status_code == 404:
+                    last_error = error
+                    continue
+                raise
+
+        if last_error is not None:
+            raise last_error
+
+        raise MatrixAdapterError("download_mxc failed: no media download path succeeded")
 
     async def sync(self, *, since: str | None, timeout_ms: int) -> dict[str, object]:
         """Fetch Matrix sync response for timeline polling."""
@@ -248,7 +275,9 @@ class MatrixHttpClient:
         if response.status_code < 200 or response.status_code >= 300:
             details = _decode_error_payload(response.body_bytes)
             raise MatrixRequestError(
-                f"{operation} failed with status {response.status_code}: {details}"
+                operation=operation,
+                status_code=response.status_code,
+                details=details,
             )
 
         return response
