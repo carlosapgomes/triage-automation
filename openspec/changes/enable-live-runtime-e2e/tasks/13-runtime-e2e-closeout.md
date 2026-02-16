@@ -29,10 +29,10 @@ Excluded: new feature implementation.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] full quality suite is green
-- [ ] runtime smoke workflow validated
-- [ ] residual exceptions/risks documented with rationale
-- [ ] maintenance rules documented for future slices
+- [x] full quality suite is green
+- [x] runtime smoke workflow validated
+- [x] residual exceptions/risks documented with rationale
+- [x] maintenance rules documented for future slices
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice
