@@ -46,6 +46,7 @@ Login/Auth ----------> bot-api ---/
 ## Project Docs
 
 - Setup: `docs/setup.md`
+- Runtime smoke runbook: `docs/runtime-smoke.md`
 - Architecture: `docs/architecture.md`
 - Security: `docs/security.md`
 - Internal implementation context: `PROJECT_CONTEXT.md`

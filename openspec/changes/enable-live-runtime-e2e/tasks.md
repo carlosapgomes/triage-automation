@@ -27,7 +27,7 @@ Tracking rule: complete slices strictly in order. Each slice is independently te
 
 ## 5. Manual E2E Readiness and Closeout
 
-- [ ] 5.1 Document and validate local + Cloudflare tunnel smoke workflow (`tasks/12-manual-e2e-runbook.md`)
+- [x] 5.1 Document and validate local + Cloudflare tunnel smoke workflow (`tasks/12-manual-e2e-runbook.md`)
 - [ ] 5.2 Run full verification and close out runtime-readiness implementation (`tasks/13-runtime-e2e-closeout.md`)
 
 ## Resume Protocol

@@ -31,11 +31,11 @@ Excluded: deployment platform redesign.
 - `uv run mypy src apps`
 
 ## Mandatory checklist
-- [ ] failing validations/tests written first where applicable
-- [ ] runbook covers local and tunneled webhook checks
-- [ ] runtime commands are parity-checked (`uv` and compose)
-- [ ] public docstrings and typed signatures preserved in touched code
-- [ ] verification commands pass
+- [x] failing validations/tests written first where applicable
+- [x] runbook covers local and tunneled webhook checks
+- [x] runtime commands are parity-checked (`uv` and compose)
+- [x] public docstrings and typed signatures preserved in touched code
+- [x] verification commands pass
 
 ## STOP RULE
-- [ ] stop here and do not start next slice
+- [x] stop here and do not start next slice

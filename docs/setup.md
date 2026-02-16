@@ -52,6 +52,15 @@ uv run pytest -q
 docker compose up --build
 ```
 
+## 6. Runtime smoke validation (recommended before manual E2E)
+
+Follow `docs/runtime-smoke.md` to validate:
+
+- local `uv` runtime process startup
+- webhook HMAC validation (invalid and valid signature paths)
+- Cloudflare tunnel callback reachability
+- deterministic LLM runtime mode for provider-unavailable testing
+
 ## Common commands
 
 - Create migration:
