@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -28,6 +29,8 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_ack_message,
     build_room2_widget_message,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixRoomPosterPort(Protocol):
@@ -71,6 +74,7 @@ class PostRoom2WidgetService:
     async def post_widget(self, *, case_id: UUID) -> dict[str, object]:
         """Post Room-2 widget and ack messages for a case ready for doctor review."""
 
+        logger.info("room2_widget_post_started case_id=%s", case_id)
         case = await self._case_repository.get_case_room2_widget_snapshot(case_id=case_id)
         if case is None:
             raise PostRoom2WidgetRetriableError(cause="room2", details="Case not found")
@@ -107,6 +111,12 @@ class PostRoom2WidgetService:
             agency_record_number=case.agency_record_number,
             now=datetime.now(tz=UTC),
         )
+        logger.info(
+            "room2_widget_prior_lookup case_id=%s prior_case_found=%s prior_denial_count_7d=%s",
+            case_id,
+            prior_context.prior_case is not None,
+            prior_context.prior_denial_count_7d,
+        )
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(
@@ -137,6 +147,12 @@ class PostRoom2WidgetService:
             room_id=self._room2_id,
             body=widget_body,
         )
+        logger.info(
+            "room2_widget_posted case_id=%s room_id=%s event_id=%s",
+            case.case_id,
+            self._room2_id,
+            widget_event_id,
+        )
 
         await self._message_repository.add_message(
             CaseMessageCreateInput(
@@ -164,6 +180,12 @@ class PostRoom2WidgetService:
 
         ack_body = build_room2_ack_message(case_id=case.case_id)
         ack_event_id = await self._matrix_poster.send_text(room_id=self._room2_id, body=ack_body)
+        logger.info(
+            "room2_ack_posted case_id=%s room_id=%s event_id=%s",
+            case.case_id,
+            self._room2_id,
+            ack_event_id,
+        )
 
         await self._message_repository.add_message(
             CaseMessageCreateInput(
@@ -211,6 +233,11 @@ class PostRoom2WidgetService:
             )
         )
 
+        logger.info(
+            "room2_widget_post_completed case_id=%s to_status=%s",
+            case.case_id,
+            CaseStatus.WAIT_DOCTOR.value,
+        )
         return payload
 
 

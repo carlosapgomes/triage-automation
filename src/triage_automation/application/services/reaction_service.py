@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from triage_automation.application.ports.audit_repository_port import (
@@ -12,6 +13,8 @@ from triage_automation.application.ports.case_repository_port import CaseReposit
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
 from triage_automation.application.ports.message_repository_port import MessageRepositoryPort
 from triage_automation.domain.case_status import CaseStatus
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,17 @@ class ReactionService:
     async def handle(self, event: ReactionEvent) -> ReactionResult:
         """Handle reaction event according to room-specific policy semantics."""
 
+        logger.info(
+            (
+                "reaction_received room_id=%s reaction_event_id=%s related_event_id=%s "
+                "reactor_user_id=%s reaction_key=%s"
+            ),
+            event.room_id,
+            event.reaction_event_id,
+            event.related_event_id,
+            event.reactor_user_id,
+            event.reaction_key,
+        )
         if event.reaction_key != "👍":
             return ReactionResult(processed=False, reason="not_thumbs_up")
 
@@ -139,6 +153,7 @@ class ReactionService:
                 payload={},
             )
         )
+        logger.info("reaction_triggered_cleanup case_id=%s", snapshot.case_id)
         return ReactionResult(processed=True)
 
     async def _handle_room2_or_room3_ack_thumbs(self, event: ReactionEvent) -> ReactionResult:
@@ -164,4 +179,5 @@ class ReactionService:
                 payload={"related_event_id": event.related_event_id},
             )
         )
+        logger.info("reaction_ack_recorded case_id=%s room_id=%s", mapping.case_id, event.room_id)
         return ReactionResult(processed=True)

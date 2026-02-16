@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -17,6 +18,8 @@ from triage_automation.application.ports.job_queue_port import (
     JobRecord,
 )
 from triage_automation.infrastructure.db.metadata import jobs
+
+logger = logging.getLogger(__name__)
 
 
 class SqlAlchemyJobQueueRepository(JobQueuePort):
@@ -43,7 +46,21 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
             result = await session.execute(statement)
             await session.commit()
 
-        return _to_job_record(result.mappings().one())
+        job = _to_job_record(result.mappings().one())
+        logger.info(
+            (
+                "job_enqueued job_id=%s case_id=%s job_type=%s status=%s "
+                "attempts=%s max_attempts=%s run_after=%s"
+            ),
+            job.job_id,
+            job.case_id,
+            job.job_type,
+            job.status,
+            job.attempts,
+            job.max_attempts,
+            job.run_after.isoformat(),
+        )
+        return job
 
     async def claim_due_jobs(self, *, limit: int) -> list[JobRecord]:
         """Claim due queued jobs, marking them running, and return claimed rows."""
@@ -106,6 +123,7 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         async with self._session_factory() as session:
             await session.execute(statement)
             await session.commit()
+        logger.info("job_marked_done job_id=%s", job_id)
 
     async def mark_failed(self, *, job_id: int, last_error: str) -> None:
         """Mark a job as failed without retry scheduling."""
@@ -123,6 +141,7 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
         async with self._session_factory() as session:
             await session.execute(statement)
             await session.commit()
+        logger.warning("job_marked_failed job_id=%s error=%s", job_id, last_error)
 
     async def schedule_retry(
         self,
@@ -150,7 +169,15 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
             result = await session.execute(statement)
             await session.commit()
 
-        return _to_job_record(result.mappings().one())
+        job = _to_job_record(result.mappings().one())
+        logger.warning(
+            "job_retry_scheduled job_id=%s attempts=%s run_after=%s error=%s",
+            job.job_id,
+            job.attempts,
+            job.run_after.isoformat(),
+            last_error,
+        )
+        return job
 
     async def mark_dead(self, *, job_id: int, last_error: str) -> JobRecord:
         """Dead-letter a job with incremented attempts and error context."""
@@ -171,7 +198,14 @@ class SqlAlchemyJobQueueRepository(JobQueuePort):
             result = await session.execute(statement)
             await session.commit()
 
-        return _to_job_record(result.mappings().one())
+        job = _to_job_record(result.mappings().one())
+        logger.error(
+            "job_marked_dead job_id=%s attempts=%s error=%s",
+            job.job_id,
+            job.attempts,
+            last_error,
+        )
+        return job
 
     async def has_active_job(self, *, case_id: UUID, job_type: str) -> bool:
         """Return whether case has queued/running job of the given type."""

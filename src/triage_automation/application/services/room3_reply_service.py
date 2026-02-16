@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -23,6 +24,8 @@ from triage_automation.domain.scheduler_parser import SchedulerParseError, parse
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room3_invalid_format_reprompt,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,13 @@ class Room3ReplyService:
     async def handle_reply(self, event: Room3ReplyEvent) -> Room3ReplyResult:
         """Handle a Room-3 scheduler reply event using strict template rules."""
 
+        logger.info(
+            "room3_reply_received room_id=%s event_id=%s sender_user_id=%s reply_to=%s",
+            event.room_id,
+            event.event_id,
+            event.sender_user_id,
+            event.reply_to_event_id,
+        )
         if event.room_id != self._room3_id:
             return Room3ReplyResult(processed=False, reason="wrong_room")
 
@@ -87,6 +97,7 @@ class Room3ReplyService:
         )
         if case_id is None:
             return Room3ReplyResult(processed=False, reason="unknown_reply_target")
+        logger.info("room3_reply_mapped_to_case case_id=%s", case_id)
 
         snapshot = await self._case_repository.get_case_doctor_decision_snapshot(case_id=case_id)
         if snapshot is None:
@@ -102,6 +113,11 @@ class Room3ReplyService:
                     event_type="ROOM3_MESSAGE_IGNORED_CASE_NOT_WAITING",
                     payload={"status": snapshot.status.value},
                 )
+            )
+            logger.info(
+                "room3_reply_ignored_case_not_waiting case_id=%s status=%s",
+                case_id,
+                snapshot.status.value,
             )
             return Room3ReplyResult(processed=False, reason="case_not_waiting")
 
@@ -146,6 +162,12 @@ class Room3ReplyService:
                     kind="bot_reformat_prompt_room3",
                 )
             )
+            logger.warning(
+                "room3_reply_parse_failed case_id=%s reason=%s reprompt_event_id=%s",
+                case_id,
+                error.reason,
+                reprompt_event_id,
+            )
             return Room3ReplyResult(processed=False, reason="invalid_template")
 
         applied = await self._case_repository.apply_scheduler_decision_if_waiting(
@@ -160,6 +182,7 @@ class Room3ReplyService:
             )
         )
         if not applied:
+            logger.info("room3_reply_duplicate_or_race case_id=%s", case_id)
             return Room3ReplyResult(processed=False, reason="duplicate_or_race")
 
         await self._message_repository.add_message(
@@ -198,4 +221,10 @@ class Room3ReplyService:
             )
         )
 
+        logger.info(
+            "room3_reply_applied case_id=%s appointment_status=%s enqueued_job=%s",
+            case_id,
+            parsed.appointment_status,
+            next_job,
+        )
         return Room3ReplyResult(processed=True)

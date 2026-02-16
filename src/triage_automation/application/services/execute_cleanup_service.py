@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -12,6 +13,8 @@ from triage_automation.application.ports.audit_repository_port import (
 )
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
 from triage_automation.application.ports.message_repository_port import MessageRepositoryPort
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixRedactorPort(Protocol):
@@ -48,7 +51,9 @@ class ExecuteCleanupService:
     async def execute(self, *, case_id: UUID) -> ExecuteCleanupResult:
         """Redact all tracked case messages and mark case CLEANED."""
 
+        logger.info("cleanup_started case_id=%s", case_id)
         refs = await self._message_repository.list_message_refs_for_case(case_id=case_id)
+        logger.info("cleanup_refs_loaded case_id=%s message_refs=%s", case_id, len(refs))
 
         success_count = 0
         failed_count = 0
@@ -58,6 +63,13 @@ class ExecuteCleanupService:
                 await self._matrix_redactor.redact_event(room_id=ref.room_id, event_id=ref.event_id)
             except Exception as error:  # noqa: BLE001
                 failed_count += 1
+                logger.warning(
+                    "cleanup_redaction_failed case_id=%s room_id=%s event_id=%s error=%s",
+                    case_id,
+                    ref.room_id,
+                    ref.event_id,
+                    error,
+                )
                 await self._audit_repository.append_event(
                     AuditEventCreateInput(
                         case_id=case_id,
@@ -71,6 +83,12 @@ class ExecuteCleanupService:
                 continue
 
             success_count += 1
+            logger.info(
+                "cleanup_redaction_ok case_id=%s room_id=%s event_id=%s",
+                case_id,
+                ref.room_id,
+                ref.event_id,
+            )
             await self._audit_repository.append_event(
                 AuditEventCreateInput(
                     case_id=case_id,
@@ -95,6 +113,12 @@ class ExecuteCleanupService:
             )
         )
 
+        logger.info(
+            "cleanup_completed case_id=%s redacted_success=%s redacted_failed=%s",
+            case_id,
+            success_count,
+            failed_count,
+        )
         return ExecuteCleanupResult(
             redacted_success=success_count,
             redacted_failed=failed_count,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Any, cast
 from uuid import UUID
@@ -26,6 +27,8 @@ from triage_automation.application.ports.case_repository_port import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.metadata import cases
+
+logger = logging.getLogger(__name__)
 
 
 def _is_duplicate_origin_error(error: IntegrityError) -> bool:
@@ -87,7 +90,14 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 raise
 
         row = result.mappings().one()
-        return _to_case_record(row)
+        created = _to_case_record(row)
+        logger.info(
+            "case_created case_id=%s status=%s origin_event_id=%s",
+            created.case_id,
+            created.status.value,
+            created.room1_origin_event_id,
+        )
+        return created
 
     async def get_case_by_origin_event_id(self, origin_event_id: str) -> CaseRecord | None:
         """Return case by Room-1 origin event id when present."""
@@ -201,7 +211,21 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
 
-        return int(result.rowcount or 0) == 1
+        applied = int(result.rowcount or 0) == 1
+        logger.info(
+            (
+                "case_doctor_decision_applied=%s case_id=%s from_status=%s to_status=%s "
+                "decision=%s support_flag=%s doctor_user_id=%s"
+            ),
+            applied,
+            payload.case_id,
+            CaseStatus.WAIT_DOCTOR.value,
+            target_status.value,
+            payload.decision,
+            payload.support_flag,
+            payload.doctor_user_id,
+        )
+        return applied
 
     async def apply_scheduler_decision_if_waiting(
         self,
@@ -237,7 +261,20 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
 
-        return int(result.rowcount or 0) == 1
+        applied = int(result.rowcount or 0) == 1
+        logger.info(
+            (
+                "case_scheduler_decision_applied=%s case_id=%s from_status=%s to_status=%s "
+                "appointment_status=%s scheduler_user_id=%s"
+            ),
+            applied,
+            payload.case_id,
+            CaseStatus.WAIT_APPT.value,
+            target_status.value,
+            payload.appointment_status,
+            payload.scheduler_user_id,
+        )
+        return applied
 
     async def get_case_final_reply_snapshot(
         self,
@@ -305,7 +342,18 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
 
-        return int(result.rowcount or 0) == 1
+        applied = int(result.rowcount or 0) == 1
+        logger.info(
+            (
+                "case_final_reply_marked=%s case_id=%s to_status=%s "
+                "room1_final_reply_event_id=%s"
+            ),
+            applied,
+            case_id,
+            CaseStatus.WAIT_R1_CLEANUP_THUMBS.value,
+            room1_final_reply_event_id,
+        )
+        return applied
 
     async def get_by_room1_final_reply_event_id(
         self,
@@ -360,7 +408,19 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
 
-        return int(result.rowcount or 0) == 1
+        claimed = int(result.rowcount or 0) == 1
+        logger.info(
+            (
+                "case_cleanup_trigger_claimed=%s case_id=%s from_status=%s to_status=%s "
+                "reactor_user_id=%s"
+            ),
+            claimed,
+            case_id,
+            CaseStatus.WAIT_R1_CLEANUP_THUMBS.value,
+            CaseStatus.CLEANUP_RUNNING.value,
+            reactor_user_id,
+        )
+        return claimed
 
     async def mark_cleanup_completed(self, *, case_id: UUID) -> None:
         """Mark cleanup completion timestamp and transition case to CLEANED."""
@@ -378,6 +438,11 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         async with self._session_factory() as session:
             await session.execute(statement)
             await session.commit()
+        logger.info(
+            "case_cleanup_completed case_id=%s to_status=%s",
+            case_id,
+            CaseStatus.CLEANED.value,
+        )
 
     async def list_non_terminal_cases_for_recovery(self) -> list[CaseRecoverySnapshot]:
         """List non-cleaned cases for startup recovery reconciliation."""
@@ -416,8 +481,14 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         )
 
         async with self._session_factory() as session:
-            await session.execute(statement)
+            result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
+        logger.info(
+            "case_status_updated case_id=%s to_status=%s affected_rows=%s",
+            case_id,
+            status.value,
+            int(result.rowcount or 0),
+        )
 
     async def store_pdf_extraction(
         self,
@@ -443,8 +514,18 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         )
 
         async with self._session_factory() as session:
-            await session.execute(statement)
+            result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
+        logger.info(
+            (
+                "case_pdf_extraction_stored case_id=%s agency_record_number=%s "
+                "extracted_text_chars=%s affected_rows=%s"
+            ),
+            case_id,
+            agency_record_number,
+            len(extracted_text),
+            int(result.rowcount or 0),
+        )
 
     async def store_llm1_artifacts(
         self,
@@ -466,8 +547,14 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         )
 
         async with self._session_factory() as session:
-            await session.execute(statement)
+            result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
+        logger.info(
+            "case_llm1_artifacts_stored case_id=%s summary_chars=%s affected_rows=%s",
+            case_id,
+            len(summary_text),
+            int(result.rowcount or 0),
+        )
 
     async def store_llm2_artifacts(
         self,
@@ -487,5 +574,11 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         )
 
         async with self._session_factory() as session:
-            await session.execute(statement)
+            result = cast(CursorResult[Any], await session.execute(statement))
             await session.commit()
+        logger.info(
+            "case_llm2_artifacts_stored case_id=%s suggestion=%s affected_rows=%s",
+            case_id,
+            suggested_action_json.get("suggestion"),
+            int(result.rowcount or 0),
+        )

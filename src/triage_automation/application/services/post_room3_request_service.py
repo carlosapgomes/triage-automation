@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -20,6 +21,8 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room3_ack_message,
     build_room3_request_message,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixRoomPosterPort(Protocol):
@@ -69,6 +72,7 @@ class PostRoom3RequestService:
     async def post_request(self, *, case_id: UUID) -> PostRoom3RequestResult:
         """Post scheduling request + ack for doctor-accepted cases."""
 
+        logger.info("room3_request_post_started case_id=%s", case_id)
         snapshot = await self._case_repository.get_case_doctor_decision_snapshot(case_id=case_id)
         if snapshot is None:
             raise PostRoom3RequestRetriableError(cause="room3", details="Case not found")
@@ -82,6 +86,7 @@ class PostRoom3RequestService:
                     payload={"status": snapshot.status.value},
                 )
             )
+            logger.info("room3_request_post_skipped case_id=%s reason=already_wait_appt", case_id)
             return PostRoom3RequestResult(posted=False, reason="already_wait_appt")
 
         if snapshot.status not in {CaseStatus.DOCTOR_ACCEPTED, CaseStatus.R3_POST_REQUEST}:
@@ -111,6 +116,7 @@ class PostRoom3RequestService:
                     case_id=case_id,
                     status=CaseStatus.WAIT_APPT,
                 )
+            logger.info("room3_request_post_skipped case_id=%s reason=already_posted", case_id)
             return PostRoom3RequestResult(posted=False, reason="already_posted")
 
         if snapshot.status == CaseStatus.DOCTOR_ACCEPTED:
@@ -123,6 +129,12 @@ class PostRoom3RequestService:
         request_event_id = await self._matrix_poster.send_text(
             room_id=self._room3_id,
             body=request_body,
+        )
+        logger.info(
+            "room3_request_posted case_id=%s room_id=%s event_id=%s",
+            case_id,
+            self._room3_id,
+            request_event_id,
         )
         await self._message_repository.add_message(
             CaseMessageCreateInput(
@@ -147,6 +159,12 @@ class PostRoom3RequestService:
 
         ack_body = build_room3_ack_message(case_id=case_id)
         ack_event_id = await self._matrix_poster.send_text(room_id=self._room3_id, body=ack_body)
+        logger.info(
+            "room3_ack_posted case_id=%s room_id=%s event_id=%s",
+            case_id,
+            self._room3_id,
+            ack_event_id,
+        )
         await self._message_repository.add_message(
             CaseMessageCreateInput(
                 case_id=case_id,
@@ -184,4 +202,9 @@ class PostRoom3RequestService:
             )
         )
 
+        logger.info(
+            "room3_request_post_completed case_id=%s to_status=%s",
+            case_id,
+            CaseStatus.WAIT_APPT.value,
+        )
         return PostRoom3RequestResult(posted=True)

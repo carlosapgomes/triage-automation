@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import uuid4
@@ -22,6 +23,8 @@ from triage_automation.application.ports.message_repository_port import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.event_parser import ParsedRoom1PdfIntakeEvent
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixMessagePosterPort(Protocol):
@@ -61,6 +64,12 @@ class Room1IntakeService:
     async def ingest_pdf_event(self, parsed: ParsedRoom1PdfIntakeEvent) -> Room1IntakeResult:
         """Persist intake artifacts and enqueue process job once per unique origin event."""
 
+        logger.info(
+            "room1_intake_received room_id=%s event_id=%s sender_user_id=%s",
+            parsed.room_id,
+            parsed.event_id,
+            parsed.sender_user_id,
+        )
         case_id = uuid4()
 
         try:
@@ -74,6 +83,7 @@ class Room1IntakeService:
                 )
             )
         except DuplicateCaseOriginEventError:
+            logger.info("room1_intake_duplicate_origin_event event_id=%s", parsed.event_id)
             return Room1IntakeResult(processed=False, reason="duplicate_origin_event")
 
         await self._audit_repository.append_event(
@@ -140,6 +150,10 @@ class Room1IntakeService:
                 },
             )
         )
+        logger.info(
+            "room1_intake_enqueued_next_job case_id=%s job_type=process_pdf_case",
+            created_case.case_id,
+        )
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(
@@ -150,4 +164,5 @@ class Room1IntakeService:
             )
         )
 
+        logger.info("room1_intake_processed case_id=%s", created_case.case_id)
         return Room1IntakeResult(processed=True, case_id=str(created_case.case_id))

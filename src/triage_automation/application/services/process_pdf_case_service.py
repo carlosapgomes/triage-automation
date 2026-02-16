@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -33,6 +34,8 @@ from triage_automation.infrastructure.pdf.text_extractor import (
     PdfTextExtractionError,
     PdfTextExtractor,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -74,27 +77,46 @@ class ProcessPdfCaseService:
     async def process_case(self, *, case_id: UUID, pdf_mxc_url: str) -> str:
         """Download and extract case PDF content with retriable failure mapping."""
 
+        logger.info("process_pdf_case_started case_id=%s mxc_url=%s", case_id, pdf_mxc_url)
         await self._case_repository.update_status(case_id=case_id, status=CaseStatus.EXTRACTING)
 
         try:
             pdf_bytes = await self._mxc_downloader.download_pdf(pdf_mxc_url)
         except MxcDownloadError as error:
+            logger.warning("process_pdf_case_download_failed case_id=%s error=%s", case_id, error)
             raise ProcessPdfCaseRetriableError(cause="download", details=str(error)) from error
+        logger.info("process_pdf_case_download_ok case_id=%s bytes=%s", case_id, len(pdf_bytes))
 
         try:
             extracted_text = self._text_extractor.extract_text(pdf_bytes)
             if not extracted_text:
                 raise PdfTextExtractionError("PDF extraction produced empty text")
         except PdfTextExtractionError as error:
+            logger.warning("process_pdf_case_extract_failed case_id=%s error=%s", case_id, error)
             raise ProcessPdfCaseRetriableError(cause="extract", details=str(error)) from error
+        logger.info(
+            "process_pdf_case_extract_ok case_id=%s text_chars=%s",
+            case_id,
+            len(extracted_text),
+        )
 
         try:
             record_result = extract_and_strip_agency_record_number(extracted_text)
         except RecordNumberExtractionError as error:
+            logger.warning(
+                "process_pdf_case_record_extract_failed case_id=%s error=%s",
+                case_id,
+                error,
+            )
             raise ProcessPdfCaseRetriableError(
                 cause="record_extract",
                 details=str(error),
             ) from error
+        logger.info(
+            "process_pdf_case_record_extract_ok case_id=%s agency_record_number=%s",
+            case_id,
+            record_result.agency_record_number,
+        )
 
         await self._case_repository.store_pdf_extraction(
             case_id=case_id,
@@ -103,9 +125,11 @@ class ProcessPdfCaseService:
             agency_record_number=record_result.agency_record_number,
             agency_record_extracted_at=datetime.now(tz=UTC),
         )
+        logger.info("process_pdf_case_persist_pdf_ok case_id=%s", case_id)
 
         if self._llm1_service is not None:
             await self._case_repository.update_status(case_id=case_id, status=CaseStatus.LLM_STRUCT)
+            logger.info("process_pdf_case_llm1_started case_id=%s", case_id)
             try:
                 llm1_result = await self._llm1_service.run(
                     case_id=case_id,
@@ -122,12 +146,24 @@ class ProcessPdfCaseService:
                             payload={"error": str(error)},
                         )
                     )
+                logger.warning("process_pdf_case_llm1_failed case_id=%s error=%s", case_id, error)
                 raise ProcessPdfCaseRetriableError(cause="llm1", details=str(error)) from error
 
             await self._case_repository.store_llm1_artifacts(
                 case_id=case_id,
                 structured_data_json=llm1_result.structured_data_json,
                 summary_text=llm1_result.summary_text,
+            )
+            logger.info(
+                (
+                    "process_pdf_case_llm1_ok case_id=%s "
+                    "prompt_system=%s@%s prompt_user=%s@%s"
+                ),
+                case_id,
+                llm1_result.prompt_system_name,
+                llm1_result.prompt_system_version,
+                llm1_result.prompt_user_name,
+                llm1_result.prompt_user_version,
             )
             if self._audit_repository is not None:
                 await self._audit_repository.append_event(
@@ -149,6 +185,7 @@ class ProcessPdfCaseService:
                     case_id=case_id,
                     status=CaseStatus.LLM_SUGGEST,
                 )
+                logger.info("process_pdf_case_llm2_started case_id=%s", case_id)
                 try:
                     llm2_result = await self._llm2_service.run(
                         case_id=case_id,
@@ -165,11 +202,29 @@ class ProcessPdfCaseService:
                                 payload={"error": str(error)},
                             )
                         )
+                    logger.warning(
+                        "process_pdf_case_llm2_failed case_id=%s error=%s",
+                        case_id,
+                        error,
+                    )
                     raise ProcessPdfCaseRetriableError(cause="llm2", details=str(error)) from error
 
                 await self._case_repository.store_llm2_artifacts(
                     case_id=case_id,
                     suggested_action_json=llm2_result.suggested_action_json,
+                )
+                logger.info(
+                    (
+                        "process_pdf_case_llm2_ok case_id=%s suggestion=%s "
+                        "prompt_system=%s@%s prompt_user=%s@%s contradictions=%s"
+                    ),
+                    case_id,
+                    llm2_result.suggested_action_json.get("suggestion"),
+                    llm2_result.prompt_system_name,
+                    llm2_result.prompt_system_version,
+                    llm2_result.prompt_user_name,
+                    llm2_result.prompt_user_version,
+                    len(llm2_result.contradictions),
                 )
                 if self._audit_repository is not None:
                     llm2_payload = build_llm_prompt_version_audit_payload(
@@ -206,7 +261,12 @@ class ProcessPdfCaseService:
                         payload={},
                     )
                 )
+                logger.info(
+                    "process_pdf_case_enqueued_next_job case_id=%s job_type=post_room2_widget",
+                    case_id,
+                )
 
+        logger.info("process_pdf_case_completed case_id=%s", case_id)
         return record_result.cleaned_text
 
 

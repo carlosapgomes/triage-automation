@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -16,6 +17,8 @@ from triage_automation.application.ports.case_repository_port import (
 )
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
 from triage_automation.domain.case_status import CaseStatus
+
+logger = logging.getLogger(__name__)
 
 
 class HandleDoctorDecisionOutcome(StrEnum):
@@ -54,10 +57,21 @@ class HandleDoctorDecisionService:
     ) -> HandleDoctorDecisionResult:
         """Apply a signed doctor decision payload when case is in WAIT_DOCTOR."""
 
+        logger.info(
+            (
+                "doctor_decision_received case_id=%s doctor_user_id=%s "
+                "decision=%s support_flag=%s"
+            ),
+            payload.case_id,
+            payload.doctor_user_id,
+            payload.decision,
+            payload.support_flag,
+        )
         snapshot = await self._case_repository.get_case_doctor_decision_snapshot(
             case_id=payload.case_id
         )
         if snapshot is None:
+            logger.info("doctor_decision_ignored_not_found case_id=%s", payload.case_id)
             return HandleDoctorDecisionResult(outcome=HandleDoctorDecisionOutcome.NOT_FOUND)
 
         if snapshot.status != CaseStatus.WAIT_DOCTOR:
@@ -71,6 +85,11 @@ class HandleDoctorDecisionService:
                         "decision": payload.decision,
                     },
                 )
+            )
+            logger.info(
+                "doctor_decision_ignored_wrong_state case_id=%s current_status=%s",
+                payload.case_id,
+                snapshot.status.value,
             )
             return HandleDoctorDecisionResult(outcome=HandleDoctorDecisionOutcome.WRONG_STATE)
 
@@ -119,6 +138,11 @@ class HandleDoctorDecisionService:
         job_type = _next_job_type(payload.decision)
         await self._job_queue.enqueue(
             JobEnqueueInput(case_id=payload.case_id, job_type=job_type, payload={})
+        )
+        logger.info(
+            "doctor_decision_applied case_id=%s next_job=%s",
+            payload.case_id,
+            job_type,
         )
 
         await self._audit_repository.append_event(

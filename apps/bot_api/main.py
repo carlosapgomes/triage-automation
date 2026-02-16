@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import ValidationError
@@ -28,11 +30,13 @@ from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
 from triage_automation.infrastructure.http.auth_router import build_auth_router
 from triage_automation.infrastructure.http.hmac_auth import verify_hmac_signature
+from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
 
 BOT_API_HOST = "0.0.0.0"
 BOT_API_PORT = 8000
+logger = logging.getLogger(__name__)
 
 
 def build_decision_service(database_url: str) -> HandleDoctorDecisionService:
@@ -75,6 +79,7 @@ def create_app(
 ) -> FastAPI:
     """Create FastAPI app for webhook callbacks and login foundation routes."""
 
+    settings = None
     should_load_settings = webhook_hmac_secret is None or decision_service is None
     if should_load_settings or (
         database_url is None and (auth_service is None or auth_token_repository is None)
@@ -86,6 +91,8 @@ def create_app(
             database_url = settings.database_url
         if decision_service is None:
             decision_service = build_decision_service(database_url)
+    if settings is not None:
+        configure_logging(level=settings.log_level)
 
     if auth_service is None:
         assert database_url is not None
@@ -131,7 +138,18 @@ def create_app(
         except ValidationError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
+        logger.info(
+            "webhook_triage_decision_received case_id=%s doctor_user_id=%s decision=%s",
+            payload.case_id,
+            payload.doctor_user_id,
+            payload.decision,
+        )
         result = await decision_service.handle(payload)
+        logger.info(
+            "webhook_triage_decision_result case_id=%s outcome=%s",
+            payload.case_id,
+            result.outcome.value,
+        )
 
         if result.outcome is HandleDoctorDecisionOutcome.NOT_FOUND:
             raise HTTPException(status_code=404, detail="case not found")

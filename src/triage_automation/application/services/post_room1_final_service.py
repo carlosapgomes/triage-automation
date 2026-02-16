@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -25,6 +26,8 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room1_final_denied_triage_message,
     build_room1_final_failure_message,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixReplyPosterPort(Protocol):
@@ -78,6 +81,7 @@ class PostRoom1FinalService:
     ) -> PostRoom1FinalResult:
         """Post one final-reply variant according to job type."""
 
+        logger.info("room1_final_post_started case_id=%s job_type=%s", case_id, job_type)
         case = await self._case_repository.get_case_final_reply_snapshot(case_id=case_id)
         if case is None:
             raise PostRoom1FinalRetriableError(cause="room1_final", details="Case not found")
@@ -91,6 +95,7 @@ class PostRoom1FinalService:
                     payload={"job_type": job_type},
                 )
             )
+            logger.info("room1_final_post_skipped case_id=%s reason=already_posted", case_id)
             return PostRoom1FinalResult(posted=False, reason="already_posted")
 
         body = _render_final_message(case=case, job_type=job_type, payload=payload or {})
@@ -100,12 +105,20 @@ class PostRoom1FinalService:
             event_id=case.room1_origin_event_id,
             body=body,
         )
+        logger.info(
+            "room1_final_posted case_id=%s room_id=%s event_id=%s job_type=%s",
+            case_id,
+            case.room1_origin_room_id,
+            event_id,
+            job_type,
+        )
 
         marked = await self._case_repository.mark_room1_final_reply_posted(
             case_id=case_id,
             room1_final_reply_event_id=event_id,
         )
         if not marked:
+            logger.info("room1_final_post_skipped case_id=%s reason=race_already_posted", case_id)
             return PostRoom1FinalResult(posted=False, reason="race_already_posted")
 
         await self._message_repository.add_message(
@@ -140,6 +153,11 @@ class PostRoom1FinalService:
             )
         )
 
+        logger.info(
+            "room1_final_post_completed case_id=%s to_status=%s",
+            case_id,
+            CaseStatus.WAIT_R1_CLEANUP_THUMBS.value,
+        )
         return PostRoom1FinalResult(posted=True)
 
 
