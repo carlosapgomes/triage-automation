@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import pytest
 
@@ -35,28 +36,33 @@ class _FlakySyncClient:
 
 
 @pytest.mark.asyncio
-async def test_room1_listener_retries_after_transport_failure() -> None:
+async def test_room1_listener_retries_after_transport_failure(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     stop_event = asyncio.Event()
     matrix_client = _FlakySyncClient(stop_event=stop_event)
 
-    await asyncio.wait_for(
-        run_room1_intake_listener(
-            matrix_client=matrix_client,
-            intake_service=object(),  # no routed events in this test
-            reaction_service=object(),  # no routed events in this test
-            room3_reply_service=object(),  # no routed events in this test
-            room1_id="!room1:example.org",
-            room2_id="!room2:example.org",
-            room3_id="!room3:example.org",
-            bot_user_id="@bot:example.org",
-            sync_timeout_ms=30_000,
-            poll_interval_seconds=0.0,
-            stop_event=stop_event,
-        ),
-        timeout=1.0,
-    )
+    with caplog.at_level(logging.INFO):
+        await asyncio.wait_for(
+            run_room1_intake_listener(
+                matrix_client=matrix_client,
+                intake_service=object(),  # no routed events in this test
+                reaction_service=object(),  # no routed events in this test
+                room3_reply_service=object(),  # no routed events in this test
+                room1_id="!room1:example.org",
+                room2_id="!room2:example.org",
+                room3_id="!room3:example.org",
+                bot_user_id="@bot:example.org",
+                sync_timeout_ms=30_000,
+                poll_interval_seconds=0.0,
+                stop_event=stop_event,
+            ),
+            timeout=1.0,
+        )
 
     assert matrix_client.sync_calls == 2
+    assert "bot_matrix_listener_started" in caplog.text
+    assert "Matrix sync transport failure; retrying on next poll cycle." in caplog.text
 
 
 def test_build_runtime_matrix_client_uses_sync_timeout_buffer() -> None:

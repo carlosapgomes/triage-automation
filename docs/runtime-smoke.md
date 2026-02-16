@@ -40,6 +40,9 @@ uv run python -m apps.bot_matrix.main
 uv run python -m apps.worker.main
 ```
 
+Set `LOG_LEVEL=DEBUG` in `.env` when you need heartbeat-style runtime traces.
+At `INFO`, logs show startup and meaningful routed/claimed job activity.
+
 5. Check API reachability:
 
 ```bash

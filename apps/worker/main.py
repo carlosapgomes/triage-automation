@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -43,10 +44,13 @@ from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.worker_bootstrap import reconcile_running_jobs
 from triage_automation.infrastructure.llm.deterministic_client import DeterministicLlmClient
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
+from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.llm.openai_client import OpenAiChatCompletionsClient
 from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
 from triage_automation.infrastructure.matrix.mxc_downloader import MatrixMxcDownloader
 from triage_automation.infrastructure.pdf.text_extractor import PdfTextExtractor
+
+logger = logging.getLogger(__name__)
 
 
 class MatrixRuntimeClientPort(Protocol):
@@ -329,9 +333,24 @@ async def run_worker_startup(
 
 async def _run_worker() -> None:
     settings = load_settings()
+    configure_logging(level=settings.log_level)
+    logger.info(
+        "worker_starting poll_interval_seconds=%s llm_mode=%s",
+        settings.worker_poll_interval_seconds,
+        settings.llm_runtime_mode,
+    )
 
     session_factory = create_session_factory(settings.database_url)
-    await run_worker_startup(session_factory=session_factory)
+    startup = await run_worker_startup(session_factory=session_factory)
+    logger.info(
+        (
+            "worker_startup_complete reconciled_jobs=%s "
+            "recovery_scanned_cases=%s recovery_enqueued_jobs=%s"
+        ),
+        startup.reconciled_jobs,
+        startup.recovery.scanned_cases,
+        startup.recovery.enqueued_jobs,
+    )
 
     runtime = build_worker_runtime(
         settings=settings,

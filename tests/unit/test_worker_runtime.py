@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -177,6 +178,24 @@ async def test_known_handler_marks_done() -> None:
     assert handled == [12]
     assert queue.mark_done_calls == [12]
     assert queue.mark_failed_calls == []
+
+
+@pytest.mark.asyncio
+async def test_known_handler_emits_job_lifecycle_logs(caplog: pytest.LogCaptureFixture) -> None:
+    queue = FakeQueue(claimed_jobs=[_job(13, "process_pdf_case")])
+
+    async def handler(_: JobRecord) -> None:
+        return None
+
+    runtime = WorkerRuntime(queue=queue, handlers={"process_pdf_case": handler})
+
+    with caplog.at_level(logging.INFO):
+        claimed_count = await runtime.run_once()
+
+    assert claimed_count == 1
+    assert "claimed_due_jobs count=1" in caplog.text
+    assert "job_started job_id=13 job_type=process_pdf_case" in caplog.text
+    assert "job_done job_id=13 job_type=process_pdf_case" in caplog.text
 
 
 @pytest.mark.asyncio

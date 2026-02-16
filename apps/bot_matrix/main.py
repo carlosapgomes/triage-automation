@@ -27,6 +27,7 @@ from triage_automation.infrastructure.matrix.sync_events import (
     extract_next_batch_token,
     iter_joined_room_timeline_events,
 )
+from triage_automation.infrastructure.logging import configure_logging
 
 _SYNC_HTTP_TIMEOUT_BUFFER_SECONDS = 10.0
 logger = logging.getLogger(__name__)
@@ -284,21 +285,46 @@ async def run_room1_intake_listener(
 ) -> None:
     """Continuously poll Matrix and route Room-1 intake events until stopped."""
 
+    logger.info(
+        (
+            "bot_matrix_listener_started room1_id=%s room2_id=%s room3_id=%s "
+            "sync_timeout_ms=%s poll_interval_seconds=%s"
+        ),
+        room1_id,
+        room2_id,
+        room3_id,
+        sync_timeout_ms,
+        poll_interval_seconds,
+    )
     since_token = initial_since_token
     while not stop_event.is_set():
         try:
-            since_token, _, _, _ = await poll_room1_reactions_and_room3_once(
-                matrix_client=matrix_client,
-                intake_service=intake_service,
-                reaction_service=reaction_service,
-                room3_reply_service=room3_reply_service,
-                room1_id=room1_id,
-                room2_id=room2_id,
-                room3_id=room3_id,
-                bot_user_id=bot_user_id,
-                since_token=since_token,
-                sync_timeout_ms=sync_timeout_ms,
+            since_token, intake_count, reaction_count, room3_reply_count = (
+                await poll_room1_reactions_and_room3_once(
+                    matrix_client=matrix_client,
+                    intake_service=intake_service,
+                    reaction_service=reaction_service,
+                    room3_reply_service=room3_reply_service,
+                    room1_id=room1_id,
+                    room2_id=room2_id,
+                    room3_id=room3_id,
+                    bot_user_id=bot_user_id,
+                    since_token=since_token,
+                    sync_timeout_ms=sync_timeout_ms,
+                )
             )
+            if intake_count or reaction_count or room3_reply_count:
+                logger.info(
+                    (
+                        "bot_matrix_sync_routed intake=%s reactions=%s "
+                        "room3_replies=%s"
+                    ),
+                    intake_count,
+                    reaction_count,
+                    room3_reply_count,
+                )
+            else:
+                logger.debug("bot_matrix_sync_idle")
         except MatrixTransportError:
             logger.warning("Matrix sync transport failure; retrying on next poll cycle.")
         if poll_interval_seconds > 0:
@@ -306,7 +332,14 @@ async def run_room1_intake_listener(
 
 
 async def _run_bot_matrix() -> None:
-    runtime = build_bot_matrix_runtime()
+    settings = load_settings()
+    configure_logging(level=settings.log_level)
+    logger.info(
+        "bot_matrix_starting poll_interval_seconds=%s sync_timeout_ms=%s",
+        settings.matrix_poll_interval_seconds,
+        settings.matrix_sync_timeout_ms,
+    )
+    runtime = build_bot_matrix_runtime(settings=settings)
     stop_event = asyncio.Event()
 
     await run_room1_intake_listener(

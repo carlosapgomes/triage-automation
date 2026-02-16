@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from uuid import UUID
@@ -18,6 +19,7 @@ from triage_automation.application.services.job_failure_service import JobFailur
 JobHandler = Callable[[JobRecord], Awaitable[None]]
 SleepCallable = Callable[[float], Awaitable[None]]
 NowCallable = Callable[[], datetime]
+logger = logging.getLogger(__name__)
 
 
 def _utc_now() -> datetime:
@@ -56,6 +58,7 @@ class WorkerRuntime:
             await self._sleep(self._poll_interval_seconds)
             return 0
 
+        logger.info("claimed_due_jobs count=%s", len(claimed_jobs))
         for job in claimed_jobs:
             await self._process_job(job)
 
@@ -68,6 +71,14 @@ class WorkerRuntime:
             await self.run_once()
 
     async def _process_job(self, job: JobRecord) -> None:
+        logger.info(
+            "job_started job_id=%s job_type=%s case_id=%s attempts=%s max_attempts=%s",
+            job.job_id,
+            job.job_type,
+            job.case_id,
+            job.attempts,
+            job.max_attempts,
+        )
         handler = self._handlers.get(job.job_type)
         if handler is None:
             await self._handle_job_error(
@@ -86,6 +97,12 @@ class WorkerRuntime:
             return
 
         await self._queue.mark_done(job_id=job.job_id)
+        logger.info(
+            "job_done job_id=%s job_type=%s case_id=%s",
+            job.job_id,
+            job.job_type,
+            job.case_id,
+        )
 
     async def _handle_job_error(self, *, job: JobRecord, error_summary: str) -> None:
         retry_attempt = job.attempts + 1
@@ -104,6 +121,19 @@ class WorkerRuntime:
                 run_after=retried_job.run_after,
                 error_summary=error_summary,
             )
+            logger.warning(
+                (
+                    "job_retry_scheduled job_id=%s job_type=%s case_id=%s "
+                    "attempts=%s max_attempts=%s run_after=%s error=%s"
+                ),
+                job.job_id,
+                job.job_type,
+                job.case_id,
+                retried_job.attempts,
+                job.max_attempts,
+                retried_job.run_after.isoformat(),
+                error_summary,
+            )
             return
 
         dead_job = await self._queue.mark_dead(
@@ -115,6 +145,18 @@ class WorkerRuntime:
             job_type=job.job_type,
             attempts=dead_job.attempts,
             error_summary=error_summary,
+        )
+        logger.error(
+            (
+                "job_dead job_id=%s job_type=%s case_id=%s attempts=%s "
+                "max_attempts=%s error=%s"
+            ),
+            job.job_id,
+            job.job_type,
+            job.case_id,
+            dead_job.attempts,
+            job.max_attempts,
+            error_summary,
         )
 
         if self._job_failure_service is not None:
