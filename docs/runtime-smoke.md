@@ -5,6 +5,12 @@ It does not change workflow behavior; it only verifies that runtime processes,
 database migrations, webhook authentication, and deterministic LLM execution are
 working in a reproducible way.
 
+## Decision Path Notice
+
+- standard Room-2 decisions use Matrix structured replies.
+- `/callbacks/triage-decision` is an emergency-only compatibility path.
+- Callback compatibility is marked for near-term deprecation.
+
 ## Local UV Runtime Smoke
 
 1. Prepare dependencies and env:

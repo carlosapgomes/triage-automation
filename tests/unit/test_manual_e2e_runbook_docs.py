@@ -39,6 +39,15 @@ def test_runtime_smoke_runbook_parity_with_compose_commands() -> None:
     assert "docker compose logs -f bot-api bot-matrix worker" in runbook
 
 
+def test_runtime_smoke_runbook_marks_callback_as_emergency_compatibility_only() -> None:
+    runbook = _read("docs/runtime-smoke.md")
+
+    assert "/callbacks/triage-decision" in runbook
+    assert "emergency-only compatibility path" in runbook
+    assert "near-term deprecation" in runbook
+    assert "standard Room-2 decisions use Matrix structured replies" in runbook
+
+
 def test_manual_e2e_runbook_exists_and_covers_matrix_reply_positive_flow() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
