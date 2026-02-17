@@ -31,6 +31,11 @@ The system SHALL route supported Matrix events to existing application services 
 - **WHEN** a valid Room-2 structured decision reply is observed
 - **THEN** the event MUST be forwarded to the doctor-decision application path using sender-derived actor identity
 
+#### Scenario: Room-2 acknowledgment reaction event received
+- **WHEN** a reaction event is observed in Room-2
+- **THEN** routing MUST forward only supported positive acknowledgment reactions targeting stored Room-2 decision-confirmation messages
+- **AND** unsupported Room-2 reaction keys MUST be ignored safely
+
 ### Requirement: Unsupported Matrix Events Are Safely Ignored
 The runtime listener SHALL ignore unsupported or non-actionable Matrix events deterministically.
 

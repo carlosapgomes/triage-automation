@@ -11,6 +11,8 @@ The new canonical flow is message-driven in Matrix itself:
 5. System parses structured fields only.
 6. Doctor identity comes from Matrix sender (`event.sender`).
 7. Existing decision service is called with unchanged business semantics.
+8. Bot posts a decision confirmation message in Room-2 as a reply to the doctor decision reply when possible.
+9. Doctor may react positively to the bot confirmation message as an audit-only acknowledgment that the process ended.
 
 Message relation strategy is intentionally flat:
 - message I is the root case context event
@@ -26,6 +28,7 @@ Constraints:
 - No optional parallel decision UX in standard flow.
 - Room-2 membership is the authorization boundary.
 - Callback endpoint remains emergency-only and marked for deprecation.
+- Decision state transition is never gated by reaction acknowledgment.
 
 ## Goals / Non-Goals
 
@@ -87,12 +90,20 @@ Constraints:
 - Alternative considered: immediate callback removal.
   - Rejected to reduce rollout risk.
 
+### Decision 6: Room-2 final acknowledgment is positive-only and audit-only
+
+- Choice: only positive reaction keys on the bot decision confirmation message are treated as doctor acknowledgment; reaction does not gate workflow progression.
+- Rationale: keeps automation deterministic and non-blocking while still recording explicit doctor acknowledgment when provided.
+- Alternative considered: wait for acknowledgment before applying decision transition.
+  - Rejected because missed reactions would stall cases and break 24/7 automation reliability.
+
 ## Risks / Trade-offs
 
 - [Template misuse by doctors (format errors)] -> Mitigation: strict validation with immediate Room-2 feedback and copy-ready template examples.
 - [Reply not attached to message I] -> Mitigation: enforce `m.in_reply_to` linkage to active Room-2 root case event and reject otherwise.
 - [Authorization ambiguity in atypical room setups] -> Mitigation: document Room-2 governance prerequisite and add startup/runbook checks.
 - [Emergency callback path drift over time] -> Mitigation: keep parity regression tests until callback is fully deprecated.
+- [Doctor does not react to confirmation] -> Mitigation: acknowledgment remains optional audit signal and never blocks decision progression.
 
 ## Migration Plan
 
@@ -100,8 +111,9 @@ Constraints:
 2. Update Room-2 posting service to emit three-message combo (I PDF + II extracted summary/recommendation + III template/instructions) with II/III replying to I.
 3. Route validated reply events to existing decision service using sender-derived `doctor_user_id`.
 4. Remove widget-driven decision path from standard runtime/docs and keep callback marked emergency-only.
-5. Add integration coverage for accept/deny, malformed template, wrong reply target, duplicate/race, and sender audit parity.
-6. Update runbooks for single-path operations and deprecation notice for callback.
+5. Post Room-2 decision confirmation message after accepted decision handling and store it as reaction target metadata.
+6. Add integration coverage for accept/deny, malformed template, wrong reply target, duplicate/race, sender audit parity, and optional positive acknowledgment reaction.
+7. Update runbooks for single-path operations and deprecation notice for callback.
 
 Rollback strategy:
 

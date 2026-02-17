@@ -194,7 +194,7 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
             room_id="!room2:example.org",
             event_id="$room2-ack-1",
             sender_user_id=None,
-            kind="bot_ack",
+            kind="room2_decision_ack",
         )
     )
     await message_repo.add_message(
@@ -251,7 +251,7 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
         room2_audit = connection.execute(
             sa.text(
                 "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
-                "AND event_type = 'ROOM2_ACK_THUMBS_UP_RECEIVED'"
+                "AND event_type = 'ROOM2_ACK_POSITIVE_RECEIVED'"
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
@@ -366,7 +366,7 @@ async def test_room2_room3_ack_accept_checkmark_and_thumbs_variants(tmp_path: Pa
             room_id="!room2:example.org",
             event_id="$room2-ack-variant-1",
             sender_user_id=None,
-            kind="bot_ack",
+            kind="room2_decision_ack",
         )
     )
     await message_repo.add_message(
@@ -423,7 +423,7 @@ async def test_room2_room3_ack_accept_checkmark_and_thumbs_variants(tmp_path: Pa
         room2_audit = connection.execute(
             sa.text(
                 "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
-                "AND event_type = 'ROOM2_ACK_THUMBS_UP_RECEIVED'"
+                "AND event_type = 'ROOM2_ACK_POSITIVE_RECEIVED'"
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
@@ -554,7 +554,7 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
             room_id="!room2:example.org",
             event_id="$room2-ack-runtime",
             sender_user_id=None,
-            kind="bot_ack",
+            kind="room2_decision_ack",
         )
     )
     await message_repo.add_message(
@@ -624,7 +624,7 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
         room2_audit = connection.execute(
             sa.text(
                 "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
-                "AND event_type = 'ROOM2_ACK_THUMBS_UP_RECEIVED'"
+                "AND event_type = 'ROOM2_ACK_POSITIVE_RECEIVED'"
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
@@ -639,3 +639,68 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
     assert int(cleanup_jobs) == 0
     assert int(room2_audit) == 1
     assert int(room3_audit) == 1
+
+
+@pytest.mark.asyncio
+async def test_room2_non_positive_reaction_is_ignored(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "reaction_room2_non_positive.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    job_repo = SqlAlchemyJobQueueRepository(session_factory)
+
+    case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-reaction-room2-neg",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    await message_repo.add_message(
+        CaseMessageCreateInput(
+            case_id=case.case_id,
+            room_id="!room2:example.org",
+            event_id="$room2-ack-neg-1",
+            sender_user_id=None,
+            kind="room2_decision_ack",
+        )
+    )
+
+    service = ReactionService(
+        room1_id="!room1:example.org",
+        room2_id="!room2:example.org",
+        room3_id="!room3:example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        job_queue=job_repo,
+    )
+
+    result = await service.handle(
+        ReactionEvent(
+            room_id="!room2:example.org",
+            reaction_event_id="$reaction-room2-neg",
+            reactor_user_id="@doctor:example.org",
+            related_event_id="$room2-ack-neg-1",
+            reaction_key="👎",
+        )
+    )
+    assert result.processed is False
+    assert result.reason == "not_thumbs_up"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        room2_audit = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_events WHERE case_id = :case_id "
+                "AND event_type = 'ROOM2_ACK_POSITIVE_RECEIVED'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).scalar_one()
+
+    assert int(room2_audit) == 0

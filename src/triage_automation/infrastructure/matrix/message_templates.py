@@ -33,6 +33,25 @@ def build_room2_ack_message(*, case_id: UUID) -> str:
     return f"Triagem registrada para o caso: {case_id}\nReaja com +1 para confirmar."
 
 
+def build_room2_decision_ack_message(
+    *,
+    case_id: UUID,
+    decision: str,
+    support_flag: str,
+    reason: str | None,
+) -> str:
+    """Build Room-2 post-decision acknowledgment body for doctor reaction."""
+
+    message = (
+        f"Decisao registrada para o caso: {case_id}\n"
+        f"decisao: {decision}\n"
+        f"support_flag: {support_flag}"
+    )
+    if reason:
+        message = f"{message}\nmotivo: {reason}"
+    return f"{message}\nReaja com +1 para confirmar ciencia do encerramento."
+
+
 def build_room3_request_message(*, case_id: UUID) -> str:
     """Build Room-3 scheduling request body including strict reply instructions."""
 

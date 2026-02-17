@@ -86,7 +86,21 @@ The bot SHALL publish deterministic success/error feedback in Room-2 after proce
 #### Scenario: Decision accepted and applied
 - **WHEN** structured decision processing succeeds
 - **THEN** the bot MUST send a Room-2 confirmation message describing successful processing
+- **AND** the confirmation message MUST be persisted as a reaction-ack target for Room-2 acknowledgment tracking
 
 #### Scenario: Decision rejected by validation or state
 - **WHEN** structured decision processing fails due to format, authorization, or state constraints
 - **THEN** the bot MUST send a Room-2 error message with actionable correction guidance
+
+### Requirement: Room-2 Final Acknowledgment SHALL Be Positive-Only And Non-Blocking
+The system SHALL treat positive reaction on the Room-2 decision confirmation message as an optional doctor acknowledgment audit signal and SHALL NOT gate decision progression on reaction.
+
+#### Scenario: Positive acknowledgment reaction received
+- **WHEN** a doctor reacts with a supported positive key to the Room-2 decision confirmation message
+- **THEN** the system MUST record acknowledgment audit metadata for that case
+- **AND** no additional state transition or job enqueue MUST be required for already-applied decision progression
+
+#### Scenario: Non-positive or missing acknowledgment reaction
+- **WHEN** reaction key is not a supported positive acknowledgment key, or no reaction is sent
+- **THEN** the system MUST continue normal workflow without blocking
+- **AND** no rollback or re-opening of decision state MUST occur

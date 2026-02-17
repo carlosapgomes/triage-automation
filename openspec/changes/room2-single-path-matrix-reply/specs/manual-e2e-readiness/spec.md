@@ -29,6 +29,8 @@ Manual runbooks SHALL validate the three-message Room-2 combo protocol and struc
 #### Scenario: Operator validates doctor decision in mobile-capable client workflow
 - **WHEN** operator follows the documented Room-2 decision runbook
 - **THEN** they MUST verify message I + II + III publication, grouped relations for II/III to I, structured reply submission to message I, and expected state/job progression
+- **AND** they MUST verify a Room-2 decision confirmation message is posted by the bot after successful decision handling
+- **AND** they MUST verify positive acknowledgment reaction is optional and non-blocking for workflow progression
 
 ### Requirement: Manual E2E SHALL Validate Structured Reply Rejection Cases
 Manual runbooks SHALL include negative checks for malformed template content and wrong reply-parent targeting.

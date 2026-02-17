@@ -167,12 +167,16 @@ class ReactionService:
             room_id=event.room_id,
             event_id=event.related_event_id,
         )
-        if mapping is None or mapping.kind != "bot_ack":
+        if mapping is None:
             return ReactionResult(processed=False, reason="not_ack_target")
 
-        event_type = "ROOM2_ACK_THUMBS_UP_RECEIVED"
+        required_kind = "room2_decision_ack"
+        event_type = "ROOM2_ACK_POSITIVE_RECEIVED"
         if event.room_id == self._room3_id:
+            required_kind = "bot_ack"
             event_type = "ROOM3_ACK_THUMBS_UP_RECEIVED"
+        if mapping.kind != required_kind:
+            return ReactionResult(processed=False, reason="not_ack_target")
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(

@@ -21,6 +21,8 @@
 - [ ] 4.1 Emit deterministic Room-2 success feedback when a structured decision is accepted and applied.
 - [ ] 4.2 Emit actionable Room-2 error feedback for parse/validation/state/authorization failures.
 - [ ] 4.3 Remove widget-style decision as a standard runtime path, keeping `/callbacks/triage-decision` as emergency-only compatibility behavior.
+- [x] 4.4 Persist Room-2 decision confirmation message as a dedicated reaction acknowledgment target posted after accepted decision handling.
+- [x] 4.5 Accept only supported positive Room-2 acknowledgment reactions on the confirmation target as optional audit signal and keep workflow progression non-blocking.
 
 ## 5. Automated Test Coverage
 
@@ -28,6 +30,7 @@
 - [ ] 5.2 Add/adjust adapter/runtime tests for reply-parent enforcement, sender-based actor attribution, and safe ignore/reject behavior for unsupported events.
 - [ ] 5.3 Add/adjust application/integration tests for idempotency/state-race behavior and downstream job parity on structured Room-2 decisions.
 - [ ] 5.4 Add/adjust compatibility tests for emergency callback endpoint parity while marked for deprecation.
+- [x] 5.5 Add/adjust reaction tests to verify Room-2 positive-only acknowledgment targeting and non-blocking behavior for missing/non-positive reactions.
 
 ## 6. Operational Documentation And Manual E2E
 

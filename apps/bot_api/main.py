@@ -26,6 +26,7 @@ from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemy
 from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
+from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
 from triage_automation.infrastructure.http.auth_guard import WidgetAuthGuard
@@ -33,15 +34,22 @@ from triage_automation.infrastructure.http.auth_router import build_auth_router
 from triage_automation.infrastructure.http.hmac_auth import verify_hmac_signature
 from triage_automation.infrastructure.http.widget_router import build_widget_router
 from triage_automation.infrastructure.logging import configure_logging
+from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
 
 BOT_API_HOST = "0.0.0.0"
 BOT_API_PORT = 8000
+_MATRIX_HTTP_TIMEOUT_SECONDS = 20.0
 logger = logging.getLogger(__name__)
 
 
-def build_decision_service(database_url: str) -> HandleDoctorDecisionService:
+def build_decision_service(
+    database_url: str,
+    *,
+    room2_id: str | None = None,
+    matrix_poster: MatrixHttpClient | None = None,
+) -> HandleDoctorDecisionService:
     """Build decision handling service with SQLAlchemy-backed dependencies."""
 
     session_factory = create_session_factory(database_url)
@@ -49,6 +57,9 @@ def build_decision_service(database_url: str) -> HandleDoctorDecisionService:
         case_repository=SqlAlchemyCaseRepository(session_factory),
         audit_repository=SqlAlchemyAuditRepository(session_factory),
         job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=SqlAlchemyMessageRepository(session_factory),
+        matrix_poster=matrix_poster,
+        room2_id=room2_id,
     )
 
 
@@ -92,7 +103,16 @@ def create_app(
         if database_url is None:
             database_url = settings.database_url
         if decision_service is None:
-            decision_service = build_decision_service(database_url)
+            matrix_poster = MatrixHttpClient(
+                homeserver_url=str(settings.matrix_homeserver_url),
+                access_token=settings.matrix_access_token,
+                timeout_seconds=_MATRIX_HTTP_TIMEOUT_SECONDS,
+            )
+            decision_service = build_decision_service(
+                database_url,
+                room2_id=settings.room2_id,
+                matrix_poster=matrix_poster,
+            )
     if settings is not None:
         configure_logging(level=settings.log_level)
 
