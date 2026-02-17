@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from triage_automation.application.ports.audit_repository_port import (
@@ -125,7 +125,13 @@ class PostRoom3RequestService:
                 status=CaseStatus.R3_POST_REQUEST,
             )
 
-        request_body = build_room3_request_message(case_id=case_id)
+        patient_name, patient_age = _extract_patient_context(snapshot.structured_data_json)
+        request_body = build_room3_request_message(
+            case_id=case_id,
+            agency_record_number=snapshot.agency_record_number,
+            patient_name=patient_name,
+            patient_age=patient_age,
+        )
         request_event_id = await self._matrix_poster.send_text(
             room_id=self._room3_id,
             body=request_body,
@@ -211,3 +217,54 @@ class PostRoom3RequestService:
             CaseStatus.WAIT_APPT.value,
         )
         return PostRoom3RequestResult(posted=True)
+
+
+def _extract_patient_context(
+    structured_data_json: dict[str, Any] | None,
+) -> tuple[str | None, str | None]:
+    """Extract patient name and age from stored LLM1 structured payload."""
+
+    if not isinstance(structured_data_json, dict):
+        return None, None
+
+    patient_raw = structured_data_json.get("patient")
+    if not isinstance(patient_raw, dict):
+        patient_raw = structured_data_json.get("paciente")
+    if not isinstance(patient_raw, dict):
+        return None, None
+
+    patient_name = _normalize_optional_string(patient_raw.get("name"))
+    if patient_name is None:
+        patient_name = _normalize_optional_string(patient_raw.get("nome"))
+
+    patient_age = _normalize_age(patient_raw.get("age"))
+    if patient_age is None:
+        patient_age = _normalize_age(patient_raw.get("idade"))
+
+    return patient_name, patient_age
+
+
+def _normalize_optional_string(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    return normalized
+
+
+def _normalize_age(value: object) -> str | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return str(value)
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not normalized:
+            return None
+        return normalized
+    return str(value)

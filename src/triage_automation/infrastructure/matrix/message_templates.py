@@ -535,11 +535,24 @@ def _map_presentation_value(value: str) -> str:
     return mapping.get(value, value)
 
 
-def build_room3_request_message(*, case_id: UUID) -> str:
+def build_room3_request_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None,
+    patient_name: str | None,
+    patient_age: str | None,
+) -> str:
     """Build Room-3 guidance message that points scheduler to copy template."""
 
+    record_display = _format_room3_context_value(agency_record_number)
+    patient_display = _format_room3_context_value(patient_name)
+    age_display = _format_room3_context_value(patient_age)
     return (
         "Solicitacao de agendamento\n\n"
+        f"caso: {case_id}\n"
+        f"registro: {record_display}\n"
+        f"paciente: {patient_display}\n"
+        f"idade: {age_display}\n\n"
         "1. Copie a PROXIMA mensagem (modelo puro).\n"
         "2. Responda como resposta a ela, preenchendo os campos.\n"
         "3. Mantenha exatamente uma linha por campo.\n\n"
@@ -548,6 +561,13 @@ def build_room3_request_message(*, case_id: UUID) -> str:
         "- status=negado usa motivo opcional\n"
         f"- caso esperado: {case_id}"
     )
+
+
+def _format_room3_context_value(value: str | None) -> str:
+    normalized = (value or "").strip()
+    if not normalized:
+        return "(vazio)"
+    return normalized
 
 
 def build_room3_reply_template_message(*, case_id: UUID) -> str:

@@ -61,6 +61,22 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
             room1_sender_user_id="@human:example.org",
         )
     )
+    await case_repo.store_pdf_extraction(
+        case_id=case.case_id,
+        pdf_mxc_url="mxc://example.org/report",
+        extracted_text="texto extraido",
+        agency_record_number="4777300",
+    )
+    await case_repo.store_llm1_artifacts(
+        case_id=case.case_id,
+        structured_data_json={
+            "patient": {
+                "name": "EVALDO CARDOSO DOS SANTOS",
+                "age": 42,
+            }
+        },
+        summary_text="Resumo",
+    )
 
     service = PostRoom3RequestService(
         room3_id="!room3:example.org",
@@ -78,6 +94,9 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
     request_room_id, request_body = matrix_poster.calls[0]
     assert request_room_id == "!room3:example.org"
     assert str(case.case_id) in request_body
+    assert "registro: 4777300" in request_body
+    assert "paciente: EVALDO CARDOSO DOS SANTOS" in request_body
+    assert "idade: 42" in request_body
     assert "caso esperado" in request_body.lower()
     assert "copie a proxima mensagem" in request_body.lower()
 

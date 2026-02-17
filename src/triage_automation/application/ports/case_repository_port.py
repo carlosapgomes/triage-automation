@@ -59,6 +59,8 @@ class CaseDoctorDecisionSnapshot:
     case_id: UUID
     status: CaseStatus
     doctor_decided_at: datetime | None
+    agency_record_number: str | None = None
+    structured_data_json: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)

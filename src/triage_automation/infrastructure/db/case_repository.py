@@ -161,12 +161,14 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         *,
         case_id: UUID,
     ) -> CaseDoctorDecisionSnapshot | None:
-        """Return status and doctor decision timestamp for webhook handling."""
+        """Return status and decision context used by doctor/scheduler flows."""
 
         statement = sa.select(
             cases.c.case_id,
             cases.c.status,
             cases.c.doctor_decided_at,
+            cases.c.agency_record_number,
+            cases.c.structured_data_json,
         ).where(cases.c.case_id == case_id)
 
         async with self._session_factory() as session:
@@ -180,6 +182,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             case_id=cast("Any", row["case_id"]),
             status=CaseStatus(cast(str, row["status"])),
             doctor_decided_at=cast(datetime | None, row["doctor_decided_at"]),
+            agency_record_number=cast(str | None, row["agency_record_number"]),
+            structured_data_json=cast(dict[str, Any] | None, row["structured_data_json"]),
         )
 
     async def apply_doctor_decision_if_waiting(
