@@ -62,3 +62,13 @@ def test_manual_e2e_runbook_defines_widget_negative_auth_checks() -> None:
     assert "401" in runbook
     assert "403" in runbook
     assert "state/job mutation" in runbook
+
+
+def test_manual_e2e_runbook_defines_room2_negative_reply_checks() -> None:
+    runbook = _read("docs/manual_e2e_runbook.md")
+
+    assert "## Room-2 Negative Reply Checks" in runbook
+    assert "malformed template" in runbook
+    assert "wrong reply-parent" in runbook
+    assert "error_code: invalid_template" in runbook
+    assert "no decision mutation" in runbook

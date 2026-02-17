@@ -63,3 +63,17 @@ uv run python -m apps.worker.main
 - Case status does not change
 - No additional decision job is enqueued
 - Only expected auth/audit records are present
+
+## Room-2 Negative Reply Checks
+
+1. Post malformed template reply (malformed template):
+
+- reply to message I with missing/invalid required lines
+- expected bot feedback includes `error_code: invalid_template`
+- expected no decision mutation and no new downstream job enqueue
+
+2. Post valid template on wrong reply-parent (wrong reply-parent):
+
+- send template as reply to message II/III or unrelated event (not message I root)
+- expected bot feedback includes `error_code: invalid_template`
+- expected no decision mutation and no new downstream job enqueue

@@ -35,5 +35,5 @@
 ## 6. Operational Documentation And Manual E2E
 
 - [x] 6.1 Update manual runbook to validate the three-message Room-2 combo and doctor structured reply to message I in desktop/mobile-capable clients.
-- [ ] 6.2 Document negative manual checks for malformed template replies and wrong reply-parent targeting.
+- [x] 6.2 Document negative manual checks for malformed template replies and wrong reply-parent targeting.
 - [ ] 6.3 Update runtime docs to mark callback decision endpoint as emergency-only and near-term deprecated.
