@@ -31,9 +31,9 @@ Expose widget bootstrap and submit endpoints in `bot-api`, reusing existing deci
 - `uv run mypy src apps`
 
 ## Mandatory Checklist
-- [ ] Existing `/callbacks/triage-decision` remains unchanged
-- [ ] Existing `/auth/login` remains unchanged
-- [ ] No business logic moved into adapter layer
+- [x] Existing `/callbacks/triage-decision` remains unchanged
+- [x] Existing `/auth/login` remains unchanged
+- [x] No business logic moved into adapter layer
 
 ## STOP RULE
 Stop once widget routes are tested and passing; do not change Room-2 posting yet.

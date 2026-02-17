@@ -28,8 +28,10 @@ from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRe
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
+from triage_automation.infrastructure.http.auth_guard import WidgetAuthGuard
 from triage_automation.infrastructure.http.auth_router import build_auth_router
 from triage_automation.infrastructure.http.hmac_auth import verify_hmac_signature
+from triage_automation.infrastructure.http.widget_router import build_widget_router
 from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
@@ -108,6 +110,16 @@ def create_app(
     assert auth_service is not None
     assert auth_token_repository is not None
     assert token_service is not None
+    assert database_url is not None
+
+    widget_session_factory = create_session_factory(database_url)
+    widget_case_repository = SqlAlchemyCaseRepository(widget_session_factory)
+    widget_user_repository = SqlAlchemyUserRepository(widget_session_factory)
+    widget_auth_guard = WidgetAuthGuard(
+        token_service=token_service,
+        auth_token_repository=auth_token_repository,
+        user_repository=widget_user_repository,
+    )
 
     app = FastAPI()
     app.include_router(
@@ -115,6 +127,13 @@ def create_app(
             auth_service=auth_service,
             auth_token_repository=auth_token_repository,
             token_service=token_service,
+        )
+    )
+    app.include_router(
+        build_widget_router(
+            decision_service=decision_service,
+            case_repository=widget_case_repository,
+            auth_guard=widget_auth_guard,
         )
     )
 

@@ -233,4 +233,9 @@ async def test_route_paths_only_add_login_endpoint(tmp_path: Path) -> None:
     with _build_client(async_url) as client:
         paths = {route.path for route in client.app.routes if isinstance(route, APIRoute)}
 
-    assert paths == {"/auth/login", "/callbacks/triage-decision"}
+    assert paths == {
+        "/auth/login",
+        "/callbacks/triage-decision",
+        "/widget/room2/bootstrap",
+        "/widget/room2/submit",
+    }

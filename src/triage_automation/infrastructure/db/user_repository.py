@@ -31,7 +31,7 @@ class SqlAlchemyUserRepository(UserRepositoryPort):
             users.c.is_active,
             users.c.created_at,
             users.c.updated_at,
-        ).where(users.c.id == str(user_id)).limit(1)
+        ).where(users.c.id == user_id).limit(1)
 
         async with self._session_factory() as session:
             result = await session.execute(statement)

@@ -6,9 +6,9 @@
 
 ## 2. Bot API Widget Endpoints
 
-- [ ] 2.1 Add failing API tests for widget bootstrap endpoint (authenticated read of Room-2 decision context) (`tasks/02-bot-api-widget-routes.md`)
-- [ ] 2.2 Add failing API tests for widget submit endpoint (calls existing decision service path, enqueues same jobs) (`tasks/02-bot-api-widget-routes.md`)
-- [ ] 2.3 Implement endpoints/routes in `bot-api` preserving existing callback/login behavior (`tasks/02-bot-api-widget-routes.md`)
+- [x] 2.1 Add failing API tests for widget bootstrap endpoint (authenticated read of Room-2 decision context) (`tasks/02-bot-api-widget-routes.md`)
+- [x] 2.2 Add failing API tests for widget submit endpoint (calls existing decision service path, enqueues same jobs) (`tasks/02-bot-api-widget-routes.md`)
+- [x] 2.3 Implement endpoints/routes in `bot-api` preserving existing callback/login behavior (`tasks/02-bot-api-widget-routes.md`)
 
 ## 3. Room-2 Launch Payload Integration
 
