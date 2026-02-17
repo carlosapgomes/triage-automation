@@ -43,7 +43,7 @@ def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
 
 
 @pytest.mark.asyncio
-async def test_room3_request_posts_request_and_ack_and_moves_wait_appt(tmp_path: Path) -> None:
+async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "room3_request_ok.db")
     session_factory = create_session_factory(async_url)
 
@@ -73,7 +73,7 @@ async def test_room3_request_posts_request_and_ack_and_moves_wait_appt(tmp_path:
     result = await service.post_request(case_id=case.case_id)
 
     assert result.posted is True
-    assert len(matrix_poster.calls) == 3
+    assert len(matrix_poster.calls) == 2
 
     request_room_id, request_body = matrix_poster.calls[0]
     assert request_room_id == "!room3:example.org"
@@ -86,10 +86,6 @@ async def test_room3_request_posts_request_and_ack_and_moves_wait_appt(tmp_path:
     assert "status: confirmado" in template_body
     assert "data_hora: DD-MM-YYYY HH:MM BRT" in template_body
     assert f"caso: {case.case_id}" in template_body
-
-    ack_room_id, ack_body = matrix_poster.calls[2]
-    assert ack_room_id == "!room3:example.org"
-    assert str(case.case_id) in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -106,7 +102,7 @@ async def test_room3_request_posts_request_and_ack_and_moves_wait_appt(tmp_path:
         ).scalars().all()
 
     assert status == "WAIT_APPT"
-    assert list(kinds) == ["room3_request", "room3_template", "bot_ack"]
+    assert list(kinds) == ["room3_request", "room3_template"]
 
 
 @pytest.mark.asyncio
@@ -142,7 +138,7 @@ async def test_duplicate_job_execution_is_idempotent(tmp_path: Path) -> None:
 
     assert first.posted is True
     assert second.posted is False
-    assert len(matrix_poster.calls) == 3
+    assert len(matrix_poster.calls) == 2
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -151,4 +147,4 @@ async def test_duplicate_job_execution_is_idempotent(tmp_path: Path) -> None:
             {"case_id": case.case_id.hex},
         ).scalar_one()
 
-    assert int(message_count) == 3
+    assert int(message_count) == 2

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from typing import Protocol
+from uuid import UUID
 
 from triage_automation.application.ports.audit_repository_port import (
     AuditEventCreateInput,
@@ -22,6 +23,7 @@ from triage_automation.application.ports.message_repository_port import (
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.domain.scheduler_parser import SchedulerParseError, parse_scheduler_reply
 from triage_automation.infrastructure.matrix.message_templates import (
+    build_room3_ack_message,
     build_room3_invalid_format_reprompt,
 )
 
@@ -219,6 +221,12 @@ class Room3ReplyService:
             )
         )
 
+        await self._post_room3_ack(
+            case_id=case_id,
+            room_id=event.room_id,
+            related_event_id=event.event_id,
+        )
+
         await self._job_queue.enqueue(
             JobEnqueueInput(
                 case_id=case_id,
@@ -234,3 +242,58 @@ class Room3ReplyService:
             next_job,
         )
         return Room3ReplyResult(processed=True)
+
+    async def _post_room3_ack(
+        self,
+        *,
+        case_id: UUID,
+        room_id: str,
+        related_event_id: str,
+    ) -> None:
+        """Post Room-3 ack after valid scheduler reply; failures are audit-only."""
+
+        body = build_room3_ack_message(case_id=case_id)
+        try:
+            ack_event_id = await self._matrix_poster.reply_text(
+                room_id=room_id,
+                event_id=related_event_id,
+                body=body,
+            )
+        except Exception as exc:  # pragma: no cover - defensive resilience path
+            logger.warning(
+                "room3_ack_post_failed case_id=%s related_event_id=%s error=%s",
+                case_id,
+                related_event_id,
+                exc,
+            )
+            await self._audit_repository.append_event(
+                AuditEventCreateInput(
+                    case_id=case_id,
+                    actor_type="system",
+                    room_id=room_id,
+                    matrix_event_id=related_event_id,
+                    event_type="ROOM3_ACK_POST_FAILED",
+                    payload={"error": str(exc), "related_event_id": related_event_id},
+                )
+            )
+            return
+
+        await self._message_repository.add_message(
+            CaseMessageCreateInput(
+                case_id=case_id,
+                room_id=room_id,
+                event_id=ack_event_id,
+                sender_user_id=None,
+                kind="bot_ack",
+            )
+        )
+        await self._audit_repository.append_event(
+            AuditEventCreateInput(
+                case_id=case_id,
+                actor_type="bot",
+                room_id=room_id,
+                matrix_event_id=ack_event_id,
+                event_type="ROOM3_ACK_POSTED",
+                payload={"related_event_id": related_event_id},
+            )
+        )

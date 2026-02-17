@@ -1,4 +1,4 @@
-"""Service for posting Room-3 scheduling request and ack messages."""
+"""Service for posting Room-3 scheduling request and template messages."""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from triage_automation.application.ports.message_repository_port import (
 )
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
-    build_room3_ack_message,
     build_room3_reply_template_message,
     build_room3_request_message,
 )
@@ -53,7 +52,7 @@ class PostRoom3RequestResult:
 
 
 class PostRoom3RequestService:
-    """Post Room-3 guidance, template, and ack while transitioning case to WAIT_APPT."""
+    """Post Room-3 guidance and template while transitioning case to WAIT_APPT."""
 
     def __init__(
         self,
@@ -71,7 +70,7 @@ class PostRoom3RequestService:
         self._matrix_poster = matrix_poster
 
     async def post_request(self, *, case_id: UUID) -> PostRoom3RequestResult:
-        """Post scheduling guidance + template + ack for doctor-accepted cases."""
+        """Post scheduling guidance + template for doctor-accepted cases."""
 
         logger.info("room3_request_post_started case_id=%s", case_id)
         snapshot = await self._case_repository.get_case_doctor_decision_snapshot(case_id=case_id)
@@ -186,35 +185,6 @@ class PostRoom3RequestService:
                 room_id=self._room3_id,
                 matrix_event_id=template_event_id,
                 event_type="ROOM3_TEMPLATE_POSTED",
-                payload={},
-            )
-        )
-
-        ack_body = build_room3_ack_message(case_id=case_id)
-        ack_event_id = await self._matrix_poster.send_text(room_id=self._room3_id, body=ack_body)
-        logger.info(
-            "room3_ack_posted case_id=%s room_id=%s event_id=%s",
-            case_id,
-            self._room3_id,
-            ack_event_id,
-        )
-        await self._message_repository.add_message(
-            CaseMessageCreateInput(
-                case_id=case_id,
-                room_id=self._room3_id,
-                event_id=ack_event_id,
-                sender_user_id=None,
-                kind="bot_ack",
-            )
-        )
-
-        await self._audit_repository.append_event(
-            AuditEventCreateInput(
-                case_id=case_id,
-                actor_type="bot",
-                room_id=self._room3_id,
-                matrix_event_id=ack_event_id,
-                event_type="ROOM3_ACK_POSTED",
                 payload={},
             )
         )

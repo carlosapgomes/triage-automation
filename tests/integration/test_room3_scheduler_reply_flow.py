@@ -290,7 +290,9 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
     )
 
     assert result.processed is True
-    assert matrix_poster.reply_calls == []
+    assert len(matrix_poster.reply_calls) == 1
+    assert matrix_poster.reply_calls[0][1] == "$scheduler-4"
+    assert "Reaja com +1 para confirmar." in matrix_poster.reply_calls[0][2]
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -305,9 +307,17 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
             ),
             {"case_id": case_id.hex},
         ).scalar_one()
+        ack_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_messages WHERE case_id = :case_id "
+                "AND kind = 'bot_ack'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
 
     assert status == "APPT_CONFIRMED"
     assert job_type == "post_room1_final_appt"
+    assert int(ack_count) == 1
 
 
 @pytest.mark.asyncio
@@ -351,7 +361,9 @@ async def test_status_template_reply_to_room3_template_message_is_accepted(tmp_p
     )
 
     assert result.processed is True
-    assert matrix_poster.reply_calls == []
+    assert len(matrix_poster.reply_calls) == 1
+    assert matrix_poster.reply_calls[0][1] == "$scheduler-status-template-1"
+    assert "Reaja com +1 para confirmar." in matrix_poster.reply_calls[0][2]
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -366,9 +378,17 @@ async def test_status_template_reply_to_room3_template_message_is_accepted(tmp_p
             ),
             {"case_id": case_id.hex},
         ).scalar_one()
+        ack_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_messages WHERE case_id = :case_id "
+                "AND kind = 'bot_ack'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
 
     assert status == "APPT_CONFIRMED"
     assert job_type == "post_room1_final_appt"
+    assert int(ack_count) == 1
 
 
 @pytest.mark.asyncio
@@ -414,6 +434,9 @@ async def test_runtime_listener_routes_valid_room3_reply_to_service(tmp_path: Pa
 
     assert next_since == "s-room3-valid"
     assert routed_count == 1
+    assert len(matrix_poster.reply_calls) == 1
+    assert matrix_poster.reply_calls[0][1] == "$scheduler-listener-valid"
+    assert "Reaja com +1 para confirmar." in matrix_poster.reply_calls[0][2]
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -428,9 +451,17 @@ async def test_runtime_listener_routes_valid_room3_reply_to_service(tmp_path: Pa
             ),
             {"case_id": case_id.hex},
         ).scalar_one()
+        ack_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_messages WHERE case_id = :case_id "
+                "AND kind = 'bot_ack'"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
 
     assert status == "APPT_CONFIRMED"
     assert job_type == "post_room1_final_appt"
+    assert int(ack_count) == 1
 
 
 @pytest.mark.asyncio
