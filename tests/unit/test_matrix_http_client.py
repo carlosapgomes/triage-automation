@@ -167,6 +167,89 @@ async def test_reply_text_includes_formatted_body_when_provided() -> None:
 
 
 @pytest.mark.asyncio
+async def test_upload_media_posts_bytes_and_returns_content_uri() -> None:
+    transport = _QueuedTransport(
+        responses=[
+            MatrixHttpResponse(
+                status_code=200,
+                body_bytes=b'{"content_uri":"mxc://example.org/media-1"}',
+            )
+        ]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    content_uri = await client.upload_media(
+        filename="arquivo.txt",
+        content_type="text/plain; charset=utf-8",
+        payload_bytes=b"linha 1\nlinha 2\n",
+    )
+
+    assert content_uri == "mxc://example.org/media-1"
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["method"] == "POST"
+    assert (
+        str(call["url"])
+        == "https://matrix.example.org/_matrix/media/v3/upload?filename=arquivo.txt"
+    )
+    headers = call["headers"]
+    assert isinstance(headers, dict)
+    assert headers["Content-Type"] == "text/plain; charset=utf-8"
+    assert call["body"] == b"linha 1\nlinha 2\n"
+
+
+@pytest.mark.asyncio
+async def test_reply_file_text_uploads_then_posts_m_file_reply() -> None:
+    transport = _QueuedTransport(
+        responses=[
+            MatrixHttpResponse(
+                status_code=200,
+                body_bytes=b'{"content_uri":"mxc://example.org/media-file"}',
+            ),
+            MatrixHttpResponse(status_code=200, body_bytes=b'{"event_id":"$evt-file-1"}'),
+        ]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    event_id = await client.reply_file_text(
+        room_id="!room:example.org",
+        event_id="$origin-1",
+        filename="contexto.txt",
+        text_content="linha A\nlinha B",
+    )
+
+    assert event_id == "$evt-file-1"
+    assert len(transport.calls) == 2
+
+    upload_call = transport.calls[0]
+    assert upload_call["method"] == "POST"
+    assert (
+        str(upload_call["url"])
+        == "https://matrix.example.org/_matrix/media/v3/upload?filename=contexto.txt"
+    )
+    assert upload_call["body"] == b"linha A\nlinha B"
+
+    message_call = transport.calls[1]
+    assert message_call["method"] == "PUT"
+    payload = json.loads((message_call["body"] or b"").decode("utf-8"))
+    assert payload["msgtype"] == "m.file"
+    assert payload["body"] == "contexto.txt"
+    assert payload["filename"] == "contexto.txt"
+    assert payload["url"] == "mxc://example.org/media-file"
+    assert payload["info"]["mimetype"] == "text/plain"
+    assert payload["info"]["size"] == len(b"linha A\nlinha B")
+    assert payload["m.relates_to"]["m.in_reply_to"]["event_id"] == "$origin-1"
+
+
+@pytest.mark.asyncio
 async def test_redact_event_calls_redaction_endpoint() -> None:
     transport = _QueuedTransport(responses=[MatrixHttpResponse(status_code=200, body_bytes=b"{}")])
     client = MatrixHttpClient(

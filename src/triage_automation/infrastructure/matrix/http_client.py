@@ -173,6 +173,82 @@ class MatrixHttpClient:
         )
         return _extract_event_id(response=response, operation="reply_text")
 
+    async def reply_file_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        text_content: str,
+    ) -> str:
+        """Upload a UTF-8 text file and reply with `m.file` event referencing it."""
+
+        payload_bytes = text_content.encode("utf-8")
+        content_uri = await self.upload_media(
+            filename=filename,
+            content_type="text/plain; charset=utf-8",
+            payload_bytes=payload_bytes,
+        )
+
+        txn_id = _new_txn_id()
+        path = (
+            "/_matrix/client/v3/rooms/"
+            f"{quote(room_id, safe='')}/send/m.room.message/{quote(txn_id, safe='')}"
+        )
+        response = await self._request_json(
+            operation="reply_file_text",
+            method="PUT",
+            path=path,
+            payload={
+                "msgtype": "m.file",
+                "body": filename,
+                "filename": filename,
+                "url": content_uri,
+                "info": {
+                    "mimetype": "text/plain",
+                    "size": len(payload_bytes),
+                },
+                "m.relates_to": {"m.in_reply_to": {"event_id": event_id}},
+            },
+        )
+        return _extract_event_id(response=response, operation="reply_file_text")
+
+    async def upload_media(
+        self,
+        *,
+        filename: str,
+        content_type: str,
+        payload_bytes: bytes,
+    ) -> str:
+        """Upload media bytes and return Matrix `mxc://` URI."""
+
+        encoded_filename = quote(filename, safe="")
+        candidate_paths = [
+            f"/_matrix/media/v3/upload?filename={encoded_filename}",
+            f"/_matrix/client/v1/media/upload?filename={encoded_filename}",
+        ]
+
+        last_error: MatrixRequestError | None = None
+        for path in candidate_paths:
+            try:
+                response = await self._request_json_bytes_body(
+                    operation="upload_media",
+                    method="POST",
+                    path=path,
+                    body=payload_bytes,
+                    content_type=content_type,
+                )
+                return _extract_content_uri(response=response, operation="upload_media")
+            except MatrixRequestError as error:
+                if error.status_code == 404:
+                    last_error = error
+                    continue
+                raise
+
+        if last_error is not None:
+            raise last_error
+        raise MatrixAdapterError("upload_media failed: no media upload path succeeded")
+
     async def redact_event(self, *, room_id: str, event_id: str) -> None:
         """Redact room event using Matrix client API."""
 
@@ -290,6 +366,30 @@ class MatrixHttpClient:
             raise MatrixAdapterError(f"{operation} returned non-object JSON payload")
         return decoded
 
+    async def _request_json_bytes_body(
+        self,
+        *,
+        operation: str,
+        method: str,
+        path: str,
+        body: bytes,
+        content_type: str,
+    ) -> dict[str, object]:
+        response = await self._request_bytes(
+            operation=operation,
+            method=method,
+            path=path,
+            body=body,
+            content_type=content_type,
+        )
+        try:
+            decoded = json.loads(response.body_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise MatrixAdapterError(f"{operation} returned invalid JSON payload") from error
+        if not isinstance(decoded, dict):
+            raise MatrixAdapterError(f"{operation} returned non-object JSON payload")
+        return decoded
+
     async def _request_bytes(
         self,
         *,
@@ -337,6 +437,13 @@ def _extract_event_id(*, response: dict[str, object], operation: str) -> str:
     if isinstance(event_id, str) and event_id:
         return event_id
     raise MatrixAdapterError(f"{operation} response missing event_id")
+
+
+def _extract_content_uri(*, response: dict[str, object], operation: str) -> str:
+    content_uri = response.get("content_uri")
+    if isinstance(content_uri, str) and content_uri.startswith("mxc://"):
+        return content_uri
+    raise MatrixAdapterError(f"{operation} response missing content_uri")
 
 
 def _parse_mxc_url(mxc_url: str) -> tuple[str, str]:

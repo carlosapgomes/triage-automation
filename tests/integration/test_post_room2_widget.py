@@ -25,6 +25,7 @@ class FakeMatrixPoster:
     def __init__(self) -> None:
         self.send_calls: list[tuple[str, str, str, str | None]] = []
         self.reply_calls: list[tuple[str, str, str, str, str | None]] = []
+        self.reply_file_calls: list[tuple[str, str, str, str, str]] = []
         self._counter = 0
 
     async def send_text(
@@ -50,6 +51,19 @@ class FakeMatrixPoster:
         self._counter += 1
         reply_event_id = f"$room2-{self._counter}"
         self.reply_calls.append((room_id, event_id, body, reply_event_id, formatted_body))
+        return reply_event_id
+
+    async def reply_file_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        text_content: str,
+    ) -> str:
+        self._counter += 1
+        reply_event_id = f"$room2-{self._counter}"
+        self.reply_file_calls.append((room_id, event_id, filename, text_content, reply_event_id))
         return reply_event_id
 
 
@@ -219,20 +233,36 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     await service.post_widget(case_id=current_case.case_id)
 
     assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_file_calls) == 1
     assert len(matrix_poster.reply_calls) == 2
 
     root_room_id, root_body, root_event_id, root_formatted_body = matrix_poster.send_calls[0]
     assert root_room_id == "!room2:example.org"
     assert f"caso: {current_case.case_id}" in root_body
     assert "Solicitacao de triagem - contexto original" in root_body
-    assert "Texto extraido do relatorio original:" in root_body
+    assert "anexo `.txt`" in root_body
+    assert "Previa do texto extraido:" in root_body
     assert "current text" in root_body
     assert "mxc://example.org/current" not in root_body
     assert "/widget/room2" not in root_body
     assert "Payload do widget" not in root_body
     assert root_formatted_body is not None
     assert "<h1>Solicitacao de triagem - contexto original</h1>" in root_formatted_body
+    assert "anexo <code>.txt</code>" in root_formatted_body
+    assert "<h2>Previa do texto extraido:</h2>" in root_formatted_body
     assert "<pre><code>current text</code></pre>" in root_formatted_body
+
+    (
+        attachment_room_id,
+        attachment_parent,
+        attachment_filename,
+        attachment_text_content,
+        _attachment_event_id,
+    ) = matrix_poster.reply_file_calls[0]
+    assert attachment_room_id == "!room2:example.org"
+    assert attachment_parent == root_event_id
+    assert attachment_filename == f"caso-{current_case.case_id}-texto-extraido.txt"
+    assert attachment_text_content == "current text"
 
     (
         summary_room_id,
@@ -313,7 +343,12 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
         ).scalar_one_or_none()
 
     assert status == "WAIT_DOCTOR"
-    assert list(kinds) == ["room2_case_root", "room2_case_summary", "room2_case_instructions"]
+    assert list(kinds) == [
+        "room2_case_root",
+        "room2_case_text_attachment",
+        "room2_case_summary",
+        "room2_case_instructions",
+    ]
     assert root_case_id is not None
     assert UUID(str(root_case_id)) == current_case.case_id
     parsed_status_payload = (

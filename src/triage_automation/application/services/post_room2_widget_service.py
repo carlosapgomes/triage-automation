@@ -32,6 +32,7 @@ from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_pdf_message,
     build_room2_case_summary_formatted_html,
     build_room2_case_summary_message,
+    build_room2_case_text_attachment_filename,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,16 @@ class MatrixRoomPosterPort(Protocol):
         formatted_body: str | None = None,
     ) -> str:
         """Post reply text body to a room event and return generated matrix event id."""
+
+    async def reply_file_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        text_content: str,
+    ) -> str:
+        """Post a text file attachment as reply and return generated matrix event id."""
 
 
 @dataclass
@@ -211,6 +222,50 @@ class PostRoom2WidgetService:
                 payload={
                     "case_id": str(case.case_id),
                     "record_number": case.agency_record_number,
+                },
+            )
+        )
+
+        text_attachment_filename = build_room2_case_text_attachment_filename(
+            case_id=case.case_id
+        )
+        text_attachment_event_id = await self._matrix_poster.reply_file_text(
+            room_id=self._room2_id,
+            event_id=root_event_id,
+            filename=text_attachment_filename,
+            text_content=case.extracted_text,
+        )
+        logger.info(
+            (
+                "room2_context_attachment_posted case_id=%s room_id=%s event_id=%s "
+                "parent_event_id=%s"
+            ),
+            case.case_id,
+            self._room2_id,
+            text_attachment_event_id,
+            root_event_id,
+        )
+
+        await self._message_repository.add_message(
+            CaseMessageCreateInput(
+                case_id=case.case_id,
+                room_id=self._room2_id,
+                event_id=text_attachment_event_id,
+                sender_user_id=None,
+                kind="room2_case_text_attachment",
+            )
+        )
+
+        await self._audit_repository.append_event(
+            AuditEventCreateInput(
+                case_id=case.case_id,
+                actor_type="bot",
+                room_id=self._room2_id,
+                matrix_event_id=text_attachment_event_id,
+                event_type="ROOM2_CASE_TEXT_ATTACHMENT_POSTED",
+                payload={
+                    "reply_to_event_id": root_event_id,
+                    "filename": text_attachment_filename,
                 },
             )
         )

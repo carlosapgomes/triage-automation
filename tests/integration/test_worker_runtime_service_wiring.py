@@ -155,6 +155,7 @@ class FakeMatrixRuntimeClient:
         self._counter = 0
         self.send_calls: list[tuple[str, str]] = []
         self.reply_calls: list[tuple[str, str, str]] = []
+        self.reply_file_calls: list[tuple[str, str, str, str]] = []
         self.redaction_calls: list[tuple[str, str]] = []
         self._pdf_bytes = _build_simple_pdf(
             "RELATORIO DE OCORRENCIAS 12345 "
@@ -186,6 +187,17 @@ class FakeMatrixRuntimeClient:
     ) -> str:
         _ = formatted_body
         self.reply_calls.append((room_id, event_id, body))
+        return self._next_event_id()
+
+    async def reply_file_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        text_content: str,
+    ) -> str:
+        self.reply_file_calls.append((room_id, event_id, filename, text_content))
         return self._next_event_id()
 
     async def redact_event(self, *, room_id: str, event_id: str) -> None:
