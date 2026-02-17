@@ -27,6 +27,62 @@ def build_room2_widget_message(
     )
 
 
+def build_room2_case_pdf_message(
+    *,
+    case_id: UUID,
+    agency_record_number: str,
+    pdf_mxc_url: str,
+) -> str:
+    """Build Room-2 message I body containing original PDF case context."""
+
+    return (
+        "Solicitacao de triagem - contexto original\n"
+        f"case_id: {case_id}\n"
+        f"registro: {agency_record_number}\n"
+        "PDF original:\n"
+        f"{pdf_mxc_url}"
+    )
+
+
+def build_room2_case_summary_message(
+    *,
+    case_id: UUID,
+    structured_data: dict[str, object],
+    summary_text: str,
+    suggested_action: dict[str, object],
+) -> str:
+    """Build Room-2 message II body with extracted artifacts and recommendation."""
+
+    structured_json = json.dumps(structured_data, ensure_ascii=False, indent=2, sort_keys=True)
+    suggestion_json = json.dumps(suggested_action, ensure_ascii=False, indent=2, sort_keys=True)
+    return (
+        "Resumo tecnico da triagem\n"
+        f"case_id: {case_id}\n\n"
+        "Dados estruturados:\n"
+        f"```json\n{structured_json}\n```\n\n"
+        "Resumo:\n"
+        f"{summary_text}\n\n"
+        "Recomendacao:\n"
+        f"```json\n{suggestion_json}\n```"
+    )
+
+
+def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
+    """Build Room-2 message III body with strict doctor decision reply template."""
+
+    return (
+        "Instrucao de decisao medica\n"
+        "Responda como reply a mensagem raiz deste caso usando exatamente o template:\n\n"
+        "decision: accept|deny\n"
+        "support_flag: none|anesthesist|anesthesist_icu\n"
+        "reason: <texto livre ou vazio>\n"
+        f"case_id: {case_id}\n\n"
+        "Regras:\n"
+        "- decision=deny exige support_flag=none\n"
+        "- Nao use texto fora do template"
+    )
+
+
 def build_room2_ack_message(*, case_id: UUID) -> str:
     """Build Room-2 ack body used as audit-only reaction target."""
 
