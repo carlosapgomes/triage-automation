@@ -311,6 +311,67 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
 
 
 @pytest.mark.asyncio
+async def test_status_template_reply_to_room3_template_message_is_accepted(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room3_status_template_reply.db")
+    case_id, _request_event_id = await _setup_wait_appt_case(
+        async_url,
+        origin_event_id="$origin-room3-status-template",
+    )
+    template_event_id = "$room3-template"
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    await message_repository.add_message(
+        CaseMessageCreateInput(
+            case_id=case_id,
+            room_id="!room3:example.org",
+            event_id=template_event_id,
+            kind="room3_template",
+            sender_user_id=None,
+        )
+    )
+    matrix_poster = FakeMatrixPoster()
+    service = _build_service(async_url, matrix_poster)
+
+    body = (
+        "status: confirmado\n"
+        "data_hora: 16-02-2026 14:30 BRT\n"
+        "local: Sala 2\n"
+        "instrucoes: Jejum 8h\n"
+        "motivo: (opcional)\n"
+        f"caso: {case_id}"
+    )
+    result = await service.handle_reply(
+        Room3ReplyEvent(
+            room_id="!room3:example.org",
+            event_id="$scheduler-status-template-1",
+            sender_user_id="@scheduler:example.org",
+            body=body,
+            reply_to_event_id=template_event_id,
+        )
+    )
+
+    assert result.processed is True
+    assert matrix_poster.reply_calls == []
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        status = connection.execute(
+            sa.text("SELECT status FROM cases WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+        job_type = connection.execute(
+            sa.text(
+                "SELECT job_type FROM jobs WHERE case_id = :case_id "
+                "ORDER BY job_id DESC LIMIT 1"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert status == "APPT_CONFIRMED"
+    assert job_type == "post_room1_final_appt"
+
+
+@pytest.mark.asyncio
 async def test_runtime_listener_routes_valid_room3_reply_to_service(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "room3_listener_valid.db")
     case_id, request_event_id = await _setup_wait_appt_case(

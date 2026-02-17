@@ -448,19 +448,29 @@ def _map_presentation_value(value: str) -> str:
 
 
 def build_room3_request_message(*, case_id: UUID) -> str:
-    """Build Room-3 scheduling request body including strict reply instructions."""
+    """Build Room-3 guidance message that points scheduler to copy template."""
 
     return (
-        "Solicitacao de agendamento\n"
-        "Responda usando um dos formatos estritos abaixo.\n\n"
-        "Confirmado:\n"
-        "DD-MM-YYYY HH:MM BRT\n"
-        "local: <texto livre>\n"
-        "instrucoes: <texto livre>\n"
-        f"caso: {case_id}\n\n"
-        "Negado:\n"
-        "negado\n"
-        "motivo: <texto livre opcional>\n"
+        "Solicitacao de agendamento\n\n"
+        "1. Copie a PROXIMA mensagem (modelo puro).\n"
+        "2. Responda como resposta a ela, preenchendo os campos.\n"
+        "3. Mantenha exatamente uma linha por campo.\n\n"
+        "Regras:\n"
+        "- status=confirmado exige data_hora, local e instrucoes preenchidos\n"
+        "- status=negado usa motivo opcional\n"
+        f"- caso esperado: {case_id}"
+    )
+
+
+def build_room3_reply_template_message(*, case_id: UUID) -> str:
+    """Build Room-3 pure scheduler template message for copy/paste reply."""
+
+    return (
+        "status: confirmado\n"
+        "data_hora: DD-MM-YYYY HH:MM BRT\n"
+        "local:\n"
+        "instrucoes:\n"
+        "motivo: (opcional; usado quando status=negado)\n"
         f"caso: {case_id}"
     )
 

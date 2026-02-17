@@ -96,6 +96,12 @@ class Room3ReplyService:
             kind="room3_request",
         )
         if case_id is None:
+            case_id = await self._message_repository.find_case_id_by_room_event_kind(
+                room_id=event.room_id,
+                event_id=event.reply_to_event_id,
+                kind="room3_template",
+            )
+        if case_id is None:
             return Room3ReplyResult(processed=False, reason="unknown_reply_target")
         logger.info("room3_reply_mapped_to_case case_id=%s", case_id)
 
