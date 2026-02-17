@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -8,6 +9,7 @@ import pytest
 import sqlalchemy as sa
 from alembic.config import Config
 from fastapi.testclient import TestClient
+from httpx import Response
 
 from alembic import command
 from apps.bot_api.main import create_app
@@ -104,7 +106,12 @@ def _build_client(
     return TestClient(app)
 
 
-def _post_signed(client: TestClient, payload: dict[str, object], *, signature: str | None = None):
+def _post_signed(
+    client: TestClient,
+    payload: Mapping[str, object],
+    *,
+    signature: str | None = None,
+) -> Response:
     body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     signed = signature or compute_hmac_sha256(secret=SECRET, body=body)
     return client.post(
@@ -242,6 +249,13 @@ async def test_webhook_posts_room2_decision_ack_and_persists_target_mapping(tmp_
     assert response.status_code == 200
     assert matrix_poster.reply_calls
     assert not matrix_poster.send_calls
+    _, related_event_id, ack_body = matrix_poster.reply_calls[0]
+    assert related_event_id == "$doctor-decision-event"
+    assert "resultado: sucesso" in ack_body
+    assert f"case_id: {case_id}" in ack_body
+    assert "decision: accept" in ack_body
+    assert "support_flag: none" in ack_body
+    assert "reason: " in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -255,3 +269,57 @@ async def test_webhook_posts_room2_decision_ack_and_persists_target_mapping(tmp_
         ).scalar_one()
 
     assert int(room2_ack_messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_webhook_emergency_callback_duplicate_decision_is_idempotent(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "triage_webhook_duplicate_idempotent.db")
+    case_id = await _create_wait_doctor_case(async_url, event_id="$origin-webhook-duplicate")
+
+    with _build_client(async_url) as client:
+        first = _post_signed(
+            client,
+            {
+                "case_id": str(case_id),
+                "doctor_user_id": "@doctor:example.org",
+                "decision": "accept",
+                "support_flag": "none",
+                "reason": "criterios atendidos",
+            },
+        )
+        duplicate = _post_signed(
+            client,
+            {
+                "case_id": str(case_id),
+                "doctor_user_id": "@doctor:example.org",
+                "decision": "accept",
+                "support_flag": "none",
+                "reason": "criterios atendidos",
+            },
+        )
+
+    assert first.status_code == 200
+    assert duplicate.status_code == 409
+    assert duplicate.json() == {"detail": "case not in WAIT_DOCTOR"}
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        row = connection.execute(
+            sa.text(
+                "SELECT status, doctor_decision, doctor_support_flag, doctor_user_id "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        jobs = connection.execute(
+            sa.text("SELECT job_type FROM jobs WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalars().all()
+
+    assert row["status"] == "DOCTOR_ACCEPTED"
+    assert row["doctor_decision"] == "accept"
+    assert row["doctor_support_flag"] == "none"
+    assert row["doctor_user_id"] == "@doctor:example.org"
+    assert list(jobs) == ["post_room3_request"]
