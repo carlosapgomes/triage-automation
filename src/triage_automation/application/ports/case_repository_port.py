@@ -45,6 +45,7 @@ class CaseRoom2WidgetSnapshot:
     case_id: UUID
     status: CaseStatus
     pdf_mxc_url: str | None
+    extracted_text: str | None
     agency_record_number: str | None
     structured_data_json: dict[str, Any] | None
     summary_text: str | None

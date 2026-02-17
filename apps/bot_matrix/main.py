@@ -55,6 +55,12 @@ _ROOM2_REPLY_ERROR_REASON_TO_CODE: dict[str, str] = {
     "duplicate_or_race": "state_conflict",
     "not_found": "state_conflict",
 }
+_ROOM2_AUTOMATION_MESSAGE_KINDS = {
+    "room2_case_root",
+    "room2_case_summary",
+    "room2_case_instructions",
+    "room2_decision_ack",
+}
 logger = logging.getLogger(__name__)
 
 
@@ -587,6 +593,21 @@ async def _route_room2_replies_from_sync(
         if mapped_case_id is None:
             continue
 
+        if _extract_sender_user_id(timeline_event.event) == bot_user_id:
+            continue
+
+        timeline_event_id = _extract_event_id(timeline_event.event)
+        if timeline_event_id is not None:
+            existing_mapping = await message_repository.get_case_message_by_room_event(
+                room_id=room2_id,
+                event_id=timeline_event_id,
+            )
+            if (
+                existing_mapping is not None
+                and existing_mapping.kind in _ROOM2_AUTOMATION_MESSAGE_KINDS
+            ):
+                continue
+
         parsed = parse_room2_decision_reply_event(
             room_id=timeline_event.room_id,
             event=timeline_event.event,
@@ -598,7 +619,7 @@ async def _route_room2_replies_from_sync(
             await _send_room2_error_feedback(
                 matrix_client=matrix_client,
                 room_id=room2_id,
-                reply_to_event_id=_extract_event_id(timeline_event.event),
+                reply_to_event_id=timeline_event_id,
                 case_id=mapped_case_id,
                 error_code="invalid_template",
             )
@@ -683,6 +704,13 @@ def _extract_event_id(event: dict[str, object]) -> str | None:
     if not isinstance(event_id, str) or not event_id:
         return None
     return event_id
+
+
+def _extract_sender_user_id(event: dict[str, object]) -> str | None:
+    sender = event.get("sender")
+    if not isinstance(sender, str) or not sender:
+        return None
+    return sender
 
 
 async def _send_room2_error_feedback(

@@ -91,10 +91,10 @@ class PostRoom2WidgetService:
                 details=f"Case status {case.status.value} is not ready for Room-2 widget post",
             )
 
-        if case.pdf_mxc_url is None:
+        if case.extracted_text is None or not case.extracted_text.strip():
             raise PostRoom2WidgetRetriableError(
                 cause="room2",
-                details="Missing pdf_mxc_url for Room-2 case context post",
+                details="Missing extracted_text for Room-2 case context post",
             )
         if case.agency_record_number is None:
             raise PostRoom2WidgetRetriableError(
@@ -156,7 +156,7 @@ class PostRoom2WidgetService:
         root_body = build_room2_case_pdf_message(
             case_id=case.case_id,
             agency_record_number=case.agency_record_number,
-            pdf_mxc_url=case.pdf_mxc_url,
+            extracted_text=case.extracted_text,
         )
         root_event_id = await self._matrix_poster.send_text(
             room_id=self._room2_id,

@@ -17,13 +17,13 @@ def test_build_room2_case_pdf_message_includes_case_and_pdf_context() -> None:
     body = build_room2_case_pdf_message(
         case_id=case_id,
         agency_record_number="12345",
-        pdf_mxc_url="mxc://example.org/report-1",
+        extracted_text="Paciente com dispepsia crônica.",
     )
 
     assert str(case_id) in body
     assert "12345" in body
-    assert "mxc://example.org/report-1" in body
-    assert "PDF original" in body
+    assert "Paciente com dispepsia crônica." in body
+    assert "texto extraido" in body.lower()
 
 
 def test_build_room2_case_summary_message_includes_structured_payloads() -> None:
@@ -38,10 +38,11 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
 
     assert str(case_id) in body
     assert "Resumo LLM1" in body
-    assert '"labs_pass": "yes"' in body
-    assert '"suggestion": "accept"' in body
-    assert "Dados estruturados" in body
+    assert "laboratorio_aprovado" in body
+    assert "sugestao" in body.lower()
+    assert "Dados extraidos" in body
     assert "Recomendacao" in body
+    assert "```json" not in body
 
 
 def test_build_room2_case_decision_instructions_message_has_strict_template() -> None:
