@@ -18,7 +18,7 @@
 
 ## 4. Decision Feedback And Runtime Path Consolidation
 
-- [ ] 4.1 Emit deterministic Room-2 success feedback when a structured decision is accepted and applied.
+- [x] 4.1 Emit deterministic Room-2 success feedback when a structured decision is accepted and applied.
 - [ ] 4.2 Emit actionable Room-2 error feedback for parse/validation/state/authorization failures.
 - [ ] 4.3 Remove widget-style decision as a standard runtime path, keeping `/callbacks/triage-decision` as emergency-only compatibility behavior.
 - [x] 4.4 Persist Room-2 decision confirmation message as a dedicated reaction acknowledgment target posted after accepted decision handling.

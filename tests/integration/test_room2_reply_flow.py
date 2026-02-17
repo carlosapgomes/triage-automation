@@ -204,6 +204,11 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     assert routed_count == 1
     assert len(sync_client.reply_calls) == 1
     assert sync_client.reply_calls[0][1] == "$doctor-room2-reply-1"
+    ack_body = sync_client.reply_calls[0][2]
+    assert "resultado: sucesso" in ack_body
+    assert f"case_id: {case_id}" in ack_body
+    assert "decision: accept" in ack_body
+    assert "support_flag: none" in ack_body
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:

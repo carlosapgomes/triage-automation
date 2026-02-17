@@ -98,14 +98,15 @@ def build_room2_decision_ack_message(
 ) -> str:
     """Build Room-2 post-decision acknowledgment body for doctor reaction."""
 
-    message = (
-        f"Decisao registrada para o caso: {case_id}\n"
-        f"decisao: {decision}\n"
-        f"support_flag: {support_flag}"
+    reason_value = reason or ""
+    return (
+        "resultado: sucesso\n"
+        f"case_id: {case_id}\n"
+        f"decision: {decision}\n"
+        f"support_flag: {support_flag}\n"
+        f"reason: {reason_value}\n"
+        "Reaja com +1 para confirmar ciencia do encerramento."
     )
-    if reason:
-        message = f"{message}\nmotivo: {reason}"
-    return f"{message}\nReaja com +1 para confirmar ciencia do encerramento."
 
 
 def build_room3_request_message(*, case_id: UUID) -> str:
