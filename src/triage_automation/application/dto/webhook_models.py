@@ -19,6 +19,20 @@ SupportFlag = Literal["none", "anesthesist", "anesthesist_icu"]
 Decision = Literal["accept", "deny"]
 
 
+def validate_decision_support_flag(*, decision: Decision, support_flag: SupportFlag) -> None:
+    """Enforce decision/support_flag invariants shared by webhook and widget contracts."""
+
+    if decision == "deny" and support_flag != "none":
+        raise ValueError("decision=deny requires support_flag=none")
+
+    if decision == "accept" and support_flag not in {
+        "none",
+        "anesthesist",
+        "anesthesist_icu",
+    }:
+        raise ValueError("decision=accept requires a valid support_flag")
+
+
 class TriageDecisionWebhookPayload(StrictModel):
     """Doctor widget callback payload contract."""
 
@@ -32,16 +46,10 @@ class TriageDecisionWebhookPayload(StrictModel):
 
     @model_validator(mode="after")
     def _validate_decision_specific_rules(self) -> TriageDecisionWebhookPayload:
-        if self.decision == "deny" and self.support_flag != "none":
-            raise ValueError("decision=deny requires support_flag=none")
-
-        if self.decision == "accept" and self.support_flag not in {
-            "none",
-            "anesthesist",
-            "anesthesist_icu",
-        }:
-            raise ValueError("decision=accept requires a valid support_flag")
-
+        validate_decision_support_flag(
+            decision=self.decision,
+            support_flag=self.support_flag,
+        )
         return self
 
 

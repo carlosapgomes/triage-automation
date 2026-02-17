@@ -26,6 +26,9 @@ class UserRecord:
 class UserRepositoryPort(Protocol):
     """User repository contract."""
 
+    async def get_by_id(self, *, user_id: UUID) -> UserRecord | None:
+        """Return user by id, including inactive users."""
+
     async def get_by_email(self, *, email: str) -> UserRecord | None:
         """Return user by normalized email, including inactive users."""
 

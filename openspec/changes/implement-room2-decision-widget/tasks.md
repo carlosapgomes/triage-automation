@@ -1,8 +1,8 @@
 ## 1. Contracts and Guard Foundations
 
-- [ ] 1.1 Add failing tests for widget request/response DTO validation, including `accept|deny` + `support_flag` rules parity (`tasks/01-contracts-and-guards.md`)
-- [ ] 1.2 Add failing tests for auth token extraction + `admin` role enforcement on widget submit (`tasks/01-contracts-and-guards.md`)
-- [ ] 1.3 Implement DTOs and guard utility with docstrings/types, then make tests pass (`tasks/01-contracts-and-guards.md`)
+- [x] 1.1 Add failing tests for widget request/response DTO validation, including `accept|deny` + `support_flag` rules parity (`tasks/01-contracts-and-guards.md`)
+- [x] 1.2 Add failing tests for auth token extraction + `admin` role enforcement on widget submit (`tasks/01-contracts-and-guards.md`)
+- [x] 1.3 Implement DTOs and guard utility with docstrings/types, then make tests pass (`tasks/01-contracts-and-guards.md`)
 
 ## 2. Bot API Widget Endpoints
 

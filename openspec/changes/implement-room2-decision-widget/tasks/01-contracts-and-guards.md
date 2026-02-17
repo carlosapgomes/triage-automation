@@ -32,9 +32,9 @@ Define widget API contracts and role guard behavior without changing decision bu
 - `uv run mypy src apps`
 
 ## Mandatory Checklist
-- [ ] No state-machine or webhook route behavior changed
-- [ ] Public functions include docstrings and typed signatures
-- [ ] Tests fail before implementation and pass after
+- [x] No state-machine or webhook route behavior changed
+- [x] Public functions include docstrings and typed signatures
+- [x] Tests fail before implementation and pass after
 
 ## STOP RULE
 Stop after tests and quality gates are green for this slice; do not start route wiring.
