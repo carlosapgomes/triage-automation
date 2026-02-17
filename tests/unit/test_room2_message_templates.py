@@ -125,17 +125,18 @@ def test_build_room2_case_decision_template_message_is_copy_paste_ready() -> Non
     assert body.endswith(f"caso: {case_id}")
 
 
-def test_build_room2_case_decision_template_formatted_html_has_only_pre_block() -> None:
+def test_build_room2_case_decision_template_formatted_html_has_plain_lines() -> None:
     case_id = UUID("33333333-3333-3333-3333-333333333333")
 
     body = build_room2_case_decision_template_formatted_html(case_id=case_id)
 
-    assert body.startswith("<pre><code>")
+    assert body.startswith("<p>")
     assert "decisao: aceitar" in body
     assert "suporte: nenhum" in body
     assert "motivo: (opcional)" in body
     assert f"caso: {case_id}" in body
-    assert body.endswith("</code></pre>")
+    assert "<br>" in body
+    assert body.endswith("</p>")
 
 
 def test_build_room2_case_summary_formatted_html_includes_sections() -> None:

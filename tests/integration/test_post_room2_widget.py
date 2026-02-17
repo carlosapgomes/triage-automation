@@ -301,8 +301,9 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "suporte: nenhum\n" in template_body
     assert "motivo: (opcional)\n" in template_body
     assert template_formatted_body is not None
-    assert template_formatted_body.startswith("<pre><code>")
-    assert template_formatted_body.endswith("</code></pre>")
+    assert template_formatted_body.startswith("<p>")
+    assert "<br>" in template_formatted_body
+    assert template_formatted_body.endswith("</p>")
 
     with engine.begin() as connection:
         status = connection.execute(

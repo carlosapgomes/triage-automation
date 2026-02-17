@@ -343,15 +343,17 @@ def build_room2_case_decision_template_message(*, case_id: UUID) -> str:
 
 
 def build_room2_case_decision_template_formatted_html(*, case_id: UUID) -> str:
-    """Build Room-2 pure template HTML payload for easier copy on supporting clients."""
+    """Build Room-2 pure template HTML payload without code fencing."""
 
-    template_block = (
-        "decisao: aceitar\n"
-        "suporte: nenhum\n"
-        "motivo: (opcional)\n"
-        f"caso: {escape(str(case_id))}"
+    case_value = escape(str(case_id))
+    return (
+        "<p>"
+        "decisao: aceitar<br>"
+        "suporte: nenhum<br>"
+        "motivo: (opcional)<br>"
+        f"caso: {case_value}"
+        "</p>"
     )
-    return f"<pre><code>{template_block}</code></pre>"
 
 
 def build_room2_ack_message(*, case_id: UUID) -> str:
