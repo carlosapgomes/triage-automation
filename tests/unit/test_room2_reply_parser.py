@@ -53,6 +53,7 @@ def test_parse_room2_reply_accepts_valid_reply_to_active_root() -> None:
     )
 
     assert parsed is not None
+    assert parsed.sender_user_id == "@doctor:example.org"
     assert parsed.reply_to_event_id == active_root_event_id
     assert parsed.decision == "accept"
     assert parsed.support_flag == "none"
@@ -147,6 +148,30 @@ def test_parse_room2_reply_rejects_case_id_mismatch_against_expected() -> None:
         bot_user_id="@bot:example.org",
         active_root_event_id=active_root_event_id,
         expected_case_id=UUID("22222222-2222-2222-2222-222222222222"),
+    )
+
+    assert parsed is None
+
+
+def test_parse_room2_reply_rejects_event_from_bot_sender() -> None:
+    active_root_event_id = "$room2-root-1"
+    event = _room2_reply_event(
+        event_id="$room2-reply-bot",
+        sender="@bot:example.org",
+        body=(
+            "decision: accept\n"
+            "support_flag: none\n"
+            "reason: ok\n"
+            "case_id: 11111111-1111-1111-1111-111111111111\n"
+        ),
+        reply_to_event_id=active_root_event_id,
+    )
+
+    parsed = parse_room2_decision_reply_event(
+        room_id="!room2:example.org",
+        event=event,
+        bot_user_id="@bot:example.org",
+        active_root_event_id=active_root_event_id,
     )
 
     assert parsed is None
