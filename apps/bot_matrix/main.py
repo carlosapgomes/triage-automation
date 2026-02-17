@@ -59,6 +59,10 @@ _ROOM2_REPLY_ERROR_REASON_TO_CODE: dict[str, str] = {
     "duplicate_or_race": "state_conflict",
     "not_found": "state_conflict",
 }
+_ROOM2_REPLY_TARGET_MESSAGE_KINDS = {
+    "room2_case_root",
+    "room2_case_instructions",
+}
 _ROOM2_AUTOMATION_MESSAGE_KINDS = {
     "room2_case_root",
     "room2_case_summary",
@@ -589,13 +593,15 @@ async def _route_room2_replies_from_sync(
         if reply_target_event_id is None:
             continue
 
-        mapped_case_id = await message_repository.find_case_id_by_room_event_kind(
+        reply_target_mapping = await message_repository.get_case_message_by_room_event(
             room_id=room2_id,
             event_id=reply_target_event_id,
-            kind="room2_case_root",
         )
-        if mapped_case_id is None:
+        if reply_target_mapping is None:
             continue
+        if reply_target_mapping.kind not in _ROOM2_REPLY_TARGET_MESSAGE_KINDS:
+            continue
+        mapped_case_id = reply_target_mapping.case_id
 
         if _extract_sender_user_id(timeline_event.event) == bot_user_id:
             continue
