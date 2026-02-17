@@ -46,6 +46,12 @@ class FakeMatrixPoster:
         self._counter += 1
         return f"$room2-{self._counter}"
 
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        _ = event_id
+        self.calls.append((room_id, body))
+        self._counter += 1
+        return f"$room2-{self._counter}"
+
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
     db_path = tmp_path / filename

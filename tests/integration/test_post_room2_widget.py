@@ -23,13 +23,21 @@ from triage_automation.infrastructure.db.session import create_session_factory
 
 class FakeMatrixPoster:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str]] = []
+        self.send_calls: list[tuple[str, str, str]] = []
+        self.reply_calls: list[tuple[str, str, str, str]] = []
         self._counter = 0
 
     async def send_text(self, *, room_id: str, body: str) -> str:
-        self.calls.append((room_id, body))
         self._counter += 1
-        return f"$room2-{self._counter}"
+        event_id = f"$room2-{self._counter}"
+        self.send_calls.append((room_id, body, event_id))
+        return event_id
+
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        self._counter += 1
+        reply_event_id = f"$room2-{self._counter}"
+        self.reply_calls.append((room_id, event_id, body, reply_event_id))
+        return reply_event_id
 
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
@@ -197,31 +205,29 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
 
     await service.post_widget(case_id=current_case.case_id)
 
-    assert len(matrix_poster.calls) == 2
+    assert len(matrix_poster.send_calls) == 1
+    assert len(matrix_poster.reply_calls) == 2
 
-    room_id, widget_body = matrix_poster.calls[0]
-    payload = _extract_payload_from_widget_body(widget_body)
+    root_room_id, root_body, root_event_id = matrix_poster.send_calls[0]
+    assert root_room_id == "!room2:example.org"
+    assert str(current_case.case_id) in root_body
+    assert "Solicitacao de triagem" in root_body
+    assert "Abra o widget de decisao:" in root_body
 
-    assert room_id == "!room2:example.org"
-    assert payload["case_id"] == str(current_case.case_id)
-    assert payload["agency_record_number"] == "12345"
-    assert payload["structured_data"]["schema_version"] == "1.1"
-    assert payload["summary"] == "Resumo LLM1"
-    assert payload["suggested_action"]["suggestion"] == "deny"
-    assert payload["widget_launch"]["case_id"] == str(current_case.case_id)
-    assert payload["widget_launch"]["bootstrap_path"] == "/widget/room2/bootstrap"
-    assert payload["widget_launch"]["submit_path"] == "/widget/room2/submit"
-    assert payload["widget_launch"]["url"] == (
-        f"https://bot-api.example.org/widget/room2?case_id={current_case.case_id}"
+    summary_room_id, summary_parent, summary_body, _summary_event_id = matrix_poster.reply_calls[0]
+    assert summary_room_id == "!room2:example.org"
+    assert summary_parent == root_event_id
+    assert str(current_case.case_id) in summary_body
+    assert "Resumo LLM1" in summary_body
+    assert '"suggestion": "deny"' in summary_body
+
+    instructions_room_id, instructions_parent, instructions_body, _instructions_event_id = (
+        matrix_poster.reply_calls[1]
     )
-    assert payload["prior_case"]["prior_case_id"] == str(prior_case.case_id)
-    assert payload["prior_denial_count_7d"] == 1
-    assert "Abra o widget de decisao:" in widget_body
-    assert payload["widget_launch"]["url"] in widget_body
-
-    ack_room_id, ack_body = matrix_poster.calls[1]
-    assert ack_room_id == "!room2:example.org"
-    assert str(current_case.case_id) in ack_body
+    assert instructions_room_id == "!room2:example.org"
+    assert instructions_parent == root_event_id
+    assert "decision: accept|deny" in instructions_body
+    assert "support_flag: none|anesthesist|anesthesist_icu" in instructions_body
 
     with engine.begin() as connection:
         status = connection.execute(
@@ -245,7 +251,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
         ).scalar_one()
 
     assert status == "WAIT_DOCTOR"
-    assert list(kinds) == ["bot_widget", "bot_ack"]
+    assert list(kinds) == ["bot_widget", "room2_case_summary", "room2_case_instructions"]
     parsed_status_payload = (
         status_event_payload
         if isinstance(status_event_payload, dict)

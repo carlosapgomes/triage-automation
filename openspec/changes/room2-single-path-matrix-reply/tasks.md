@@ -1,7 +1,7 @@
 ## 1. Room-2 Message Combo Emission
 
 - [x] 1.1 Add/adjust Room-2 bot message builders for message I (original PDF), message II (extracted data/summary/recommendation), and message III (strict reply template + instructions).
-- [ ] 1.2 Update Room-2 publishing flow so messages II and III are sent as replies to message I (flat relation model).
+- [x] 1.2 Update Room-2 publishing flow so messages II and III are sent as replies to message I (flat relation model).
 - [ ] 1.3 Persist/link the Room-2 root context event (message I) in case context so later decision replies can be validated against it.
 
 ## 2. Structured Reply Parsing And Validation
