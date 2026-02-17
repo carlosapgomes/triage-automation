@@ -64,6 +64,7 @@ def _runtime_settings(*, database_url: str) -> Settings:
         matrix_poll_interval_seconds=0.0,
         worker_poll_interval_seconds=0.0,
         webhook_public_url="https://webhook.example.org",
+        widget_public_url="https://webhook.example.org",
         database_url=database_url,
         webhook_hmac_secret="secret",
         llm_runtime_mode="deterministic",

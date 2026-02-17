@@ -30,9 +30,9 @@
 
 ## 6. Runtime Configuration and Operational Docs
 
-- [ ] 6.1 Add settings/tests for widget public URL and route registration fail-fast behavior (`tasks/06-config-and-runbook.md`)
-- [ ] 6.2 Update `.env.example` and runtime docs with widget-specific configuration (`tasks/06-config-and-runbook.md`)
-- [ ] 6.3 Update manual E2E runbook with positive/negative widget test checklist (`tasks/06-config-and-runbook.md`)
+- [x] 6.1 Add settings/tests for widget public URL and route registration fail-fast behavior (`tasks/06-config-and-runbook.md`)
+- [x] 6.2 Update `.env.example` and runtime docs with widget-specific configuration (`tasks/06-config-and-runbook.md`)
+- [x] 6.3 Update manual E2E runbook with positive/negative widget test checklist (`tasks/06-config-and-runbook.md`)
 
 ## 7. Quality Gates and Slice Closeout
 

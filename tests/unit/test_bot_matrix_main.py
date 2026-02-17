@@ -77,6 +77,7 @@ def test_build_runtime_matrix_client_uses_sync_timeout_buffer() -> None:
         matrix_poll_interval_seconds=1.0,
         worker_poll_interval_seconds=1.0,
         webhook_public_url="https://webhook.example.org",
+        widget_public_url="https://webhook.example.org",
         database_url="sqlite+aiosqlite:///tmp.db",
         webhook_hmac_secret="secret",
         llm_runtime_mode="deterministic",

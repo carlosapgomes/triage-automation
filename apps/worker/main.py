@@ -148,7 +148,7 @@ def build_runtime_services(
     )
     post_room2_widget_service = PostRoom2WidgetService(
         room2_id=settings.room2_id,
-        widget_public_base_url=str(settings.webhook_public_url),
+        widget_public_base_url=str(settings.widget_public_url),
         case_repository=case_repository,
         audit_repository=audit_repository,
         message_repository=message_repository,

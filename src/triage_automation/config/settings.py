@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import Field, HttpUrl
+from pydantic import AliasChoices, Field, HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 NonEmptyStr = Annotated[str, Field(min_length=1)]
@@ -36,6 +36,9 @@ class Settings(BaseSettings):
         validation_alias="WORKER_POLL_INTERVAL_SECONDS",
     )
     webhook_public_url: HttpUrl = Field(validation_alias="WEBHOOK_PUBLIC_URL")
+    widget_public_url: HttpUrl = Field(
+        validation_alias=AliasChoices("WIDGET_PUBLIC_URL", "WEBHOOK_PUBLIC_URL"),
+    )
     database_url: NonEmptyStr = Field(validation_alias="DATABASE_URL")
     webhook_hmac_secret: NonEmptyStr = Field(validation_alias="WEBHOOK_HMAC_SECRET")
     llm_runtime_mode: Literal["deterministic", "provider"] = Field(

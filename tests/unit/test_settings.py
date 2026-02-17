@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from apps.bot_api.main import create_app
 from triage_automation.config.settings import Settings
 
 REQUIRED_ENV = {
@@ -25,6 +26,7 @@ def _set_required_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OPENAI_TEMPERATURE", raising=False)
     monkeypatch.delenv("LLM_RUNTIME_MODE", raising=False)
     monkeypatch.delenv("LOG_LEVEL", raising=False)
+    monkeypatch.delenv("WIDGET_PUBLIC_URL", raising=False)
 
 
 def test_required_env_var_missing_raises_validation_error(
@@ -51,6 +53,7 @@ def test_defaults_are_deterministic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.openai_model_llm1 == "gpt-4o-mini"
     assert settings.openai_model_llm2 == "gpt-4o-mini"
     assert settings.openai_temperature is None
+    assert str(settings.widget_public_url) == "https://webhook.example.org/"
 
 
 def test_room_ids_and_urls_are_non_empty(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -73,3 +76,32 @@ def test_matrix_auth_env_var_missing_raises_validation_error(
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
+
+
+def test_widget_public_url_accepts_explicit_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("WIDGET_PUBLIC_URL", "https://widget.example.org")
+
+    settings = Settings(_env_file=None)
+
+    assert str(settings.widget_public_url) == "https://widget.example.org/"
+
+
+def test_widget_public_url_invalid_value_raises_validation_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("WIDGET_PUBLIC_URL", "not-a-url")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_create_app_fails_fast_when_widget_url_config_is_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("WIDGET_PUBLIC_URL", "not-a-url")
+
+    with pytest.raises(ValidationError):
+        create_app()

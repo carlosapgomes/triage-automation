@@ -37,3 +37,26 @@ def test_runtime_smoke_runbook_parity_with_compose_commands() -> None:
 
     assert "docker compose up --build" in runbook
     assert "docker compose logs -f bot-api bot-matrix worker" in runbook
+
+
+def test_manual_e2e_runbook_exists_and_covers_widget_positive_flow() -> None:
+    runbook = _read("docs/manual_e2e_runbook.md")
+
+    assert "## Room-2 Widget Positive Path" in runbook
+    assert "/widget/room2?case_id=" in runbook
+    assert "POST /auth/login" in runbook
+    assert "POST /widget/room2/bootstrap" in runbook
+    assert "POST /widget/room2/submit" in runbook
+    assert "DOCTOR_ACCEPTED" in runbook
+    assert "post_room3_request" in runbook
+
+
+def test_manual_e2e_runbook_defines_widget_negative_auth_checks() -> None:
+    runbook = _read("docs/manual_e2e_runbook.md")
+
+    assert "## Widget Negative Auth Checks" in runbook
+    assert "without Authorization" in runbook
+    assert "reader role token" in runbook
+    assert "401" in runbook
+    assert "403" in runbook
+    assert "state/job mutation" in runbook

@@ -25,6 +25,7 @@ Required variables (from `.env.example`):
 - `ROOM3_ID`
 - `MATRIX_HOMESERVER_URL`
 - `WEBHOOK_PUBLIC_URL`
+- `WIDGET_PUBLIC_URL` (optional override for widget launch links; falls back to `WEBHOOK_PUBLIC_URL`)
 - `DATABASE_URL`
 - `WEBHOOK_HMAC_SECRET`
 - `LLM_RUNTIME_MODE`

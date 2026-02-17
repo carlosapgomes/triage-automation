@@ -32,9 +32,9 @@ Document and validate runtime configuration for widget usage in manual tests.
 - `uv run mypy src apps`
 
 ## Mandatory Checklist
-- [ ] No real secrets or production URLs in example env
-- [ ] Widget test instructions are deterministic
-- [ ] Existing runtime startup commands remain valid
+- [x] No real secrets or production URLs in example env
+- [x] Widget test instructions are deterministic
+- [x] Existing runtime startup commands remain valid
 
 ## STOP RULE
 Stop after docs and config tests pass.
