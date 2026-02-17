@@ -228,7 +228,10 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "negar" in summary_body
     assert "deny" not in summary_body
     assert "- prechecagem_politica:" in summary_body
-    assert "  - laboratorio_aprovado: yes" in summary_body
+    assert "  - laboratorio_aprovado: sim" in summary_body
+    assert "  - é pediátrico?: nao" in summary_body
+    assert "sinal de alerta=nao" in summary_body
+    assert "laudo_presente=sim" in summary_body
     assert "```json" not in summary_body
 
     instructions_room_id, instructions_parent, instructions_body, _instructions_event_id = (

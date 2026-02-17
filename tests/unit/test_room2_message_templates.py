@@ -31,7 +31,10 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
 
     body = build_room2_case_summary_message(
         case_id=case_id,
-        structured_data={"policy_precheck": {"labs_pass": "yes"}, "eda": {"asa": {"class": "II"}}},
+        structured_data={
+            "policy_precheck": {"labs_pass": "yes", "pediatric_flag": True},
+            "eda": {"asa": {"class": "II"}, "ecg": {"abnormal_flag": "unknown"}},
+        },
         summary_text="Resumo LLM1",
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
@@ -39,8 +42,12 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
     assert f"caso: {case_id}" in body
     assert "Resumo LLM1" in body
     assert "- prechecagem_politica:" in body
-    assert "  - laboratorio_aprovado: yes" in body
+    assert "  - laboratorio_aprovado: sim" in body
+    assert "  - é pediátrico?: sim" in body
     assert "  - asa: classe=II" in body
+    assert "  - ecg: sinal de alerta=desconhecido" in body
+    assert "flag_pediatrico" not in body
+    assert "abnormal_flag" not in body
     assert "sugestao" in body.lower()
     assert "aceitar" in body
     assert "accept" not in body

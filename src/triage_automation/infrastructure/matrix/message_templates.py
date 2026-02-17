@@ -18,6 +18,7 @@ _PT_BR_KEY_MAP: dict[str, str] = {
     "details": "detalhes",
     "document_id": "documento",
     "ecg": "ecg",
+    "abnormal_flag": "sinal de alerta",
     "ecg_ok": "ecg_ok",
     "ecg_present": "ecg_presente",
     "ecg_required": "ecg_obrigatorio",
@@ -45,7 +46,7 @@ _PT_BR_KEY_MAP: dict[str, str] = {
     "notes": "notas",
     "one_liner": "uma_linha",
     "patient": "paciente",
-    "pediatric_flag": "flag_pediatrico",
+    "pediatric_flag": "é pediátrico?",
     "platelets_per_mm3": "plaquetas_mm3",
     "policy_alignment": "alinhamento_politica",
     "policy_precheck": "prechecagem_politica",
@@ -282,17 +283,21 @@ def _format_support_value(value: str) -> str:
 
 
 def _map_presentation_value(value: str) -> str:
-    if value == "accept":
-        return "aceitar"
-    if value == "deny":
-        return "negar"
-    if value == "none":
-        return "nenhum"
-    if value == "anesthesist":
-        return "anestesista"
-    if value == "anesthesist_icu":
-        return "anestesista_uti"
-    return value
+    mapping = {
+        "accept": "aceitar",
+        "deny": "negar",
+        "none": "nenhum",
+        "anesthesist": "anestesista",
+        "anesthesist_icu": "anestesista_uti",
+        "yes": "sim",
+        "no": "nao",
+        "unknown": "desconhecido",
+        "bleeding": "sangramento",
+        "moderate": "moderado",
+        "low": "baixo",
+        "high": "alto",
+    }
+    return mapping.get(value, value)
 
 
 def build_room3_request_message(*, case_id: UUID) -> str:
