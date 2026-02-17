@@ -28,9 +28,9 @@ Finalize change with full quality verification and implementation readiness.
 - `uv run mypy src apps`
 
 ## Mandatory Checklist
-- [ ] Behavior parity maintained for callback and state machine
-- [ ] Docstrings/types comply with ratchet scope
-- [ ] Manual runbook updated and reviewed
+- [x] Behavior parity maintained for callback and state machine
+- [x] Docstrings/types comply with ratchet scope
+- [x] Manual runbook updated and reviewed
 
 ## STOP RULE
 Stop and request implementation approval once all gates pass.

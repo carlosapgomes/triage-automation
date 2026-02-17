@@ -7,10 +7,10 @@ import os
 from logging.config import fileConfig
 from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from dotenv import load_dotenv
 
 from alembic import context
 from triage_automation.infrastructure.db.metadata import metadata
@@ -28,7 +28,7 @@ if database_url and configured_url == _DEFAULT_ALEMBIC_URL:
     config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = metadata
 

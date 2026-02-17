@@ -36,6 +36,6 @@
 
 ## 7. Quality Gates and Slice Closeout
 
-- [ ] 7.1 Run `uv run pytest -q` and targeted widget integration tests (`tasks/07-closeout-and-quality-gates.md`)
-- [ ] 7.2 Run `uv run ruff check .` and `uv run mypy src apps` (`tasks/07-closeout-and-quality-gates.md`)
-- [ ] 7.3 Final review for docstrings/public types in touched files and prepare incremental slice commits (`tasks/07-closeout-and-quality-gates.md`)
+- [x] 7.1 Run `uv run pytest -q` and targeted widget integration tests (`tasks/07-closeout-and-quality-gates.md`)
+- [x] 7.2 Run `uv run ruff check .` and `uv run mypy src apps` (`tasks/07-closeout-and-quality-gates.md`)
+- [x] 7.3 Final review for docstrings/public types in touched files and prepare incremental slice commits (`tasks/07-closeout-and-quality-gates.md`)

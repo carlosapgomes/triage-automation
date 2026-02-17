@@ -126,12 +126,13 @@ class OpenAiChatCompletionsClient:
     async def complete(self, *, system_prompt: str, user_prompt: str) -> str:
         """Return assistant text from OpenAI chat completion response."""
 
-        payload = {
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        payload: dict[str, object] = {
             "model": self._model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
+            "messages": messages,
         }
         if self._response_schema_name is None or self._response_schema is None:
             payload["response_format"] = {"type": "json_object"}
@@ -271,7 +272,7 @@ def _decode_error_payload(payload: bytes) -> str:
 def _normalize_openai_strict_schema(schema: dict[str, object]) -> dict[str, object]:
     """Normalize JSON Schema so OpenAI strict mode accepts all object nodes."""
 
-    normalized = cast("dict[str, object]", copy.deepcopy(schema))
+    normalized = copy.deepcopy(schema)
     _normalize_schema_node(normalized)
     return normalized
 

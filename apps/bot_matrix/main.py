@@ -18,16 +18,18 @@ from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRe
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
 from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.matrix.event_parser import parse_room1_pdf_intake_event
-from triage_automation.infrastructure.matrix.http_client import MatrixHttpClient
-from triage_automation.infrastructure.matrix.http_client import MatrixTransportError
+from triage_automation.infrastructure.matrix.http_client import (
+    MatrixHttpClient,
+    MatrixTransportError,
+)
 from triage_automation.infrastructure.matrix.reaction_parser import parse_matrix_reaction_event
 from triage_automation.infrastructure.matrix.room3_reply_parser import parse_room3_reply_event
 from triage_automation.infrastructure.matrix.sync_events import (
     extract_next_batch_token,
     iter_joined_room_timeline_events,
 )
-from triage_automation.infrastructure.logging import configure_logging
 
 _SYNC_HTTP_TIMEOUT_BUFFER_SECONDS = 10.0
 logger = logging.getLogger(__name__)
