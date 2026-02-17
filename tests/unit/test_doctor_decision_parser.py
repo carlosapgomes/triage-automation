@@ -24,7 +24,7 @@ def test_parse_accept_template_success() -> None:
     assert str(parsed.case_id) == case_id
     assert parsed.decision == "accept"
     assert parsed.support_flag == "anesthesist"
-    assert parsed.reason == "risco cardiovascular moderado"
+    assert parsed.reason is None
 
 
 def test_parse_deny_template_with_empty_reason_success() -> None:
@@ -85,7 +85,7 @@ def test_parse_accepts_without_space_after_colon() -> None:
 
     assert parsed.decision == "accept"
     assert parsed.support_flag == "none"
-    assert parsed.reason == "ok"
+    assert parsed.reason is None
 
 
 def test_parse_accepts_template_wrapped_in_code_fences() -> None:
@@ -118,16 +118,19 @@ def test_parse_accepts_decisao_with_accent() -> None:
     assert parsed.support_flag == "none"
 
 
-def test_parse_rejects_unknown_field() -> None:
+def test_parse_ignores_unknown_field_lines() -> None:
     body = (
         "decisao: aceitar\n"
         "suporte: nenhum\n"
         "motivo: ok\n"
         "campo_extra: 11111111-1111-1111-1111-111111111111\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
-    with pytest.raises(DoctorDecisionParseError, match="unknown_field"):
-        parse_doctor_decision_reply(body=body)
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
 
 
 def test_parse_rejects_missing_required_field() -> None:
@@ -207,16 +210,48 @@ def test_parse_rejects_typed_doctor_user_id_field() -> None:
         parse_doctor_decision_reply(body=body)
 
 
-def test_parse_rejects_malformed_line_without_colon() -> None:
+def test_parse_ignores_non_labeled_extra_line() -> None:
     body = (
-        "decisao aceitar\n"
+        "texto livre sem campo\n"
+        "decisao: aceitar\n"
         "suporte: nenhum\n"
         "motivo: ok\n"
         "caso: 11111111-1111-1111-1111-111111111111\n"
     )
 
-    with pytest.raises(DoctorDecisionParseError, match="invalid_line_format"):
-        parse_doctor_decision_reply(body=body)
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
+
+
+def test_parse_accept_without_reason_line_success() -> None:
+    body = (
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "none"
+    assert parsed.reason is None
+
+
+def test_parse_accept_ignores_non_empty_reason() -> None:
+    body = (
+        "decisao: aceitar\n"
+        "suporte: anestesista\n"
+        "motivo: manter em observacao\n"
+        "caso: 11111111-1111-1111-1111-111111111111\n"
+    )
+
+    parsed = parse_doctor_decision_reply(body=body)
+
+    assert parsed.decision == "accept"
+    assert parsed.support_flag == "anesthesist"
+    assert parsed.reason is None
 
 
 def test_parse_rejects_invalid_decision_enum_value() -> None:
