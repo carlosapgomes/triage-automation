@@ -17,9 +17,11 @@ from triage_automation.application.ports.case_repository_port import (
     CaseDoctorDecisionSnapshot,
     CaseFinalReplySnapshot,
     CaseLlmInteractionCreateInput,
+    CaseMonitoringDetail,
     CaseMonitoringListFilter,
     CaseMonitoringListItem,
     CaseMonitoringListPage,
+    CaseMonitoringTimelineItem,
     CaseRecord,
     CaseRecoverySnapshot,
     CaseRepositoryPort,
@@ -36,12 +38,14 @@ logger = logging.getLogger(__name__)
 
 case_report_transcripts = sa.table(
     "case_report_transcripts",
+    sa.column("id", sa.Integer()),
     sa.column("case_id", sa.Uuid()),
     sa.column("extracted_text", sa.Text()),
     sa.column("captured_at", sa.DateTime(timezone=True)),
 )
 case_llm_interactions = sa.table(
     "case_llm_interactions",
+    sa.column("id", sa.Integer()),
     sa.column("case_id", sa.Uuid()),
     sa.column("stage", sa.Text()),
     sa.column("input_payload", sa.JSON()),
@@ -55,7 +59,14 @@ case_llm_interactions = sa.table(
 )
 case_matrix_message_transcripts = sa.table(
     "case_matrix_message_transcripts",
+    sa.column("id", sa.Integer()),
     sa.column("case_id", sa.Uuid()),
+    sa.column("room_id", sa.Text()),
+    sa.column("event_id", sa.Text()),
+    sa.column("sender", sa.Text()),
+    sa.column("message_type", sa.Text()),
+    sa.column("message_text", sa.Text()),
+    sa.column("reply_to_event_id", sa.Text()),
     sa.column("captured_at", sa.DateTime(timezone=True)),
 )
 
@@ -596,6 +607,147 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             page=filters.page,
             page_size=filters.page_size,
             total=total,
+        )
+
+    async def get_case_monitoring_detail(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseMonitoringDetail | None:
+        """Return one case status with unified timeline events ordered chronologically."""
+
+        case_statement = sa.select(
+            cases.c.case_id,
+            cases.c.status,
+        ).where(cases.c.case_id == case_id)
+        report_statement = (
+            sa.select(
+                case_report_transcripts.c.id,
+                case_report_transcripts.c.captured_at,
+                case_report_transcripts.c.extracted_text,
+            )
+            .where(case_report_transcripts.c.case_id == case_id)
+            .order_by(
+                case_report_transcripts.c.captured_at.asc(),
+                case_report_transcripts.c.id.asc(),
+            )
+        )
+        llm_statement = (
+            sa.select(
+                case_llm_interactions.c.id,
+                case_llm_interactions.c.captured_at,
+                case_llm_interactions.c.stage,
+                case_llm_interactions.c.input_payload,
+                case_llm_interactions.c.output_payload,
+                case_llm_interactions.c.prompt_system_name,
+                case_llm_interactions.c.prompt_system_version,
+                case_llm_interactions.c.prompt_user_name,
+                case_llm_interactions.c.prompt_user_version,
+                case_llm_interactions.c.model_name,
+            )
+            .where(case_llm_interactions.c.case_id == case_id)
+            .order_by(case_llm_interactions.c.captured_at.asc(), case_llm_interactions.c.id.asc())
+        )
+        matrix_statement = (
+            sa.select(
+                case_matrix_message_transcripts.c.id,
+                case_matrix_message_transcripts.c.captured_at,
+                case_matrix_message_transcripts.c.room_id,
+                case_matrix_message_transcripts.c.event_id,
+                case_matrix_message_transcripts.c.sender,
+                case_matrix_message_transcripts.c.message_type,
+                case_matrix_message_transcripts.c.message_text,
+                case_matrix_message_transcripts.c.reply_to_event_id,
+            )
+            .where(case_matrix_message_transcripts.c.case_id == case_id)
+            .order_by(
+                case_matrix_message_transcripts.c.captured_at.asc(),
+                case_matrix_message_transcripts.c.id.asc(),
+            )
+        )
+
+        async with self._session_factory() as session:
+            case_result = await session.execute(case_statement)
+            case_row = case_result.mappings().first()
+            if case_row is None:
+                return None
+
+            report_rows = (await session.execute(report_statement)).mappings().all()
+            llm_rows = (await session.execute(llm_statement)).mappings().all()
+            matrix_rows = (await session.execute(matrix_statement)).mappings().all()
+
+        sortable_events: list[tuple[datetime, int, int, CaseMonitoringTimelineItem]] = []
+        for row in report_rows:
+            sortable_events.append(
+                (
+                    cast(datetime, row["captured_at"]),
+                    0,
+                    int(row["id"]),
+                    CaseMonitoringTimelineItem(
+                        source="pdf",
+                        timestamp=cast(datetime, row["captured_at"]),
+                        room_id=None,
+                        actor="system",
+                        event_type="pdf_report_extracted",
+                        content_text=cast(str, row["extracted_text"]),
+                        payload=None,
+                    ),
+                )
+            )
+        for row in llm_rows:
+            sortable_events.append(
+                (
+                    cast(datetime, row["captured_at"]),
+                    1,
+                    int(row["id"]),
+                    CaseMonitoringTimelineItem(
+                        source="llm",
+                        timestamp=cast(datetime, row["captured_at"]),
+                        room_id=None,
+                        actor="llm",
+                        event_type=cast(str, row["stage"]),
+                        content_text=None,
+                        payload={
+                            "input_payload": cast(dict[str, Any], row["input_payload"]),
+                            "output_payload": cast(dict[str, Any], row["output_payload"]),
+                            "prompt_system_name": cast(str | None, row["prompt_system_name"]),
+                            "prompt_system_version": cast(
+                                int | None, row["prompt_system_version"]
+                            ),
+                            "prompt_user_name": cast(str | None, row["prompt_user_name"]),
+                            "prompt_user_version": cast(int | None, row["prompt_user_version"]),
+                            "model_name": cast(str | None, row["model_name"]),
+                        },
+                    ),
+                )
+            )
+        for row in matrix_rows:
+            sortable_events.append(
+                (
+                    cast(datetime, row["captured_at"]),
+                    2,
+                    int(row["id"]),
+                    CaseMonitoringTimelineItem(
+                        source="matrix",
+                        timestamp=cast(datetime, row["captured_at"]),
+                        room_id=cast(str, row["room_id"]),
+                        actor=cast(str, row["sender"]),
+                        event_type=cast(str, row["message_type"]),
+                        content_text=cast(str, row["message_text"]),
+                        payload={
+                            "event_id": cast(str, row["event_id"]),
+                            "reply_to_event_id": cast(str | None, row["reply_to_event_id"]),
+                        },
+                    ),
+                )
+            )
+
+        sortable_events.sort(key=lambda item: (item[0], item[1], item[2]))
+        timeline = [item[3] for item in sortable_events]
+        return CaseMonitoringDetail(
+            case_id=cast("Any", case_row["case_id"]),
+            status=CaseStatus(cast(str, case_row["status"])),
+            timeline=timeline,
         )
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:

@@ -61,4 +61,4 @@ def test_build_runtime_app_exposes_existing_route_paths() -> None:
     )
 
     paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
-    assert paths == {"/auth/login", "/monitoring/cases"}
+    assert paths == {"/auth/login", "/monitoring/cases", "/monitoring/cases/{case_id}"}

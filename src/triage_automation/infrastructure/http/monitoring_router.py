@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from datetime import date
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from triage_automation.application.dto.monitoring_models import (
+    MonitoringCaseDetailResponse,
     MonitoringCaseListItem,
     MonitoringCaseListQueryParams,
     MonitoringCaseListResponse,
+    MonitoringCaseTimelineItem,
 )
 from triage_automation.application.services.access_guard_service import (
     RoleNotAuthorizedError,
@@ -33,7 +36,7 @@ def build_monitoring_router(
     monitoring_service: CaseMonitoringService,
     auth_guard: WidgetAuthGuard,
 ) -> APIRouter:
-    """Build router exposing monitoring dashboard case-list endpoint."""
+    """Build router exposing monitoring dashboard API endpoints."""
 
     router = APIRouter(tags=["monitoring"])
 
@@ -91,6 +94,42 @@ def build_monitoring_router(
             page=result.page,
             page_size=result.page_size,
             total=result.total,
+        )
+
+    @router.get("/monitoring/cases/{case_id}", response_model=MonitoringCaseDetailResponse)
+    async def get_case_detail(request: Request, case_id: UUID) -> MonitoringCaseDetailResponse:
+        try:
+            await auth_guard.require_audit_user(
+                authorization_header=request.headers.get("authorization")
+            )
+        except MissingAuthTokenError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+        except InvalidAuthTokenError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+        except UnknownRoleAuthorizationError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except RoleNotAuthorizedError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+        detail = await monitoring_service.get_case_detail(case_id=case_id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="case not found")
+
+        return MonitoringCaseDetailResponse(
+            case_id=detail.case_id,
+            status=detail.status,
+            timeline=[
+                MonitoringCaseTimelineItem(
+                    source=item.source,
+                    timestamp=item.timestamp,
+                    room_id=item.room_id,
+                    actor=item.actor,
+                    event_type=item.event_type,
+                    content_text=item.content_text,
+                    payload=item.payload,
+                )
+                for item in detail.timeline
+            ],
         )
 
     return router

@@ -170,6 +170,28 @@ class CaseMonitoringListPage:
     total: int
 
 
+@dataclass(frozen=True)
+class CaseMonitoringTimelineItem:
+    """Unified timeline event projection for monitoring case detail."""
+
+    source: Literal["pdf", "llm", "matrix"]
+    timestamp: datetime
+    room_id: str | None
+    actor: str | None
+    event_type: str
+    content_text: str | None
+    payload: dict[str, Any] | None
+
+
+@dataclass(frozen=True)
+class CaseMonitoringDetail:
+    """Per-case monitoring detail including unified chronological timeline."""
+
+    case_id: UUID
+    status: CaseStatus
+    timeline: list[CaseMonitoringTimelineItem]
+
+
 class CaseRepositoryPort(Protocol):
     """Async case repository contract."""
 
@@ -247,6 +269,13 @@ class CaseRepositoryPort(Protocol):
         filters: CaseMonitoringListFilter,
     ) -> CaseMonitoringListPage:
         """List cases ordered by latest activity with period/status filters and pagination."""
+
+    async def get_case_monitoring_detail(
+        self,
+        *,
+        case_id: UUID,
+    ) -> CaseMonitoringDetail | None:
+        """Return case status and unified chronological timeline by case id."""
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""

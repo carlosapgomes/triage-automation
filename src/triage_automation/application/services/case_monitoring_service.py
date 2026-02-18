@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from uuid import UUID
 
 from triage_automation.application.ports.case_repository_port import (
+    CaseMonitoringDetail,
     CaseMonitoringListFilter,
     CaseMonitoringListPage,
     CaseRepositoryPort,
@@ -29,7 +31,7 @@ class CaseMonitoringListQuery:
 
 
 class CaseMonitoringService:
-    """List cases for operational monitoring with period/status filters."""
+    """Read monitoring dashboard data (list and per-case detail timelines)."""
 
     def __init__(self, *, case_repository: CaseRepositoryPort) -> None:
         self._case_repository = case_repository
@@ -59,6 +61,11 @@ class CaseMonitoringService:
             )
         )
 
+    async def get_case_detail(self, *, case_id: UUID) -> CaseMonitoringDetail | None:
+        """Return one case monitoring detail with unified chronological timeline."""
+
+        return await self._case_repository.get_case_monitoring_detail(case_id=case_id)
+
 
 def _day_start(value: date) -> datetime:
     """Return UTC start-of-day datetime for the provided date."""
@@ -70,3 +77,4 @@ def _next_day_start(value: date) -> datetime:
     """Return UTC start-of-next-day datetime for inclusive date-end filtering."""
 
     return _day_start(value) + timedelta(days=1)
+

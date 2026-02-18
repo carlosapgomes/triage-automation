@@ -18,7 +18,7 @@
 
 - [x] 3.1 Implementar endpoint paginado de listagem de casos com filtros de periodo/status e ordenacao por atividade mais recente.
 - [x] 3.2 Definir filtro padrao por data atual e limite padrao de 10-15 casos por pagina.
-- [ ] 3.3 Implementar endpoint de detalhe por caso com timeline cronologica unificada (PDF, LLM, Matrix).
+- [x] 3.3 Implementar endpoint de detalhe por caso com timeline cronologica unificada (PDF, LLM, Matrix).
 - [ ] 3.4 Incluir metadados minimos por evento na timeline: sala/canal, ator, timestamp e tipo de evento, com ACKs e respostas humanas.
 
 ## 4. Dashboard web
