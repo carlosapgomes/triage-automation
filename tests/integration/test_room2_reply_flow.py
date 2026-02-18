@@ -272,6 +272,102 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("support_line", "expected_support_flag"),
+    [
+        ("suporte: nenhum", "none"),
+        ("suporte: anestesista", "anesthesist"),
+        ("suporte: anestesista_uti", "anesthesist_icu"),
+    ],
+)
+async def test_runtime_listener_accepts_all_supported_room2_support_flags(
+    tmp_path: Path,
+    support_line: str,
+    expected_support_flag: str,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room2_reply_listener_support_flags.db")
+    case_id, root_event_id = await _setup_wait_doctor_case(
+        async_url,
+        origin_event_id="$origin-room2-listener-support-flags",
+    )
+    body = (
+        "decisao: aceitar\n"
+        f"{support_line}\n"
+        "motivo: (opcional)\n"
+        f"caso: {case_id}"
+    )
+    sync_client = FakeMatrixRuntimeClient(
+        _sync_payload(
+            next_batch="s-room2-support-flags",
+            room_id="!room2:example.org",
+            events=[
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-support-flags-1",
+                    sender="@doctor:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                )
+            ],
+        )
+    )
+
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=message_repository,
+        matrix_poster=sync_client,
+        room2_id="!room2:example.org",
+    )
+    room2_reply_service = Room2ReplyService(
+        room2_id="!room2:example.org",
+        decision_service=decision_service,
+        membership_authorizer=sync_client,
+    )
+
+    next_since, routed_count = await poll_room2_reply_events_once(
+        matrix_client=sync_client,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id="!room2:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room2-support-flags"
+    assert routed_count == 1
+    assert len(sync_client.reply_calls) == 1
+    ack_body = sync_client.reply_calls[0][2]
+    assert "resultado: sucesso" in ack_body
+    assert f"caso: {case_id}" in ack_body
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, doctor_decision, doctor_support_flag, doctor_user_id "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        jobs = connection.execute(
+            sa.text(
+                "SELECT job_type FROM jobs WHERE case_id = :case_id ORDER BY job_id DESC LIMIT 1"
+            ),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert case_row["status"] == "DOCTOR_ACCEPTED"
+    assert case_row["doctor_decision"] == "accept"
+    assert case_row["doctor_support_flag"] == expected_support_flag
+    assert case_row["doctor_user_id"] == "@doctor:example.org"
+    assert jobs == "post_room3_request"
+
+
+@pytest.mark.asyncio
 async def test_runtime_listener_routes_room2_decision_reply_to_instructions_message(
     tmp_path: Path,
 ) -> None:
@@ -554,6 +650,91 @@ async def test_runtime_listener_routes_room2_deny_reply_to_denial_job_path(
     assert case_row["doctor_support_flag"] == "none"
     assert case_row["doctor_user_id"] == "@doctor:example.org"
     assert jobs == "post_room1_final_denial_triage"
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_rejects_deny_with_non_none_support_flag(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room2_reply_listener_invalid_deny_support.db")
+    case_id, root_event_id = await _setup_wait_doctor_case(
+        async_url,
+        origin_event_id="$origin-room2-listener-invalid-deny-support",
+    )
+    body = (
+        "decisao: negar\n"
+        "suporte: anestesista\n"
+        "motivo: risco alto\n"
+        f"caso: {case_id}"
+    )
+    sync_client = FakeMatrixRuntimeClient(
+        _sync_payload(
+            next_batch="s-room2-invalid-deny-support",
+            room_id="!room2:example.org",
+            events=[
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-invalid-deny-support-1",
+                    sender="@doctor:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                )
+            ],
+        )
+    )
+
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=message_repository,
+        matrix_poster=sync_client,
+        room2_id="!room2:example.org",
+    )
+    room2_reply_service = Room2ReplyService(
+        room2_id="!room2:example.org",
+        decision_service=decision_service,
+        membership_authorizer=sync_client,
+    )
+
+    next_since, routed_count = await poll_room2_reply_events_once(
+        matrix_client=sync_client,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id="!room2:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room2-invalid-deny-support"
+    assert routed_count == 0
+    assert len(sync_client.reply_calls) == 1
+    error_body = sync_client.reply_calls[0][2]
+    assert "resultado: erro" in error_body
+    assert "codigo_erro: invalid_template" in error_body
+    assert f"caso: {case_id}" in error_body
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, doctor_decision, doctor_support_flag, doctor_user_id "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        jobs_count = connection.execute(
+            sa.text("SELECT COUNT(*) FROM jobs WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalar_one()
+
+    assert case_row["status"] == "WAIT_DOCTOR"
+    assert case_row["doctor_decision"] is None
+    assert case_row["doctor_support_flag"] is None
+    assert case_row["doctor_user_id"] is None
+    assert int(jobs_count) == 0
 
 
 @pytest.mark.asyncio
