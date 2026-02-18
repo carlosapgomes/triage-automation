@@ -238,6 +238,17 @@ async def test_llm2_persists_suggestion_and_enqueues_room2_widget_job(tmp_path: 
                 "FROM cases ORDER BY created_at DESC LIMIT 1"
             )
         ).mappings().one()
+        interaction_rows = connection.execute(
+            sa.text(
+                "SELECT stage, input_payload, output_payload, "
+                "prompt_system_name, prompt_system_version, "
+                "prompt_user_name, prompt_user_version, model_name "
+                "FROM case_llm_interactions "
+                "WHERE case_id = :case_id "
+                "ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().all()
         job_count = connection.execute(
             sa.text("SELECT COUNT(*) FROM jobs WHERE job_type = 'post_room2_widget'")
         ).scalar_one()
@@ -247,6 +258,36 @@ async def test_llm2_persists_suggestion_and_enqueues_room2_widget_job(tmp_path: 
     assert row["status"] == "LLM_SUGGEST"
     assert suggested_action["suggestion"] == "accept"
     assert job_count == 1
+    assert len(interaction_rows) == 2
+
+    llm1_row = interaction_rows[0]
+    llm1_input = _decode_json(llm1_row["input_payload"])
+    llm1_output = _decode_json(llm1_row["output_payload"])
+    assert llm1_row["stage"] == "LLM1"
+    assert llm1_row["prompt_system_name"] == "llm1_system"
+    assert llm1_row["prompt_system_version"] == 0
+    assert llm1_row["prompt_user_name"] == "llm1_user"
+    assert llm1_row["prompt_user_version"] == 0
+    assert llm1_row["model_name"] is None
+    assert "system_prompt" in llm1_input
+    assert "user_prompt" in llm1_input
+    assert llm1_output["raw_response"] == json.dumps(_valid_llm1_payload("12345"))
+
+    llm2_row = interaction_rows[1]
+    llm2_input = _decode_json(llm2_row["input_payload"])
+    llm2_output = _decode_json(llm2_row["output_payload"])
+    assert llm2_row["stage"] == "LLM2"
+    assert llm2_row["prompt_system_name"] == "llm2_system"
+    assert llm2_row["prompt_system_version"] == 0
+    assert llm2_row["prompt_user_name"] == "llm2_user"
+    assert llm2_row["prompt_user_version"] == 0
+    assert llm2_row["model_name"] is None
+    assert "system_prompt" in llm2_input
+    assert "user_prompt" in llm2_input
+    assert str(case.case_id) in str(llm2_input["user_prompt"])
+    assert llm2_output["raw_response"] == json.dumps(
+        _valid_llm2_payload(str(case.case_id), "12345")
+    )
 
 
 @pytest.mark.asyncio
@@ -335,7 +376,7 @@ async def test_llm2_contradiction_emits_audit_event_and_forces_deny(tmp_path: Pa
 async def test_runtime_provider_adapter_preserves_llm2_retriable_mapping(
     tmp_path: Path,
 ) -> None:
-    _, async_url = _upgrade_head(tmp_path, "llm2_provider_non_json.db")
+    sync_url, async_url = _upgrade_head(tmp_path, "llm2_provider_non_json.db")
     session_factory = create_session_factory(async_url)
 
     case_repo = SqlAlchemyCaseRepository(session_factory)
@@ -351,8 +392,12 @@ async def test_runtime_provider_adapter_preserves_llm2_retriable_mapping(
         )
     )
 
-    llm1_payload = {"choices": [{"message": {"content": json.dumps(_valid_llm1_payload("12345"))}}]}
-    llm2_payload = {"choices": [{"message": {"content": "not-json"}}]}
+    llm1_payload: dict[str, object] = {
+        "choices": [{"message": {"content": json.dumps(_valid_llm1_payload("12345"))}}]
+    }
+    llm2_payload: dict[str, object] = {
+        "choices": [{"message": {"content": "not-json"}}]
+    }
 
     llm1_service = Llm1Service(
         llm_client=OpenAiChatCompletionsClient(
@@ -387,5 +432,23 @@ async def test_runtime_provider_adapter_preserves_llm2_retriable_mapping(
     with pytest.raises(ProcessPdfCaseRetriableError) as error_info:
         await service.process_case(case_id=case.case_id, pdf_mxc_url="mxc://example.org/pdf")
 
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        interaction_rows = connection.execute(
+            sa.text(
+                "SELECT stage, model_name, output_payload "
+                "FROM case_llm_interactions "
+                "WHERE case_id = :case_id "
+                "ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().all()
+
     assert error_info.value.cause == "llm2"
     assert "LLM2 returned non-JSON payload" in error_info.value.details
+    assert len(interaction_rows) == 2
+    assert interaction_rows[0]["stage"] == "LLM1"
+    assert interaction_rows[0]["model_name"] == "gpt-4o-mini"
+    assert interaction_rows[1]["stage"] == "LLM2"
+    assert interaction_rows[1]["model_name"] == "gpt-4o-mini"
+    assert _decode_json(interaction_rows[1]["output_payload"])["raw_response"] == "not-json"

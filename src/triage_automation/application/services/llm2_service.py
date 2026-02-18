@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 from pydantic import ValidationError
 
 from triage_automation.application.dto.llm1_models import Llm1Response
 from triage_automation.application.dto.llm2_models import Llm2Response
+from triage_automation.application.ports.case_repository_port import (
+    CaseLlmInteractionCreateInput,
+    CaseRepositoryPort,
+)
 from triage_automation.application.services.llm_json_parser import (
     LlmJsonParseError,
     decode_llm_json_object,
@@ -83,6 +88,7 @@ class Llm2Service:
         agency_record_number: str,
         llm1_structured_data: dict[str, object],
         prior_case_json: dict[str, object] | None = None,
+        interaction_repository: CaseRepositoryPort | None = None,
     ) -> Llm2ServiceResult:
         """Execute LLM2 and return policy-reconciled suggestion artifacts."""
 
@@ -110,9 +116,15 @@ class Llm2Service:
             prior_case_json=prior_case_json,
         )
 
-        raw_response = await self._llm_client.complete(
+        raw_response = await self._complete_and_capture(
+            case_id=case_id,
             system_prompt=system_prompt,
             user_prompt=user_prompt,
+            prompt_system_name=system_prompt_name,
+            prompt_system_version=system_prompt_version,
+            prompt_user_name=user_prompt_name,
+            prompt_user_version=user_prompt_version,
+            interaction_repository=interaction_repository,
         )
         validated = _decode_and_validate_llm2_response(
             raw_response=raw_response,
@@ -126,9 +138,15 @@ class Llm2Service:
                 f"{user_prompt}\n\n"
                 f"{self._LANGUAGE_RETRY_INSTRUCTION}"
             )
-            retry_response = await self._llm_client.complete(
+            retry_response = await self._complete_and_capture(
+                case_id=case_id,
                 system_prompt=system_prompt,
                 user_prompt=retry_user_prompt,
+                prompt_system_name=system_prompt_name,
+                prompt_system_version=system_prompt_version,
+                prompt_user_name=user_prompt_name,
+                prompt_user_version=user_prompt_version,
+                interaction_repository=interaction_repository,
             )
             validated = _decode_and_validate_llm2_response(
                 raw_response=retry_response,
@@ -196,6 +214,41 @@ class Llm2Service:
             prompt_user_name=user_prompt_name,
             prompt_user_version=user_prompt_version,
         )
+
+    async def _complete_and_capture(
+        self,
+        *,
+        case_id: UUID,
+        system_prompt: str,
+        user_prompt: str,
+        prompt_system_name: str,
+        prompt_system_version: int,
+        prompt_user_name: str,
+        prompt_user_version: int,
+        interaction_repository: CaseRepositoryPort | None,
+    ) -> str:
+        raw_response = await self._llm_client.complete(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+        )
+        if interaction_repository is not None:
+            await interaction_repository.append_case_llm_interaction(
+                CaseLlmInteractionCreateInput(
+                    case_id=case_id,
+                    stage="LLM2",
+                    input_payload=_build_llm_input_payload(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                    ),
+                    output_payload={"raw_response": raw_response},
+                    prompt_system_name=prompt_system_name,
+                    prompt_system_version=prompt_system_version,
+                    prompt_user_name=prompt_user_name,
+                    prompt_user_version=prompt_user_version,
+                    model_name=_resolve_model_name(self._llm_client),
+                )
+            )
+        return raw_response
 
     async def _load_prompts(self) -> tuple[str, str, str, int, str, int]:
         if self._prompt_templates is None:
@@ -315,3 +368,17 @@ def _collect_llm2_forbidden_terms(*, validated: Llm2Response) -> list[str]:
     if validated.policy_alignment.notes is not None:
         texts.append(validated.policy_alignment.notes)
     return collect_forbidden_terms(texts=texts)
+
+
+def _build_llm_input_payload(*, system_prompt: str, user_prompt: str) -> dict[str, Any]:
+    return {
+        "system_prompt": system_prompt,
+        "user_prompt": user_prompt,
+    }
+
+
+def _resolve_model_name(client: LlmClientPort) -> str | None:
+    model_name = getattr(client, "model_name", None)
+    if isinstance(model_name, str) and model_name.strip():
+        return model_name
+    return None

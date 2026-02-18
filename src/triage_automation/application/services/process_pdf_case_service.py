@@ -128,6 +128,7 @@ class ProcessPdfCaseService:
                     case_id=case_id,
                     agency_record_number=record_result.agency_record_number,
                     clean_text=record_result.cleaned_text,
+                    interaction_repository=self._case_repository,
                 )
             except Llm1RetriableError as error:
                 if self._audit_repository is not None:
@@ -184,6 +185,7 @@ class ProcessPdfCaseService:
                         case_id=case_id,
                         agency_record_number=record_result.agency_record_number,
                         llm1_structured_data=llm1_result.structured_data_json,
+                        interaction_repository=self._case_repository,
                     )
                 except Llm2RetriableError as error:
                     if self._audit_repository is not None:

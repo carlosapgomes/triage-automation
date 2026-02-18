@@ -10,7 +10,7 @@
 ## 2. Captura de eventos nos boundaries
 
 - [x] 2.1 Persistir texto extraido completo no ponto de finalizacao da extracao do relatorio.
-- [ ] 2.2 Persistir I/O completo de LLM no boundary do client LLM sem alterar o workflow clinico.
+- [x] 2.2 Persistir I/O completo de LLM no boundary do client LLM sem alterar o workflow clinico.
 - [ ] 2.3 Persistir mensagens completas enviadas/recebidas nos adapters Matrix para salas 1, 2 e 3.
 - [ ] 2.4 Garantir estrategia append-only para os novos registros de trilha.
 

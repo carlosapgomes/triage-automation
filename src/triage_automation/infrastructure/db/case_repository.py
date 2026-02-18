@@ -16,6 +16,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseCreateInput,
     CaseDoctorDecisionSnapshot,
     CaseFinalReplySnapshot,
+    CaseLlmInteractionCreateInput,
     CaseRecord,
     CaseRecoverySnapshot,
     CaseRepositoryPort,
@@ -34,6 +35,18 @@ case_report_transcripts = sa.table(
     "case_report_transcripts",
     sa.column("case_id", sa.Uuid()),
     sa.column("extracted_text", sa.Text()),
+)
+case_llm_interactions = sa.table(
+    "case_llm_interactions",
+    sa.column("case_id", sa.Uuid()),
+    sa.column("stage", sa.Text()),
+    sa.column("input_payload", sa.JSON()),
+    sa.column("output_payload", sa.JSON()),
+    sa.column("prompt_system_name", sa.Text()),
+    sa.column("prompt_system_version", sa.Integer()),
+    sa.column("prompt_user_name", sa.Text()),
+    sa.column("prompt_user_version", sa.Integer()),
+    sa.column("model_name", sa.Text()),
 )
 
 
@@ -565,6 +578,38 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             "case_report_transcript_appended case_id=%s extracted_text_chars=%s",
             case_id,
             len(extracted_text),
+        )
+
+    async def append_case_llm_interaction(self, payload: CaseLlmInteractionCreateInput) -> None:
+        """Append one LLM interaction transcript row for later timeline retrieval."""
+
+        statement = sa.insert(case_llm_interactions).values(
+            case_id=payload.case_id,
+            stage=payload.stage,
+            input_payload=payload.input_payload,
+            output_payload=payload.output_payload,
+            prompt_system_name=payload.prompt_system_name,
+            prompt_system_version=payload.prompt_system_version,
+            prompt_user_name=payload.prompt_user_name,
+            prompt_user_version=payload.prompt_user_version,
+            model_name=payload.model_name,
+        )
+
+        async with self._session_factory() as session:
+            await session.execute(statement)
+            await session.commit()
+        logger.info(
+            (
+                "case_llm_interaction_appended case_id=%s stage=%s "
+                "prompt_system=%s@%s prompt_user=%s@%s model_name=%s"
+            ),
+            payload.case_id,
+            payload.stage,
+            payload.prompt_system_name,
+            payload.prompt_system_version,
+            payload.prompt_user_name,
+            payload.prompt_user_version,
+            payload.model_name,
         )
 
     async def store_llm1_artifacts(

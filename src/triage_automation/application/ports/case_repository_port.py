@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 from uuid import UUID
 
 from triage_automation.domain.case_status import CaseStatus
@@ -115,6 +115,21 @@ class Room1FinalReplyReactionSnapshot:
 
 
 @dataclass(frozen=True)
+class CaseLlmInteractionCreateInput:
+    """Append-only payload for persisting LLM input/output transcript records."""
+
+    case_id: UUID
+    stage: Literal["LLM1", "LLM2"]
+    input_payload: dict[str, Any]
+    output_payload: dict[str, Any]
+    prompt_system_name: str | None
+    prompt_system_version: int | None
+    prompt_user_name: str | None
+    prompt_user_version: int | None
+    model_name: str | None
+
+
+@dataclass(frozen=True)
 class CaseRecoverySnapshot:
     """Case fields required for restart recovery scans."""
 
@@ -217,6 +232,9 @@ class CaseRepositoryPort(Protocol):
         extracted_text: str,
     ) -> None:
         """Append full extracted report text for audit retrieval by case."""
+
+    async def append_case_llm_interaction(self, payload: CaseLlmInteractionCreateInput) -> None:
+        """Append one LLM interaction transcript row linked to case id."""
 
     async def store_llm1_artifacts(
         self,
