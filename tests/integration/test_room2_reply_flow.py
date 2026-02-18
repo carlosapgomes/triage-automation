@@ -830,6 +830,99 @@ async def test_runtime_listener_duplicate_room2_replies_are_idempotent(
 
 
 @pytest.mark.asyncio
+async def test_runtime_listener_duplicate_room2_deny_replies_are_idempotent(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "room2_reply_listener_duplicate_deny.db")
+    case_id, root_event_id = await _setup_wait_doctor_case(
+        async_url,
+        origin_event_id="$origin-room2-listener-duplicate-deny",
+    )
+    body = (
+        "decision: deny\n"
+        "support_flag: none\n"
+        "reason: criterios negados\n"
+        f"case_id: {case_id}"
+    )
+    sync_client = FakeMatrixRuntimeClient(
+        _sync_payload(
+            next_batch="s-room2-duplicate-deny",
+            room_id="!room2:example.org",
+            events=[
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-dup-deny-1",
+                    sender="@doctor:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                ),
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-dup-deny-2",
+                    sender="@doctor:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                ),
+            ],
+        )
+    )
+
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=message_repository,
+        matrix_poster=sync_client,
+        room2_id="!room2:example.org",
+    )
+    room2_reply_service = Room2ReplyService(
+        room2_id="!room2:example.org",
+        decision_service=decision_service,
+        membership_authorizer=sync_client,
+    )
+
+    next_since, routed_count = await poll_room2_reply_events_once(
+        matrix_client=sync_client,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id="!room2:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room2-duplicate-deny"
+    assert routed_count == 1
+    assert len(sync_client.reply_calls) == 2
+    first_feedback = sync_client.reply_calls[0][2]
+    second_feedback = sync_client.reply_calls[1][2]
+    assert "resultado: sucesso" in first_feedback
+    assert "decisao: negar" in first_feedback
+    assert "resultado: erro" in second_feedback
+    assert "codigo_erro: state_conflict" in second_feedback
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        case_row = connection.execute(
+            sa.text(
+                "SELECT status, doctor_decision, doctor_support_flag, doctor_user_id "
+                "FROM cases WHERE case_id = :case_id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().one()
+        jobs = connection.execute(
+            sa.text("SELECT job_type FROM jobs WHERE case_id = :case_id"),
+            {"case_id": case_id.hex},
+        ).scalars().all()
+
+    assert case_row["status"] == "DOCTOR_DENIED"
+    assert case_row["doctor_decision"] == "deny"
+    assert case_row["doctor_support_flag"] == "none"
+    assert case_row["doctor_user_id"] == "@doctor:example.org"
+    assert list(jobs) == ["post_room1_final_denial_triage"]
+
+
+@pytest.mark.asyncio
 async def test_runtime_listener_rejects_reply_with_typed_doctor_identity_field(
     tmp_path: Path,
 ) -> None:
