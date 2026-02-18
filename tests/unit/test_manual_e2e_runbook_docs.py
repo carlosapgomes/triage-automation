@@ -80,3 +80,29 @@ def test_manual_e2e_runbook_defines_room2_negative_reply_checks() -> None:
     assert "wrong reply-parent" in runbook
     assert "error_code: invalid_template" in runbook
     assert "no decision mutation" in runbook
+
+
+def test_manual_e2e_runbook_defines_dashboard_api_and_auditable_timeline_checks() -> None:
+    runbook = _read("docs/manual_e2e_runbook.md")
+
+    assert "## Dashboard and Monitoring API Checks" in runbook
+    assert "/dashboard/cases" in runbook
+    assert "/monitoring/cases" in runbook
+    assert "/monitoring/cases/{case_id}" in runbook
+    assert "chronological timeline" in runbook
+    assert "ACK" in runbook
+    assert "human reply" in runbook
+
+
+def test_manual_e2e_runbook_defines_prompt_authorization_flow_checks() -> None:
+    runbook = _read("docs/manual_e2e_runbook.md")
+
+    assert "## Prompt Management Authorization Flow" in runbook
+    assert "/admin/prompts/versions" in runbook
+    assert "/admin/prompts/{prompt_name}/active" in runbook
+    assert "/admin/prompts/{prompt_name}/activate" in runbook
+    assert "reader token" in runbook
+    assert "admin token" in runbook
+    assert "403" in runbook
+    assert "200" in runbook
+    assert "prompt_version_activated" in runbook
