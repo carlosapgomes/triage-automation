@@ -76,6 +76,10 @@ def do_run_migrations(connection: Connection) -> None:
     """Configure and run migrations for an active DB connection."""
 
     _ensure_postgres_version_table_capacity(connection)
+    # Inspector/DDL calls above may trigger an implicit SQLAlchemy transaction.
+    # Close it so Alembic owns the migration transaction lifecycle.
+    if connection.in_transaction():
+        connection.commit()
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()
