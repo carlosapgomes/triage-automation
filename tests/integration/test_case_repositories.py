@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -178,3 +179,120 @@ async def test_duplicate_case_message_room_event_is_rejected_safely(tmp_path: Pa
         ).scalar_one()
 
     assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_full_transcript_persistence_and_chronological_timeline_per_case(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "full_transcript_timeline_case.db")
+    session_factory = create_session_factory(async_url)
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+
+    target_case_id = uuid4()
+    other_case_id = uuid4()
+    await case_repo.create_case(
+        CaseCreateInput(
+            case_id=target_case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$event-target-case",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.create_case(
+        CaseCreateInput(
+            case_id=other_case_id,
+            status=CaseStatus.WAIT_DOCTOR,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$event-other-case",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+
+    base = datetime(2026, 2, 18, 9, 0, 0, tzinfo=UTC)
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_llm_interactions ("
+                "case_id, stage, input_payload, output_payload, "
+                "prompt_system_name, prompt_system_version, "
+                "prompt_user_name, prompt_user_version, model_name, captured_at"
+                ") VALUES ("
+                ":case_id, 'LLM2', :input_payload, :output_payload, "
+                "'llm2_system', 7, 'llm2_user', 8, 'gpt-4o-mini', :captured_at"
+                ")"
+            ),
+            {
+                "case_id": target_case_id.hex,
+                "captured_at": base,
+                "input_payload": '{"input":{"a":1,"b":["x","y"]}}',
+                "output_payload": '{"output":{"decision":"accept","score":0.91}}',
+            },
+        )
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_report_transcripts (case_id, extracted_text, captured_at) "
+                "VALUES (:case_id, :extracted_text, :captured_at)"
+            ),
+            {
+                "case_id": target_case_id.hex,
+                "captured_at": base + timedelta(minutes=5),
+                "extracted_text": "relatorio completo alvo",
+            },
+        )
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_matrix_message_transcripts ("
+                "case_id, room_id, event_id, sender, message_type, message_text, "
+                "reply_to_event_id, captured_at"
+                ") VALUES ("
+                ":case_id, '!room2:example.org', :event_id, '@doctor:example.org', "
+                "'room2_doctor_reply', 'decisao: aceitar', :reply_to_event_id, :captured_at"
+                ")"
+            ),
+            {
+                "case_id": target_case_id.hex,
+                "captured_at": base + timedelta(minutes=10),
+                "event_id": "$evt-target-reply",
+                "reply_to_event_id": "$evt-target-root",
+            },
+        )
+        connection.execute(
+            sa.text(
+                "INSERT INTO case_report_transcripts (case_id, extracted_text, captured_at) "
+                "VALUES (:case_id, :extracted_text, :captured_at)"
+            ),
+            {
+                "case_id": other_case_id.hex,
+                "captured_at": base + timedelta(minutes=2),
+                "extracted_text": "relatorio completo outro caso",
+            },
+        )
+
+    detail = await case_repo.get_case_monitoring_detail(case_id=target_case_id)
+
+    assert detail is not None
+    assert detail.case_id == target_case_id
+    assert [item.source for item in detail.timeline] == ["llm", "pdf", "matrix"]
+    assert [item.event_type for item in detail.timeline] == [
+        "LLM2",
+        "pdf_report_extracted",
+        "room2_doctor_reply",
+    ]
+    assert detail.timeline[0].payload == {
+        "input_payload": {"input": {"a": 1, "b": ["x", "y"]}},
+        "output_payload": {"output": {"decision": "accept", "score": 0.91}},
+        "prompt_system_name": "llm2_system",
+        "prompt_system_version": 7,
+        "prompt_user_name": "llm2_user",
+        "prompt_user_version": 8,
+        "model_name": "gpt-4o-mini",
+    }
+    assert detail.timeline[1].content_text == "relatorio completo alvo"
+    assert detail.timeline[2].content_text == "decisao: aceitar"
+    assert detail.timeline[2].payload == {
+        "event_id": "$evt-target-reply",
+        "reply_to_event_id": "$evt-target-root",
+    }

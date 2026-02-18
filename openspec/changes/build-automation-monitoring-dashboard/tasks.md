@@ -42,7 +42,7 @@
 
 ## 7. Validacao e prontidao manual
 
-- [ ] 7.1 Adicionar testes de persistencia e ordenacao cronologica para trilha completa por caso.
+- [x] 7.1 Adicionar testes de persistencia e ordenacao cronologica para trilha completa por caso.
 - [ ] 7.2 Adicionar testes de autorizacao para garantir `reader` somente leitura e `admin` com mutacao de prompts.
 - [ ] 7.3 Atualizar runbook/checklist manual com validacao de APIs de dashboard, timeline auditavel e fluxo de autorizacao de prompts.
 - [ ] 7.4 Executar verificacoes de qualidade para o slice implementado (`uv run pytest`, `uv run ruff check`, `uv run mypy`) e registrar qualquer limitacao.
