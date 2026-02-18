@@ -128,7 +128,7 @@ def create_app(
             auth_guard=auth_guard,
         )
     )
-    app.include_router(build_dashboard_router())
+    app.include_router(build_dashboard_router(monitoring_service=monitoring_service))
 
     return app
 
