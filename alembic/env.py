@@ -110,15 +110,14 @@ def _ensure_postgres_version_table_capacity(connection: Connection) -> None:
 
     inspector = sa.inspect(connection)
     if "alembic_version" not in inspector.get_table_names():
-        with connection.begin():
-            connection.execute(
-                sa.text(
-                    "CREATE TABLE alembic_version ("
-                    "version_num VARCHAR(191) NOT NULL, "
-                    "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)"
-                    ")"
-                )
+        connection.execute(
+            sa.text(
+                "CREATE TABLE alembic_version ("
+                "version_num VARCHAR(191) NOT NULL, "
+                "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)"
+                ")"
             )
+        )
         return
 
     columns = {column["name"]: column for column in inspector.get_columns("alembic_version")}
@@ -128,13 +127,12 @@ def _ensure_postgres_version_table_capacity(connection: Connection) -> None:
 
     length = getattr(version_column["type"], "length", None)
     if isinstance(length, int) and length < 191:
-        with connection.begin():
-            connection.execute(
-                sa.text(
-                    "ALTER TABLE alembic_version "
-                    "ALTER COLUMN version_num TYPE VARCHAR(191)"
-                )
+        connection.execute(
+            sa.text(
+                "ALTER TABLE alembic_version "
+                "ALTER COLUMN version_num TYPE VARCHAR(191)"
             )
+        )
 
 
 if context.is_offline_mode():
