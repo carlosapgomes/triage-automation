@@ -167,3 +167,38 @@ def test_runtime_app_serves_monitoring_and_prompt_admin_routes_in_same_process(
     assert prompt_admin_response.status_code == 200
     assert "items" in monitoring_response.json()
     assert "items" in prompt_admin_response.json()
+
+
+def test_runtime_app_keeps_legacy_http_decision_route_absent(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "bot_api_runtime_matrix_only.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-runtime-matrix-only-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+
+    app = bot_api_main.build_runtime_app(
+        token_service=token_service,
+        database_url=async_url,
+    )
+
+    runtime_paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
+    assert "/callbacks/triage-decision" not in runtime_paths
+    assert all("callbacks" not in path for path in runtime_paths)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/callbacks/triage-decision",
+            json={"case_id": str(uuid4()), "decision": "accept"},
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 404
