@@ -40,6 +40,7 @@ Run applicable commands for the slice:
 uv run pytest <targeted-tests>
 uv run ruff check <changed-paths>
 uv run mypy <changed-paths-or-package>
+markdownlint-cli2 "<changed-markdown-paths>"
 ```
 
 If a command cannot be run, report why explicitly.
@@ -67,6 +68,8 @@ When creating or editing `proposal.md`, `design.md`, `tasks.md`, and `specs/**/s
 3. Use consistent heading hierarchy (`#` -> `##` -> `###`) without skipping levels.
 4. For nested list items, indent child bullets by two spaces.
 5. Prefer clean Markdown that renders without linter warnings in common editors.
+6. When Markdown files are changed, run `markdownlint-cli2 "<changed-markdown-paths>"` before commit.
+7. If needed, use `markdownlint-cli2 --fix "<changed-markdown-paths>"` and then rerun lint.
 
 ## Default Session Prompt (User Re-entry)
 
