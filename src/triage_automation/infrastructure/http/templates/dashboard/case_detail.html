@@ -1,11 +1,41 @@
 {% extends "dashboard/base.html" %}
 
 {% block content %}
-  <section class="card shadow-sm">
+  <section class="card shadow-sm mb-4">
     <div class="card-body">
-      <h2 class="h5 mb-3">Detalhe do Caso</h2>
-      <p class="text-secondary mb-1">Visualizacao server-rendered da timeline.</p>
-      <code class="small">{{ case_id }}</code>
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h2 class="h5 mb-2">Detalhe do Caso</h2>
+          <code class="small">{{ case_id }}</code>
+        </div>
+        <span class="badge text-bg-dark">{{ status }}</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="case-timeline" class="card shadow-sm">
+    <div class="card-body">
+      <h3 class="h6 mb-3">Timeline Cronologica</h3>
+      {% if timeline_rows %}
+        <ol class="list-group list-group-numbered">
+          {% for row in timeline_rows %}
+            <li class="list-group-item py-3">
+              <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <span class="badge {{ row.source_badge_class }}">{{ row.source }}</span>
+                <span class="badge {{ row.channel_badge_class }}">{{ row.channel }}</span>
+                <span class="badge {{ row.event_badge_class }}">{{ row.event_type }}</span>
+                <small class="text-secondary">{{ row.timestamp }}</small>
+              </div>
+              <p class="mb-1"><strong>Ator:</strong> {{ row.actor }}</p>
+              {% if row.content_text %}
+                <p class="mb-0">{{ row.content_text }}</p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="text-secondary mb-0">Nao ha eventos de timeline para este caso.</p>
+      {% endif %}
     </div>
   </section>
 {% endblock %}

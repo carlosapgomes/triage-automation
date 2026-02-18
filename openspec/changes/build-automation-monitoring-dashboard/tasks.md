@@ -25,7 +25,7 @@
 
 - [x] 4.1 Implementar páginas server-rendered no `bot-api` com `FastAPI` + `Jinja2` e layout base em `Bootstrap 5.3`.
 - [x] 4.2 Implementar tela de listagem de casos com filtros e paginação usando `Unpoly` para atualizações parciais sem build step frontend.
-- [ ] 4.3 Implementar tela de detalhe com timeline cronologica e diferenciacao visual por sala/tipo de evento usando `Bootstrap 5.3`.
+- [x] 4.3 Implementar tela de detalhe com timeline cronologica e diferenciacao visual por sala/tipo de evento usando `Bootstrap 5.3`.
 - [ ] 4.4 Exibir trecho e conteudo completo de mensagens/eventos conforme permissao do usuario autenticado, com `JavaScript vanilla` apenas para interações pontuais.
 
 ## 5. RBAC e gestao de prompts

@@ -123,7 +123,11 @@ def _insert_matrix_transcript(
     connection: sa.Connection,
     *,
     case_id: UUID,
+    room_id: str = "!room2:example.org",
     event_id: str,
+    sender: str = "@doctor:example.org",
+    message_type: str = "room2_doctor_reply",
+    message_text: str = "ok",
     captured_at: datetime,
 ) -> None:
     connection.execute(
@@ -131,13 +135,62 @@ def _insert_matrix_transcript(
             "INSERT INTO case_matrix_message_transcripts ("
             "case_id, room_id, event_id, sender, message_type, message_text, captured_at"
             ") VALUES ("
-            ":case_id, '!room2:example.org', :event_id, '@doctor:example.org', "
-            "'room2_doctor_reply', 'ok', :captured_at"
+            ":case_id, :room_id, :event_id, :sender, :message_type, :message_text, :captured_at"
             ")"
         ),
         {
             "case_id": case_id.hex,
+            "room_id": room_id,
             "event_id": event_id,
+            "sender": sender,
+            "message_type": message_type,
+            "message_text": message_text,
+            "captured_at": captured_at,
+        },
+    )
+
+
+def _insert_report_transcript(
+    connection: sa.Connection,
+    *,
+    case_id: UUID,
+    extracted_text: str,
+    captured_at: datetime,
+) -> None:
+    connection.execute(
+        sa.text(
+            "INSERT INTO case_report_transcripts (case_id, extracted_text, captured_at) "
+            "VALUES (:case_id, :extracted_text, :captured_at)"
+        ),
+        {
+            "case_id": case_id.hex,
+            "extracted_text": extracted_text,
+            "captured_at": captured_at,
+        },
+    )
+
+
+def _insert_llm_interaction(
+    connection: sa.Connection,
+    *,
+    case_id: UUID,
+    stage: str,
+    captured_at: datetime,
+) -> None:
+    connection.execute(
+        sa.text(
+            "INSERT INTO case_llm_interactions ("
+            "case_id, stage, input_payload, output_payload, "
+            "prompt_system_name, prompt_system_version, "
+            "prompt_user_name, prompt_user_version, model_name, captured_at"
+            ") VALUES ("
+            ":case_id, :stage, '{\"input\":\"x\"}', '{\"output\":\"y\"}', "
+            "'llm_system', 1, 'llm_user', 1, 'gpt-4o-mini', :captured_at"
+            ")"
+        ),
+        {
+            "case_id": case_id.hex,
+            "stage": stage,
             "captured_at": captured_at,
         },
     )
@@ -205,10 +258,8 @@ async def test_dashboard_case_list_page_renders_filters_and_paginated_rows_with_
 
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(
-            
-                "/dashboard/cases?page=1&page_size=2"
-                f"&from_date={filter_date}&to_date={filter_date}"
-            
+            "/dashboard/cases?page=1&page_size=2"
+            f"&from_date={filter_date}&to_date={filter_date}"
         )
 
     assert response.status_code == 200
@@ -288,12 +339,15 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
 
 
 @pytest.mark.asyncio
-async def test_dashboard_case_detail_page_uses_same_base_layout(tmp_path: Path) -> None:
+async def test_dashboard_case_detail_page_renders_chronological_timeline_with_visual_badges(
+    tmp_path: Path,
+) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
     reader_token = "reader-dashboard-detail-token"
     case_id = uuid4()
+    base = datetime(2026, 2, 18, 10, 0, 0, tzinfo=UTC)
 
     engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
@@ -304,6 +358,44 @@ async def test_dashboard_case_detail_page_uses_same_base_layout(tmp_path: Path) 
             user_id=reader_id,
             token=reader_token,
         )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=base - timedelta(minutes=15),
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="texto do pdf",
+            captured_at=base,
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room1:example.org",
+            event_id="$evt-ack",
+            sender="bot",
+            message_type="bot_processing",
+            message_text="processando...",
+            captured_at=base + timedelta(minutes=5),
+        )
+        _insert_llm_interaction(
+            connection,
+            case_id=case_id,
+            stage="LLM1",
+            captured_at=base + timedelta(minutes=10),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room2:example.org",
+            event_id="$evt-reply",
+            sender="@doctor:example.org",
+            message_type="room2_doctor_reply",
+            message_text="decisao: aceitar",
+            captured_at=base + timedelta(minutes=15),
+        )
 
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(f"/dashboard/cases/{case_id}")
@@ -312,3 +404,17 @@ async def test_dashboard_case_detail_page_uses_same_base_layout(tmp_path: Path) 
     assert response.headers["content-type"].startswith("text/html")
     assert "bootstrap@5.3" in response.text
     assert str(case_id) in response.text
+    assert 'id="case-timeline"' in response.text
+    assert "pdf_report_extracted" in response.text
+    assert "bot_processing" in response.text
+    assert "LLM1" in response.text
+    assert "room2_doctor_reply" in response.text
+    assert "badge text-bg-secondary" in response.text
+    assert "badge text-bg-info" in response.text
+    assert "badge text-bg-warning" in response.text
+    assert "badge text-bg-primary" in response.text
+
+    html = response.text
+    assert html.index("pdf_report_extracted") < html.index("bot_processing")
+    assert html.index("bot_processing") < html.index("LLM1")
+    assert html.index("LLM1") < html.index("room2_doctor_reply")

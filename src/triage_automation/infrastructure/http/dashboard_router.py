@@ -112,7 +112,27 @@ def build_dashboard_router(*, monitoring_service: CaseMonitoringService) -> APIR
 
     @router.get("/dashboard/cases/{case_id}", response_class=HTMLResponse)
     async def render_case_detail_page(request: Request, case_id: UUID) -> HTMLResponse:
-        """Render dashboard detail page shell for one monitoring case."""
+        """Render dashboard detail page with chronological timeline by case."""
+
+        detail = await monitoring_service.get_case_detail(case_id=case_id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="case not found")
+
+        timeline_rows: list[dict[str, object]] = []
+        for item in detail.timeline:
+            timeline_rows.append(
+                {
+                    "timestamp": item.timestamp.isoformat(),
+                    "source": item.source,
+                    "source_badge_class": _source_badge_class(item.source),
+                    "channel": item.channel,
+                    "channel_badge_class": _channel_badge_class(item.channel),
+                    "actor": item.actor or "system",
+                    "event_type": item.event_type,
+                    "event_badge_class": _event_badge_class(item.event_type),
+                    "content_text": item.content_text,
+                }
+            )
 
         return templates.TemplateResponse(
             request=request,
@@ -120,6 +140,8 @@ def build_dashboard_router(*, monitoring_service: CaseMonitoringService) -> APIR
             context={
                 "page_title": "Detalhe do Caso",
                 "case_id": str(case_id),
+                "status": detail.status.value,
+                "timeline_rows": timeline_rows,
             },
         )
 
@@ -154,3 +176,41 @@ def _build_cases_url(
     if to_date is not None:
         params["to_date"] = to_date.isoformat()
     return f"/dashboard/cases?{urlencode(params)}"
+
+
+def _source_badge_class(source: str) -> str:
+    """Map timeline source into a Bootstrap contextual badge class."""
+
+    return {
+        "pdf": "text-bg-secondary",
+        "llm": "text-bg-info",
+        "matrix": "text-bg-primary",
+    }.get(source, "text-bg-secondary")
+
+
+def _channel_badge_class(channel: str) -> str:
+    """Map timeline channel/room id into a Bootstrap badge class."""
+
+    if channel.startswith("!room1"):
+        return "text-bg-warning"
+    if channel.startswith("!room2"):
+        return "text-bg-primary"
+    if channel.startswith("!room3"):
+        return "text-bg-success"
+    if channel == "llm":
+        return "text-bg-info"
+    if channel == "pdf":
+        return "text-bg-secondary"
+    return "text-bg-secondary"
+
+
+def _event_badge_class(event_type: str) -> str:
+    """Map event type into a Bootstrap badge class for timeline differentiation."""
+
+    if "ack" in event_type or event_type.startswith("bot_"):
+        return "text-bg-info"
+    if "reply" in event_type:
+        return "text-bg-primary"
+    if event_type.startswith("LLM"):
+        return "text-bg-info"
+    return "text-bg-secondary"
