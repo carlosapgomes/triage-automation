@@ -179,6 +179,37 @@ def _insert_report_transcript(
     )
 
 
+def _insert_case_event(
+    connection: sa.Connection,
+    *,
+    case_id: UUID,
+    ts: datetime,
+    event_type: str,
+    actor_type: str,
+    actor_user_id: str | None = None,
+    room_id: str | None = None,
+    payload: dict[str, object] | None = None,
+) -> None:
+    connection.execute(
+        sa.text(
+            "INSERT INTO case_events ("
+            "case_id, ts, actor_type, actor_user_id, room_id, event_type, payload"
+            ") VALUES ("
+            ":case_id, :ts, :actor_type, :actor_user_id, :room_id, :event_type, :payload"
+            ")"
+        ),
+        {
+            "case_id": case_id.hex,
+            "ts": ts,
+            "actor_type": actor_type,
+            "actor_user_id": actor_user_id,
+            "room_id": room_id,
+            "event_type": event_type,
+            "payload": json.dumps(payload, ensure_ascii=False) if payload is not None else "{}",
+        },
+    )
+
+
 def _insert_llm_interaction(
     connection: sa.Connection,
     *,
@@ -747,3 +778,61 @@ async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path
     assert "SEGREDO_FULL_ADMIN_ONLY_123" not in response.text
     assert "data-toggle-full=" not in response.text
     assert "trecho" in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_falls_back_to_legacy_case_events_timeline(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_legacy_events.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-detail-legacy-events"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 14, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="CLEANED",
+            updated_at=base + timedelta(minutes=4),
+        )
+        _insert_case_event(
+            connection,
+            case_id=case_id,
+            ts=base,
+            event_type="CASE_CREATED",
+            actor_type="system",
+            payload={"origin": "legacy"},
+        )
+        _insert_case_event(
+            connection,
+            case_id=case_id,
+            ts=base + timedelta(minutes=3),
+            event_type="ROOM2_DOCTOR_REPLY",
+            actor_type="user",
+            actor_user_id="@doctor:example.org",
+            room_id="!room2:example.org",
+            payload={"decision": "accept"},
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "CASE_CREATED" in response.text
+    assert "ROOM2_DOCTOR_REPLY" in response.text
+    assert "@doctor:example.org" in response.text
+    assert "!room2:example.org" in response.text

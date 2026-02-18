@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
-from typing import Any, cast
+from typing import Any, Literal, cast
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -69,6 +70,17 @@ case_matrix_message_transcripts = sa.table(
     sa.column("reply_to_event_id", sa.Text()),
     sa.column("captured_at", sa.DateTime(timezone=True)),
 )
+case_events = sa.table(
+    "case_events",
+    sa.column("id", sa.Integer()),
+    sa.column("case_id", sa.Uuid()),
+    sa.column("ts", sa.DateTime(timezone=True)),
+    sa.column("actor_type", sa.Text()),
+    sa.column("actor_user_id", sa.Text()),
+    sa.column("room_id", sa.Text()),
+    sa.column("event_type", sa.Text()),
+    sa.column("payload", sa.JSON()),
+)
 
 
 def _is_duplicate_origin_error(error: IntegrityError) -> bool:
@@ -109,6 +121,40 @@ def _extract_patient_name_from_structured_data(
     if not normalized:
         return None
     return normalized
+
+
+def _infer_case_event_source(
+    *, event_type: str, room_id: str | None
+) -> Literal["pdf", "llm", "matrix"]:
+    """Infer timeline source label for legacy `case_events` fallback rows."""
+
+    normalized = event_type.upper()
+    if room_id is not None:
+        return "matrix"
+    if normalized.startswith("LLM") or "LLM" in normalized:
+        return "llm"
+    if "PDF" in normalized or "EXTRACT" in normalized:
+        return "pdf"
+    return "matrix"
+
+
+def _normalize_case_event_payload(raw_payload: object) -> dict[str, Any] | None:
+    """Normalize legacy case_event payload into a dictionary when possible."""
+
+    if isinstance(raw_payload, dict):
+        return cast(dict[str, Any], raw_payload)
+    if isinstance(raw_payload, str):
+        stripped = raw_payload.strip()
+        if not stripped:
+            return None
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            return {"raw_payload": stripped}
+        if isinstance(parsed, dict):
+            return cast(dict[str, Any], parsed)
+        return {"raw_payload": parsed}
+    return None
 
 
 class SqlAlchemyCaseRepository(CaseRepositoryPort):
@@ -693,6 +739,19 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 case_matrix_message_transcripts.c.id.asc(),
             )
         )
+        case_events_statement = (
+            sa.select(
+                case_events.c.id,
+                case_events.c.ts,
+                case_events.c.actor_type,
+                case_events.c.actor_user_id,
+                case_events.c.room_id,
+                case_events.c.event_type,
+                case_events.c.payload,
+            )
+            .where(case_events.c.case_id == case_id)
+            .order_by(case_events.c.ts.asc(), case_events.c.id.asc())
+        )
 
         async with self._session_factory() as session:
             case_result = await session.execute(case_statement)
@@ -703,6 +762,7 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
             report_rows = (await session.execute(report_statement)).mappings().all()
             llm_rows = (await session.execute(llm_statement)).mappings().all()
             matrix_rows = (await session.execute(matrix_statement)).mappings().all()
+            event_rows = (await session.execute(case_events_statement)).mappings().all()
 
         sortable_events: list[tuple[datetime, int, int, CaseMonitoringTimelineItem]] = []
         for row in report_rows:
@@ -772,6 +832,34 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                     ),
                 )
             )
+
+        # Backward compatibility: old cases can have timeline only in `case_events`.
+        if not sortable_events:
+            for row in event_rows:
+                room_id = cast(str | None, row["room_id"])
+                event_type = cast(str, row["event_type"])
+                sortable_events.append(
+                    (
+                        cast(datetime, row["ts"]),
+                        3,
+                        int(row["id"]),
+                        CaseMonitoringTimelineItem(
+                            source=_infer_case_event_source(
+                                event_type=event_type,
+                                room_id=room_id,
+                            ),
+                            channel=room_id or "audit",
+                            timestamp=cast(datetime, row["ts"]),
+                            room_id=room_id,
+                            actor=cast(str | None, row["actor_user_id"])
+                            or cast(str | None, row["actor_type"])
+                            or "system",
+                            event_type=event_type,
+                            content_text=None,
+                            payload=_normalize_case_event_payload(row["payload"]),
+                        ),
+                    )
+                )
 
         sortable_events.sort(key=lambda item: (item[0], item[1], item[2]))
         timeline = [item[3] for item in sortable_events]

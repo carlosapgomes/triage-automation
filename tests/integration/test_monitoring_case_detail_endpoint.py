@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -98,6 +99,37 @@ def _insert_case(
             "origin_event_id": f"$origin-{case_id.hex}",
             "created_at": updated_at,
             "updated_at": updated_at,
+        },
+    )
+
+
+def _insert_case_event(
+    connection: sa.Connection,
+    *,
+    case_id: UUID,
+    ts: datetime,
+    event_type: str,
+    actor_type: str,
+    actor_user_id: str | None = None,
+    room_id: str | None = None,
+    payload: dict[str, object] | None = None,
+) -> None:
+    connection.execute(
+        sa.text(
+            "INSERT INTO case_events ("
+            "case_id, ts, actor_type, actor_user_id, room_id, event_type, payload"
+            ") VALUES ("
+            ":case_id, :ts, :actor_type, :actor_user_id, :room_id, :event_type, :payload"
+            ")"
+        ),
+        {
+            "case_id": case_id.hex,
+            "ts": ts,
+            "actor_type": actor_type,
+            "actor_user_id": actor_user_id,
+            "room_id": room_id,
+            "event_type": event_type,
+            "payload": json.dumps(payload, ensure_ascii=False) if payload is not None else "{}",
         },
     )
 
@@ -242,6 +274,69 @@ async def test_monitoring_case_detail_returns_not_found_for_unknown_case(tmp_pat
 
     assert response.status_code == 404
     assert response.json() == {"detail": "case not found"}
+
+
+@pytest.mark.asyncio
+async def test_monitoring_case_detail_falls_back_to_case_events_for_legacy_cases(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "monitoring_case_detail_legacy_events.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-detail-legacy-events"
+    case_id = uuid4()
+    base = datetime(2026, 2, 18, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="CLEANED",
+            updated_at=base + timedelta(minutes=5),
+        )
+        _insert_case_event(
+            connection,
+            case_id=case_id,
+            ts=base,
+            event_type="CASE_CREATED",
+            actor_type="system",
+            payload={"origin": "legacy"},
+        )
+        _insert_case_event(
+            connection,
+            case_id=case_id,
+            ts=base + timedelta(minutes=2),
+            event_type="ROOM2_DOCTOR_REPLY",
+            actor_type="user",
+            actor_user_id="@doctor:example.org",
+            room_id="!room2:example.org",
+            payload={"decision": "accept"},
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/monitoring/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["case_id"] == str(case_id)
+    assert payload["status"] == "CLEANED"
+    assert [item["event_type"] for item in payload["timeline"]] == [
+        "CASE_CREATED",
+        "ROOM2_DOCTOR_REPLY",
+    ]
+    assert [item["actor"] for item in payload["timeline"]] == ["system", "@doctor:example.org"]
+    assert [item["channel"] for item in payload["timeline"]] == ["audit", "!room2:example.org"]
 
 
 @pytest.mark.asyncio
