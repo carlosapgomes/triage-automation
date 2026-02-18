@@ -22,6 +22,9 @@ from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAudit
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
+from triage_automation.infrastructure.db.reaction_checkpoint_repository import (
+    SqlAlchemyReactionCheckpointRepository,
+)
 from triage_automation.infrastructure.db.session import create_session_factory
 
 
@@ -104,6 +107,7 @@ def _build_service(async_url: str, matrix_poster: FakeMatrixPoster) -> Room3Repl
         message_repository=SqlAlchemyMessageRepository(session_factory),
         job_queue=SqlAlchemyJobQueueRepository(session_factory),
         matrix_poster=matrix_poster,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
 
@@ -339,6 +343,13 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
             ),
             {"case_id": case_id.hex},
         ).mappings().all()
+        reaction_checkpoints = connection.execute(
+            sa.text(
+                "SELECT stage, room_id, target_event_id, outcome, reaction_event_id "
+                "FROM case_reaction_checkpoints WHERE case_id = :case_id ORDER BY id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().all()
 
     assert status == "APPT_CONFIRMED"
     assert job_type == "post_room1_final_appt"
@@ -353,6 +364,12 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
     assert transcript_rows[1]["sender"] == "bot"
     assert transcript_rows[1]["message_text"] == matrix_poster.reply_calls[0][2]
     assert transcript_rows[1]["reply_to_event_id"] == "$scheduler-4"
+    assert len(reaction_checkpoints) == 1
+    assert reaction_checkpoints[0]["stage"] == "ROOM3_ACK"
+    assert reaction_checkpoints[0]["room_id"] == "!room3:example.org"
+    assert reaction_checkpoints[0]["target_event_id"] == "$reprompt-1"
+    assert reaction_checkpoints[0]["outcome"] == "PENDING"
+    assert reaction_checkpoints[0]["reaction_event_id"] is None
 
 
 @pytest.mark.asyncio

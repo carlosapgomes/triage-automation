@@ -21,6 +21,9 @@ from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAudit
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
+from triage_automation.infrastructure.db.reaction_checkpoint_repository import (
+    SqlAlchemyReactionCheckpointRepository,
+)
 from triage_automation.infrastructure.db.session import create_session_factory
 
 
@@ -83,6 +86,31 @@ def _sync_payload_with_room_events(
     }
 
 
+def _insert_reaction_checkpoint(
+    connection: sa.Connection,
+    *,
+    case_id_hex: str,
+    stage: str,
+    room_id: str,
+    target_event_id: str,
+) -> None:
+    connection.execute(
+        sa.text(
+            "INSERT INTO case_reaction_checkpoints ("
+            "case_id, stage, room_id, target_event_id"
+            ") VALUES ("
+            ":case_id, :stage, :room_id, :target_event_id"
+            ")"
+        ),
+        {
+            "case_id": case_id_hex,
+            "stage": stage,
+            "room_id": room_id,
+            "target_event_id": target_event_id,
+        },
+    )
+
+
 @pytest.mark.asyncio
 async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "reaction_room1_race.db")
@@ -112,6 +140,13 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
             ),
             {"event_id": "$room1-final-1", "case_id": case.case_id.hex},
         )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id_hex=case.case_id.hex,
+            stage="ROOM1_FINAL",
+            room_id="!room1:example.org",
+            target_event_id="$room1-final-1",
+        )
 
     service = ReactionService(
         room1_id="!room1:example.org",
@@ -121,6 +156,7 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
         audit_repository=audit_repo,
         message_repository=message_repo,
         job_queue=job_repo,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
     event_a = ReactionEvent(
@@ -158,6 +194,13 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        room1_checkpoint = connection.execute(
+            sa.text(
+                "SELECT outcome, reactor_user_id FROM case_reaction_checkpoints "
+                "WHERE case_id = :case_id AND stage = 'ROOM1_FINAL'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
 
     assert case_row["status"] == "CLEANUP_RUNNING"
     assert case_row["cleanup_triggered_at"] is not None
@@ -166,6 +209,11 @@ async def test_concurrent_room1_thumbs_up_triggers_cleanup_once(tmp_path: Path) 
         "@nurse2:example.org",
     }
     assert int(cleanup_job_count) == 1
+    assert room1_checkpoint["outcome"] == "POSITIVE_RECEIVED"
+    assert room1_checkpoint["reactor_user_id"] in {
+        "@nurse1:example.org",
+        "@nurse2:example.org",
+    }
 
 
 @pytest.mark.asyncio
@@ -206,6 +254,22 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
             kind="bot_ack",
         )
     )
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_reaction_checkpoint(
+            connection,
+            case_id_hex=case.case_id.hex,
+            stage="ROOM2_ACK",
+            room_id="!room2:example.org",
+            target_event_id="$room2-ack-1",
+        )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id_hex=case.case_id.hex,
+            stage="ROOM3_ACK",
+            room_id="!room3:example.org",
+            target_event_id="$room3-ack-1",
+        )
 
     service = ReactionService(
         room1_id="!room1:example.org",
@@ -215,6 +279,7 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
         audit_repository=audit_repo,
         message_repository=message_repo,
         job_queue=job_repo,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
     room2_result = await service.handle(
@@ -239,7 +304,6 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
     assert room2_result.processed is True
     assert room3_result.processed is True
 
-    engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
         cleanup_job_count = connection.execute(
             sa.text(
@@ -262,10 +326,28 @@ async def test_room2_and_room3_ack_thumbs_are_audit_only(tmp_path: Path) -> None
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        room2_checkpoint = connection.execute(
+            sa.text(
+                "SELECT outcome, reactor_user_id FROM case_reaction_checkpoints "
+                "WHERE case_id = :case_id AND stage = 'ROOM2_ACK'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
+        room3_checkpoint = connection.execute(
+            sa.text(
+                "SELECT outcome, reactor_user_id FROM case_reaction_checkpoints "
+                "WHERE case_id = :case_id AND stage = 'ROOM3_ACK'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
 
     assert int(cleanup_job_count) == 0
     assert int(room2_audit) == 1
     assert int(room3_audit) == 1
+    assert room2_checkpoint["outcome"] == "POSITIVE_RECEIVED"
+    assert room2_checkpoint["reactor_user_id"] == "@doctor:example.org"
+    assert room3_checkpoint["outcome"] == "POSITIVE_RECEIVED"
+    assert room3_checkpoint["reactor_user_id"] == "@scheduler:example.org"
 
 
 @pytest.mark.asyncio
@@ -297,6 +379,13 @@ async def test_room1_checkmark_with_variation_triggers_cleanup_once(tmp_path: Pa
             ),
             {"event_id": "$room1-final-checkmark-1", "case_id": case.case_id.hex},
         )
+        _insert_reaction_checkpoint(
+            connection,
+            case_id_hex=case.case_id.hex,
+            stage="ROOM1_FINAL",
+            room_id="!room1:example.org",
+            target_event_id="$room1-final-checkmark-1",
+        )
 
     service = ReactionService(
         room1_id="!room1:example.org",
@@ -306,6 +395,7 @@ async def test_room1_checkmark_with_variation_triggers_cleanup_once(tmp_path: Pa
         audit_repository=audit_repo,
         message_repository=message_repo,
         job_queue=job_repo,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
     result = await service.handle(
@@ -334,10 +424,19 @@ async def test_room1_checkmark_with_variation_triggers_cleanup_once(tmp_path: Pa
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        room1_checkpoint = connection.execute(
+            sa.text(
+                "SELECT outcome, reactor_user_id FROM case_reaction_checkpoints "
+                "WHERE case_id = :case_id AND stage = 'ROOM1_FINAL'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
 
     assert case_row["status"] == "CLEANUP_RUNNING"
     assert case_row["cleanup_triggered_at"] is not None
     assert int(cleanup_job_count) == 1
+    assert room1_checkpoint["outcome"] == "POSITIVE_RECEIVED"
+    assert room1_checkpoint["reactor_user_id"] == "@nurse:example.org"
 
 
 @pytest.mark.asyncio
@@ -387,6 +486,7 @@ async def test_room2_room3_ack_accept_checkmark_and_thumbs_variants(tmp_path: Pa
         audit_repository=audit_repo,
         message_repository=message_repo,
         job_queue=job_repo,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
     room2_result = await service.handle(
@@ -478,6 +578,7 @@ async def test_runtime_listener_routes_room1_thumbs_to_cleanup_trigger_path(tmp_
         audit_repository=audit_repo,
         message_repository=message_repo,
         job_queue=job_repo,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
     sync_client = _FakeSyncClient(
         _sync_payload_with_room_events(
@@ -575,6 +676,7 @@ async def test_runtime_listener_routes_room2_room3_thumbs_as_audit_only(tmp_path
         audit_repository=audit_repo,
         message_repository=message_repo,
         job_queue=job_repo,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
     sync_client = _FakeSyncClient(
         _sync_payload_with_room_events(
@@ -670,6 +772,15 @@ async def test_room2_non_positive_reaction_is_ignored(tmp_path: Path) -> None:
             kind="room2_decision_ack",
         )
     )
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_reaction_checkpoint(
+            connection,
+            case_id_hex=case.case_id.hex,
+            stage="ROOM2_ACK",
+            room_id="!room2:example.org",
+            target_event_id="$room2-ack-neg-1",
+        )
 
     service = ReactionService(
         room1_id="!room1:example.org",
@@ -679,6 +790,7 @@ async def test_room2_non_positive_reaction_is_ignored(tmp_path: Path) -> None:
         audit_repository=audit_repo,
         message_repository=message_repo,
         job_queue=job_repo,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
     result = await service.handle(
@@ -693,7 +805,6 @@ async def test_room2_non_positive_reaction_is_ignored(tmp_path: Path) -> None:
     assert result.processed is False
     assert result.reason == "not_thumbs_up"
 
-    engine = sa.create_engine(sync_url)
     with engine.begin() as connection:
         room2_audit = connection.execute(
             sa.text(
@@ -702,5 +813,14 @@ async def test_room2_non_positive_reaction_is_ignored(tmp_path: Path) -> None:
             ),
             {"case_id": case.case_id.hex},
         ).scalar_one()
+        room2_checkpoint = connection.execute(
+            sa.text(
+                "SELECT outcome, reactor_user_id FROM case_reaction_checkpoints "
+                "WHERE case_id = :case_id AND stage = 'ROOM2_ACK'"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().one()
 
     assert int(room2_audit) == 0
+    assert room2_checkpoint["outcome"] == "PENDING"
+    assert room2_checkpoint["reactor_user_id"] is None

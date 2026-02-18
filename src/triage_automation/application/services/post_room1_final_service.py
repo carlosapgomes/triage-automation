@@ -20,6 +20,10 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
+from triage_automation.application.ports.reaction_checkpoint_repository_port import (
+    ReactionCheckpointCreateInput,
+    ReactionCheckpointRepositoryPort,
+)
 from triage_automation.application.services.patient_context import (
     extract_patient_name_age,
     extract_requested_exam,
@@ -71,11 +75,13 @@ class PostRoom1FinalService:
         audit_repository: AuditRepositoryPort,
         message_repository: MessageRepositoryPort,
         matrix_poster: MatrixReplyPosterPort,
+        reaction_checkpoint_repository: ReactionCheckpointRepositoryPort | None = None,
     ) -> None:
         self._case_repository = case_repository
         self._audit_repository = audit_repository
         self._message_repository = message_repository
         self._matrix_poster = matrix_poster
+        self._reaction_checkpoint_repository = reaction_checkpoint_repository
 
     async def post(
         self,
@@ -146,6 +152,15 @@ class PostRoom1FinalService:
                 reply_to_event_id=case.room1_origin_event_id,
             )
         )
+        if self._reaction_checkpoint_repository is not None:
+            await self._reaction_checkpoint_repository.ensure_expected_checkpoint(
+                ReactionCheckpointCreateInput(
+                    case_id=case_id,
+                    stage="ROOM1_FINAL",
+                    room_id=case.room1_origin_room_id,
+                    target_event_id=event_id,
+                )
+            )
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(

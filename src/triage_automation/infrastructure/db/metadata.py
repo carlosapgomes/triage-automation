@@ -112,6 +112,50 @@ case_messages = sa.Table(
 sa.Index("ix_case_messages_case_id", case_messages.c.case_id)
 sa.Index("ix_case_messages_kind", case_messages.c.kind)
 
+case_reaction_checkpoints = sa.Table(
+    "case_reaction_checkpoints",
+    metadata,
+    sa.Column("id", sqlite_bigint, primary_key=True, autoincrement=True),
+    sa.Column("case_id", sa.Uuid(), sa.ForeignKey("cases.case_id"), nullable=False),
+    sa.Column("stage", sa.Text(), nullable=False),
+    sa.Column("room_id", sa.Text(), nullable=False),
+    sa.Column("target_event_id", sa.Text(), nullable=False),
+    sa.Column(
+        "expected_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.text("CURRENT_TIMESTAMP"),
+    ),
+    sa.Column("outcome", sa.Text(), nullable=False, server_default=sa.text("'PENDING'")),
+    sa.Column("reaction_event_id", sa.Text(), nullable=True),
+    sa.Column("reactor_user_id", sa.Text(), nullable=True),
+    sa.Column("reaction_key", sa.Text(), nullable=True),
+    sa.Column("reacted_at", sa.DateTime(timezone=True), nullable=True),
+    sa.CheckConstraint(
+        "stage IN ('ROOM2_ACK', 'ROOM3_ACK', 'ROOM1_FINAL')",
+        name="ck_case_reaction_checkpoints_stage",
+    ),
+    sa.CheckConstraint(
+        "outcome IN ('PENDING', 'POSITIVE_RECEIVED')",
+        name="ck_case_reaction_checkpoints_outcome",
+    ),
+    sa.UniqueConstraint(
+        "room_id",
+        "target_event_id",
+        name="uq_case_reaction_checkpoints_room_target_event",
+    ),
+)
+sa.Index(
+    "ix_case_reaction_checkpoints_case_id_expected_at",
+    case_reaction_checkpoints.c.case_id,
+    case_reaction_checkpoints.c.expected_at,
+)
+sa.Index(
+    "ix_case_reaction_checkpoints_stage_outcome",
+    case_reaction_checkpoints.c.stage,
+    case_reaction_checkpoints.c.outcome,
+)
+
 jobs = sa.Table(
     "jobs",
     metadata,

@@ -21,6 +21,10 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
+from triage_automation.application.ports.reaction_checkpoint_repository_port import (
+    ReactionCheckpointCreateInput,
+    ReactionCheckpointRepositoryPort,
+)
 from triage_automation.application.services.patient_context import (
     extract_patient_name_age,
     extract_requested_exam,
@@ -73,6 +77,7 @@ class Room3ReplyService:
         message_repository: MessageRepositoryPort,
         job_queue: JobQueuePort,
         matrix_poster: MatrixRoomReplyPosterPort,
+        reaction_checkpoint_repository: ReactionCheckpointRepositoryPort | None = None,
     ) -> None:
         self._room3_id = room3_id
         self._case_repository = case_repository
@@ -80,6 +85,7 @@ class Room3ReplyService:
         self._message_repository = message_repository
         self._job_queue = job_queue
         self._matrix_poster = matrix_poster
+        self._reaction_checkpoint_repository = reaction_checkpoint_repository
 
     async def handle_reply(self, event: Room3ReplyEvent) -> Room3ReplyResult:
         """Handle a Room-3 scheduler reply event using strict template rules."""
@@ -347,3 +353,12 @@ class Room3ReplyService:
                 payload={"related_event_id": related_event_id},
             )
         )
+        if self._reaction_checkpoint_repository is not None:
+            await self._reaction_checkpoint_repository.ensure_expected_checkpoint(
+                ReactionCheckpointCreateInput(
+                    case_id=case_id,
+                    stage="ROOM3_ACK",
+                    room_id=room_id,
+                    target_event_id=ack_event_id,
+                )
+            )

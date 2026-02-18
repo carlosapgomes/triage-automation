@@ -12,6 +12,11 @@ from triage_automation.application.ports.audit_repository_port import (
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
 from triage_automation.application.ports.message_repository_port import MessageRepositoryPort
+from triage_automation.application.ports.reaction_checkpoint_repository_port import (
+    ReactionCheckpointPositiveInput,
+    ReactionCheckpointRepositoryPort,
+    ReactionCheckpointStage,
+)
 from triage_automation.domain.case_status import CaseStatus
 
 logger = logging.getLogger(__name__)
@@ -54,6 +59,7 @@ class ReactionService:
         audit_repository: AuditRepositoryPort,
         message_repository: MessageRepositoryPort,
         job_queue: JobQueuePort,
+        reaction_checkpoint_repository: ReactionCheckpointRepositoryPort | None = None,
     ) -> None:
         self._room1_id = room1_id
         self._room2_id = room2_id
@@ -62,6 +68,7 @@ class ReactionService:
         self._audit_repository = audit_repository
         self._message_repository = message_repository
         self._job_queue = job_queue
+        self._reaction_checkpoint_repository = reaction_checkpoint_repository
 
     async def handle(self, event: ReactionEvent) -> ReactionResult:
         """Handle reaction event according to room-specific policy semantics."""
@@ -110,6 +117,17 @@ class ReactionService:
                 },
             )
         )
+        if self._reaction_checkpoint_repository is not None:
+            await self._reaction_checkpoint_repository.mark_positive_reaction(
+                ReactionCheckpointPositiveInput(
+                    stage="ROOM1_FINAL",
+                    room_id=event.room_id,
+                    target_event_id=event.related_event_id,
+                    reaction_event_id=event.reaction_event_id,
+                    reactor_user_id=event.reactor_user_id,
+                    reaction_key=event.reaction_key,
+                )
+            )
 
         if snapshot.status != CaseStatus.WAIT_R1_CLEANUP_THUMBS:
             await self._audit_repository.append_event(
@@ -172,9 +190,11 @@ class ReactionService:
 
         required_kind = "room2_decision_ack"
         event_type = "ROOM2_ACK_POSITIVE_RECEIVED"
+        stage: ReactionCheckpointStage = "ROOM2_ACK"
         if event.room_id == self._room3_id:
             required_kind = "bot_ack"
             event_type = "ROOM3_ACK_THUMBS_UP_RECEIVED"
+            stage = "ROOM3_ACK"
         if mapping.kind != required_kind:
             return ReactionResult(processed=False, reason="not_ack_target")
 
@@ -189,6 +209,17 @@ class ReactionService:
                 payload={"related_event_id": event.related_event_id},
             )
         )
+        if self._reaction_checkpoint_repository is not None:
+            await self._reaction_checkpoint_repository.mark_positive_reaction(
+                ReactionCheckpointPositiveInput(
+                    stage=stage,
+                    room_id=event.room_id,
+                    target_event_id=event.related_event_id,
+                    reaction_event_id=event.reaction_event_id,
+                    reactor_user_id=event.reactor_user_id,
+                    reaction_key=event.reaction_key,
+                )
+            )
         logger.info("reaction_ack_recorded case_id=%s room_id=%s", mapping.case_id, event.room_id)
         return ReactionResult(processed=True)
 

@@ -22,6 +22,10 @@ from triage_automation.application.ports.message_repository_port import (
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
+from triage_automation.application.ports.reaction_checkpoint_repository_port import (
+    ReactionCheckpointCreateInput,
+    ReactionCheckpointRepositoryPort,
+)
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_decision_ack_message,
@@ -68,6 +72,7 @@ class HandleDoctorDecisionService:
         message_repository: MessageRepositoryPort | None = None,
         matrix_poster: MatrixRoomDecisionPosterPort | None = None,
         room2_id: str | None = None,
+        reaction_checkpoint_repository: ReactionCheckpointRepositoryPort | None = None,
     ) -> None:
         self._case_repository = case_repository
         self._audit_repository = audit_repository
@@ -75,6 +80,7 @@ class HandleDoctorDecisionService:
         self._message_repository = message_repository
         self._matrix_poster = matrix_poster
         self._room2_id = room2_id
+        self._reaction_checkpoint_repository = reaction_checkpoint_repository
 
     async def handle(
         self,
@@ -258,6 +264,15 @@ class HandleDoctorDecisionService:
                 payload={"related_event_id": related_event_id},
             )
         )
+        if self._reaction_checkpoint_repository is not None:
+            await self._reaction_checkpoint_repository.ensure_expected_checkpoint(
+                ReactionCheckpointCreateInput(
+                    case_id=payload.case_id,
+                    stage="ROOM2_ACK",
+                    room_id=self._room2_id,
+                    target_event_id=ack_event_id,
+                )
+            )
 
 
 def _next_job_type(decision: str) -> str:

@@ -42,6 +42,9 @@ from triage_automation.infrastructure.db.prior_case_queries import SqlAlchemyPri
 from triage_automation.infrastructure.db.prompt_template_repository import (
     SqlAlchemyPromptTemplateRepository,
 )
+from triage_automation.infrastructure.db.reaction_checkpoint_repository import (
+    SqlAlchemyReactionCheckpointRepository,
+)
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.worker_bootstrap import reconcile_running_jobs
 from triage_automation.infrastructure.llm.deterministic_client import DeterministicLlmClient
@@ -58,11 +61,45 @@ logger = logging.getLogger(__name__)
 class MatrixRuntimeClientPort(Protocol):
     """Matrix operations required by worker runtime services."""
 
-    async def send_text(self, *, room_id: str, body: str) -> str:
+    async def send_text(
+        self,
+        *,
+        room_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         """Post text body to Matrix and return the created event id."""
 
-    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+    async def send_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        """Post a file event to Matrix referencing an MXC URI."""
+
+    async def reply_text(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        body: str,
+        formatted_body: str | None = None,
+    ) -> str:
         """Post reply text to Matrix and return the created event id."""
+
+    async def reply_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        """Post a file reply event to Matrix referencing an MXC URI."""
 
     async def redact_event(self, *, room_id: str, event_id: str) -> None:
         """Redact a Matrix room event."""
@@ -167,6 +204,7 @@ def build_runtime_services(
         audit_repository=audit_repository,
         message_repository=message_repository,
         matrix_poster=matrix_client,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
     execute_cleanup_service = ExecuteCleanupService(
         case_repository=case_repository,

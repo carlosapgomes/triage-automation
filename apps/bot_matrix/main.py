@@ -32,6 +32,9 @@ from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAudit
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
+from triage_automation.infrastructure.db.reaction_checkpoint_repository import (
+    SqlAlchemyReactionCheckpointRepository,
+)
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.logging import configure_logging
 from triage_automation.infrastructure.matrix.event_parser import parse_room1_pdf_intake_event
@@ -477,6 +480,7 @@ def build_reaction_service(
         audit_repository=SqlAlchemyAuditRepository(session_factory),
         message_repository=SqlAlchemyMessageRepository(session_factory),
         job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
 
@@ -495,6 +499,7 @@ def build_room2_reply_service(
         message_repository=SqlAlchemyMessageRepository(session_factory),
         matrix_poster=matrix_client,
         room2_id=settings.room2_id,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
     membership_authorizer: Room2MembershipAuthorizerPort | None = None
     if hasattr(matrix_client, "is_user_joined"):
@@ -522,6 +527,7 @@ def build_room3_reply_service(
         message_repository=SqlAlchemyMessageRepository(session_factory),
         job_queue=SqlAlchemyJobQueueRepository(session_factory),
         matrix_poster=matrix_client,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
 

@@ -17,6 +17,9 @@ from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
 from triage_automation.infrastructure.db.message_repository import SqlAlchemyMessageRepository
+from triage_automation.infrastructure.db.reaction_checkpoint_repository import (
+    SqlAlchemyReactionCheckpointRepository,
+)
 from triage_automation.infrastructure.db.session import create_session_factory
 
 
@@ -101,6 +104,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         audit_repository=audit_repo,
         message_repository=message_repo,
         matrix_poster=matrix_poster,
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
 
     denied_triage_id = await _create_case(
@@ -268,9 +272,16 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
                 "WHERE message_type = 'room1_final'"
             )
         ).scalar_one()
+        room1_reaction_checkpoint_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_reaction_checkpoints "
+                "WHERE stage = 'ROOM1_FINAL' AND outcome = 'PENDING'"
+            )
+        ).scalar_one()
 
     assert len(rows) == 4
     assert all(row["status"] == "WAIT_R1_CLEANUP_THUMBS" for row in rows)
     assert all(row["room1_final_reply_event_id"] is not None for row in rows)
     assert int(room1_final_message_count) == 4
     assert int(room1_final_transcript_count) == 4
+    assert int(room1_reaction_checkpoint_count) == 4
