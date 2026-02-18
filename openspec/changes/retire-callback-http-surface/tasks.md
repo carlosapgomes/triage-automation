@@ -8,7 +8,7 @@
 
 ## 2. Align Runtime Documentation
 
-- [ ] 2.1 Atualizar `docs/runtime-smoke.md` para remover validações de callback/túnel e manter apenas fluxo Matrix structured reply.
+- [x] 2.1 Atualizar `docs/runtime-smoke.md` para remover validações de callback/túnel e manter apenas fluxo Matrix structured reply.
 - [ ] 2.2 Atualizar `docs/setup.md`, `docs/architecture.md` e `README.md` para refletir runtime Matrix-only sem fallback HTTP de decisão.
 - [ ] 2.3 Revisar variáveis/configs documentadas e remover referências legadas de callback/widget público para decisão médica.
 

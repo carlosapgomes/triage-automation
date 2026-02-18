@@ -14,13 +14,13 @@ def test_runtime_smoke_runbook_exists_and_covers_required_flows() -> None:
     )
 
     assert "## Local UV Runtime Smoke" in runbook
-    assert "## Cloudflare Tunnel Webhook Validation" in runbook
     assert "## Deterministic LLM Smoke Path" in runbook
     assert uvicorn_cmd in runbook
     assert "uv run python -m apps.bot_matrix.main" in runbook
     assert "uv run python -m apps.worker.main" in runbook
-    assert "curl -i -X POST \"http://127.0.0.1:8000/callbacks/triage-decision\"" in runbook
-    assert "x-signature" in runbook
+    assert "Matrix structured replies" in runbook
+    assert "/callbacks/triage-decision" not in runbook
+    assert "x-signature" not in runbook
 
 
 def test_runtime_smoke_runbook_parity_with_compose_commands() -> None:
@@ -39,12 +39,11 @@ def test_runtime_smoke_runbook_parity_with_compose_commands() -> None:
     assert "docker compose logs -f bot-api bot-matrix worker" in runbook
 
 
-def test_runtime_smoke_runbook_marks_callback_as_emergency_compatibility_only() -> None:
+def test_runtime_smoke_runbook_declares_matrix_only_decision_path() -> None:
     runbook = _read("docs/runtime-smoke.md")
 
-    assert "/callbacks/triage-decision" in runbook
-    assert "emergency-only compatibility path" in runbook
-    assert "near-term deprecation" in runbook
+    assert "/callbacks/triage-decision" not in runbook
+    assert "Cloudflare Tunnel Webhook Validation" not in runbook
     assert "standard Room-2 decisions use Matrix structured replies" in runbook
 
 
