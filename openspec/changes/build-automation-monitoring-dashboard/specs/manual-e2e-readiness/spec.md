@@ -9,7 +9,7 @@ The project SHALL define deterministic smoke checks for validating live runtime 
 #### Scenario: Pre-E2E smoke execution
 
 - **WHEN** operators prepare for manual end-to-end testing
-- **THEN** they MUST be able to verify service startup, database readiness, webhook endpoint reachability, and Room-2 structured reply readiness with documented deterministic checks
+- **THEN** they MUST be able to verify service startup, database readiness, and Room-2 structured reply readiness with documented deterministic checks
 - **AND** they MUST be able to verify dashboard API reachability with authenticated role-based access
 
 ## ADDED Requirements

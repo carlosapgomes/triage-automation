@@ -35,11 +35,10 @@
 - [ ] 5.3 Garantir rejeicao de operacoes mutaveis de prompt para `reader`.
 - [ ] 5.4 Registrar auditoria das acoes de prompt (ator, acao, alvo, timestamp).
 
-## 6. Compatibilidade de runtime e callback
+## 6. Compatibilidade de runtime Matrix-only
 
-- [ ] 6.1 Garantir que o runtime `bot-api` continue expondo `/callbacks/triage-decision` para compatibilidade de emergencia.
-- [ ] 6.2 Garantir que a rota de callback mantenha contrato e comportamento atual de transicao de estado.
-- [ ] 6.3 Expor no mesmo runtime as rotas de monitoramento e de administracao de prompts.
+- [ ] 6.1 Garantir que o runtime `bot-api` exponha as rotas de monitoramento e de administracao de prompts no mesmo processo.
+- [ ] 6.2 Garantir que o runtime de decisao medica permaneca Matrix-only (sem reintroduzir fallback HTTP de decisao).
 
 ## 7. Validacao e prontidao manual
 

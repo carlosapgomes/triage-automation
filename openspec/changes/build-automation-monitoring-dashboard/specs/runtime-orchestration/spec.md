@@ -4,18 +4,19 @@
 
 ### Requirement: Bot API Runtime Serving
 
-The system SHALL run `bot-api` as a long-lived ASGI process that serves compatibility callback routes, monitoring dashboard APIs, and admin prompt-management APIs, while standard Room-2 doctor decisions are executed through Matrix structured replies.
+The system SHALL run `bot-api` as a long-lived ASGI process that serves monitoring dashboard APIs and admin prompt-management APIs, while standard Room-2 doctor decisions are executed through Matrix structured replies.
 
 #### Scenario: Bot API process starts in runtime mode
 
 - **WHEN** the `bot-api` runtime entrypoint is launched with valid settings
-- **THEN** the process MUST remain running and serve `/callbacks/triage-decision` for emergency compatibility usage
-- **AND** the process MUST expose monitoring/admin API routes required by the dashboard feature
+- **THEN** the process MUST remain running and expose monitoring/admin API routes required by the dashboard feature
+- **AND** the runtime MUST NOT expose legacy HTTP decision routes
 
-#### Scenario: Callback route remains compatibility path
+#### Scenario: Legacy HTTP decision route is not part of runtime surface
 
-- **WHEN** a valid request is sent to `/callbacks/triage-decision`
-- **THEN** response and state-transition behavior MUST match existing decision service contracts
+- **WHEN** operators inspect runtime API routes for decision execution
+- **THEN** no legacy HTTP decision path MUST be available
+- **AND** decision transitions MUST remain driven by Matrix structured replies
 
 ### Requirement: Matrix Structured Reply SHALL Be The Single Standard Room-2 Decision Path
 
