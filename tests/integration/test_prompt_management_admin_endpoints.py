@@ -562,3 +562,60 @@ async def test_admin_activation_appends_prompt_audit_event(tmp_path: Path) -> No
         "version": 4,
     }
     assert event_row["occurred_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_admin_form_activation_appends_prompt_audit_event(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "prompt_management_admin_form_audit.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-prompt-form-audit-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_prompt_template(
+            connection,
+            prompt_name="llm2_user",
+            version=4,
+            content="inactive llm2_user v4",
+            is_active=False,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.post(
+            "/admin/prompts/llm2_user/activate-form",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            data={"version": "4"},
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 303
+
+    with sa.create_engine(sync_url).begin() as connection:
+        event_row = connection.execute(
+            sa.text(
+                "SELECT user_id, event_type, payload, occurred_at "
+                "FROM auth_events ORDER BY id DESC LIMIT 1"
+            )
+        ).mappings().one()
+
+    payload = (
+        event_row["payload"]
+        if isinstance(event_row["payload"], dict)
+        else json.loads(str(event_row["payload"]))
+    )
+    assert event_row["user_id"] in {admin_id, admin_id.hex, str(admin_id)}
+    assert event_row["event_type"] == "prompt_version_activated"
+    assert payload == {
+        "action": "activate_prompt_version",
+        "prompt_name": "llm2_user",
+        "version": 4,
+    }
+    assert event_row["occurred_at"] is not None

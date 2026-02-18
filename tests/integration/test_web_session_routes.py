@@ -158,3 +158,50 @@ async def test_logout_clears_cookie_and_redirects_to_login(tmp_path: Path) -> No
     assert root_after_logout.status_code == 303
     assert root_after_logout.headers["location"] == "/login"
 
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("role", "expected_prompt_status"),
+    [
+        ("admin", 200),
+        ("reader", 403),
+    ],
+)
+async def test_session_role_matrix_dashboard_allowed_and_prompt_admin_restricted(
+    tmp_path: Path,
+    role: str,
+    expected_prompt_status: int,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, f"web_session_role_matrix_{role}.db")
+    hasher = BcryptPasswordHasher()
+    token_service = OpaqueTokenService(token_factory=lambda: f"{role}-session-token")
+    user_id = uuid4()
+    email = f"{role}@example.org"
+
+    with sa.create_engine(sync_url).begin() as connection:
+        _insert_user(
+            connection,
+            user_id=user_id,
+            email=email,
+            password_hash=hasher.hash_password("correct-password"),
+            role=role,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        login_response = client.post(
+            "/login",
+            data={"email": email, "password": "correct-password"},
+            follow_redirects=False,
+        )
+        dashboard_response = client.get("/dashboard/cases")
+        prompts_response = client.get("/admin/prompts", follow_redirects=False)
+
+    assert login_response.status_code == 303
+    assert login_response.headers["location"] == "/dashboard/cases"
+    assert dashboard_response.status_code == 200
+    assert prompts_response.status_code == expected_prompt_status
+    if role == "admin":
+        assert prompts_response.headers["content-type"].startswith("text/html")
+        assert "Gestao de Prompts" in prompts_response.text
+    else:
+        assert prompts_response.json() == {"detail": "admin role required"}

@@ -34,10 +34,10 @@
 
 ## 5. Authorization matrix hardening
 
-- [ ] 5.1 Enforce rule: `admin` can access dashboard and prompt-admin pages.
-- [ ] 5.2 Enforce rule: `reader` can access dashboard pages only.
-- [ ] 5.3 Ensure unauthorized prompt-admin attempts never mutate prompt state.
-- [ ] 5.4 Add audit assertions for admin prompt activation actions.
+- [x] 5.1 Enforce rule: `admin` can access dashboard and prompt-admin pages.
+- [x] 5.2 Enforce rule: `reader` can access dashboard pages only.
+- [x] 5.3 Ensure unauthorized prompt-admin attempts never mutate prompt state.
+- [x] 5.4 Add audit assertions for admin prompt activation actions.
 
 ## 6. Documentation and runbooks
 
