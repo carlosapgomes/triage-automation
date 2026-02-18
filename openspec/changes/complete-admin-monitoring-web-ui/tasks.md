@@ -1,5 +1,10 @@
 # Tasks
 
+## 0. Clinical visual baseline
+
+- [x] 0.1 Define hospital-compatible design tokens (colors, typography, spacing) in shared web shell.
+- [x] 0.2 Apply the clinical visual baseline to existing dashboard pages to ensure homogeneous styling.
+
 ## 1. Web session foundation
 
 - [ ] 1.1 Implement `GET /` redirect behavior based on authenticated session state.

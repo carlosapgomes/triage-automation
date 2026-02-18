@@ -12,6 +12,7 @@ Também já existe fundação de auth: `users`, `auth_tokens`, `AuthService` e g
 
 - Entregar experiência web completa com landing/login/logout.
 - Unificar dashboard e admin prompts em shell visual único.
+- Garantir homogeneidade estética com linguagem visual compatível com uso hospitalar.
 - Garantir autorização por papel: `admin` acessa tudo, `reader` apenas dashboard.
 - Manter compatibilidade com autenticação por Bearer para APIs e testes existentes.
 
@@ -53,7 +54,14 @@ Também já existe fundação de auth: `users`, `auth_tokens`, `AuthService` e g
 - Alternative considered: layouts separados para dashboard e admin.
   - Rejected por fragmentar UX e aumentar custo de manutenção.
 
-### Decision 5: Admin prompts com HTML + API existente
+### Decision 5: Definir design system clínico para todas as páginas web
+
+- Choice: adotar tokens visuais únicos (cores, tipografia, espaçamento, componentes) com estética institucional hospitalar aplicada a dashboard e admin.
+- Rationale: reduz carga cognitiva, melhora legibilidade em uso contínuo e evita interfaces heterogêneas entre áreas operacionais.
+- Alternative considered: manter estilos livres por página.
+  - Rejected por risco de inconsistência visual e pior usabilidade operacional.
+
+### Decision 6: Admin prompts com HTML + API existente
 
 - Choice: construir páginas HTML sobre o serviço de prompt management já existente.
 - Rationale: reduz risco ao reusar regras de negócio e trilha de auditoria já implementadas.
@@ -70,11 +78,13 @@ Também já existe fundação de auth: `users`, `auth_tokens`, `AuthService` e g
   Mitigation: guardas de papel no backend e testes de autorização para rotas HTML e API.
 - [Risco] Regressão visual com introdução de shell.
   Mitigation: migrar páginas existentes incrementalmente e manter testes de renderização.
+- [Risco] Paleta/tipografia inadequadas para contexto clínico.
+  Mitigation: padronizar design tokens explícitos no shell base e revisar todas as telas com checklist de consistência.
 
 ## Migration Plan
 
 1. Criar rotas de sessão web e utilitário de cookie.
-2. Implementar shell base e migrar páginas de dashboard para a nova base.
+2. Implementar design system clínico no shell base e migrar páginas de dashboard para a nova base.
 3. Implementar páginas HTML de admin prompts.
 4. Aplicar guardas por papel em todas as rotas web/admin.
 5. Atualizar documentação de uso web (landing/login/logout) e matriz de acesso.

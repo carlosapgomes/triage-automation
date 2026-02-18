@@ -267,6 +267,8 @@ async def test_dashboard_case_list_page_renders_filters_and_paginated_rows_with_
     assert response.headers["content-type"].startswith("text/html")
     assert "bootstrap@5.3" in response.text
     assert "unpoly.min.js" in response.text
+    assert "hospital-shell" in response.text
+    assert "--hospital-primary" in response.text
     assert "Dashboard de Monitoramento" in response.text
     assert 'up-target="#cases-list-fragment"' in response.text
     assert str(case_a) in response.text
@@ -480,6 +482,8 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     assert "bootstrap@5.3" in response.text
+    assert "hospital-shell" in response.text
+    assert "--hospital-primary" in response.text
     assert str(case_id) in response.text
     assert 'id="case-timeline"' in response.text
     assert "pdf_report_extracted" in response.text

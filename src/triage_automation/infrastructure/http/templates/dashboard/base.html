@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ page_title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@600;700&family=Source+Sans+3:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    >
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -14,14 +20,117 @@
       href="https://unpkg.com/unpoly@3.10.2/unpoly.min.css"
       rel="stylesheet"
     >
+    <style>
+      :root {
+        --hospital-primary: #0b4263;
+        --hospital-secondary: #1b5f78;
+        --hospital-accent: #2f8f9d;
+        --hospital-bg: #f3f8fb;
+        --hospital-surface: #ffffff;
+        --hospital-border: #c7d8e2;
+        --hospital-text: #1f2f3a;
+        --hospital-muted: #4c6677;
+      }
+
+      body.hospital-shell {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--hospital-text);
+        font-family: "Source Sans 3", sans-serif;
+        background:
+          radial-gradient(circle at top right, rgba(47, 143, 157, 0.12), transparent 46%),
+          radial-gradient(circle at top left, rgba(11, 66, 99, 0.1), transparent 38%),
+          var(--hospital-bg);
+      }
+
+      body.hospital-shell h1,
+      body.hospital-shell h2,
+      body.hospital-shell h3,
+      body.hospital-shell h4,
+      body.hospital-shell h5,
+      body.hospital-shell h6 {
+        font-family: "Merriweather Sans", sans-serif;
+        letter-spacing: 0.01em;
+      }
+
+      .app-header {
+        border-bottom: 1px solid rgba(199, 216, 226, 0.7);
+        background: linear-gradient(125deg, var(--hospital-primary), var(--hospital-secondary));
+      }
+
+      .app-header__title {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
+
+      .app-header__subtitle {
+        margin: 0.15rem 0 0;
+        font-size: 0.92rem;
+        color: rgba(255, 255, 255, 0.86);
+      }
+
+      .app-shell {
+        animation: shell-fade-in 220ms ease-out;
+      }
+
+      .hospital-shell .card {
+        border: 1px solid var(--hospital-border);
+        border-radius: 0.9rem;
+        background-color: var(--hospital-surface);
+        box-shadow: 0 10px 22px rgba(10, 31, 46, 0.08);
+      }
+
+      .hospital-shell .card h2,
+      .hospital-shell .card h3 {
+        color: var(--hospital-primary);
+      }
+
+      .hospital-shell .badge.text-bg-dark {
+        background-color: var(--hospital-primary) !important;
+      }
+
+      .hospital-shell .form-label {
+        margin-bottom: 0.3rem;
+        color: var(--hospital-muted);
+        font-weight: 600;
+      }
+
+      .hospital-shell .btn-primary {
+        border-color: var(--hospital-primary);
+        background-color: var(--hospital-primary);
+      }
+
+      .hospital-shell .btn-primary:hover,
+      .hospital-shell .btn-primary:focus {
+        border-color: #07344e;
+        background-color: #07344e;
+      }
+
+      .hospital-shell code {
+        color: var(--hospital-secondary);
+      }
+
+      @keyframes shell-fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
   </head>
-  <body class="bg-body-tertiary">
-    <header class="bg-dark text-white py-3 mb-4">
+  <body class="hospital-shell">
+    <header class="app-header text-white py-3 mb-4">
       <div class="container">
-        <h1 class="h4 m-0">Dashboard de Monitoramento</h1>
+        <h1 class="app-header__title">Dashboard de Monitoramento Hospitalar</h1>
+        <p class="app-header__subtitle">Monitoramento hospitalar e trilha auditável de casos</p>
       </div>
     </header>
-    <main class="container pb-5">
+    <main class="app-shell container pb-5">
       {% block content %}{% endblock %}
     </main>
     <script
