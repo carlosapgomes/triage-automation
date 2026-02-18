@@ -54,6 +54,7 @@ Login/Auth ----------> bot-api ----> PostgreSQL <---- worker
 ## Project Docs
 
 - Setup: `docs/setup.md`
+- Admin operations (bootstrap + password reset): `docs/setup.md#7-admin-operations`
 - Runtime smoke runbook: `docs/runtime-smoke.md`
 - Architecture: `docs/architecture.md`
 - Security: `docs/security.md`
