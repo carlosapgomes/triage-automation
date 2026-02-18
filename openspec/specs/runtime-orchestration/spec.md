@@ -8,18 +8,13 @@ Define runtime process startup requirements and parity constraints for local and
 
 ### Requirement: Bot API Runtime Serving
 
-The system SHALL run `bot-api` as a long-lived ASGI process that serves compatibility callback routes, monitoring dashboard APIs, and admin prompt-management APIs, while standard Room-2 doctor decisions are executed through Matrix structured replies.
+The system SHALL run `bot-api` as a long-lived ASGI process that supports runtime HTTP needs outside medical decision submission, while standard Room-2 doctor decisions are executed through Matrix structured replies.
 
 #### Scenario: Bot API process starts in runtime mode
 
 - **WHEN** the `bot-api` runtime entrypoint is launched with valid settings
-- **THEN** the process MUST remain running and serve `/callbacks/triage-decision` for emergency compatibility usage
-- **AND** the process MUST expose monitoring/admin API routes required by the dashboard feature
-
-#### Scenario: Callback route remains compatibility path
-
-- **WHEN** a valid request is sent to `/callbacks/triage-decision`
-- **THEN** response and state-transition behavior MUST match existing decision service contracts
+- **THEN** the process MUST remain running and serve non-decision runtime routes required by the current product scope
+- **AND** medical decisions MUST remain driven by Matrix structured reply flow
 
 ### Requirement: Compose and UV Runtime Parity
 
@@ -54,13 +49,3 @@ Runtime behavior SHALL treat structured Matrix replies in Room-2 as the canonica
 - **WHEN** a case is in `WAIT_DOCTOR`
 - **THEN** decision processing MUST be driven by structured Matrix replies to Room-2 case context messages
 - **AND** no optional parallel standard decision path MUST be required
-
-### Requirement: Callback Endpoint SHALL Be Marked For Deprecation
-
-The callback endpoint SHALL be retained only for emergency compatibility and explicitly marked for near-term deprecation in runtime documentation.
-
-#### Scenario: Runtime documentation is reviewed
-
-- **WHEN** operators inspect runtime decision paths
-- **THEN** documentation MUST identify callback as emergency-only compatibility path
-- **AND** documentation MUST indicate planned deprecation status

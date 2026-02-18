@@ -8,22 +8,12 @@ Define deterministic runtime smoke checks and tunnel validation steps used befor
 
 ### Requirement: Deterministic Manual Runtime Validation
 
-The project SHALL define deterministic smoke checks for validating live runtime readiness before full manual end-to-end testing using the single structured-reply Room-2 decision path and the monitoring/admin dashboard APIs.
+The project SHALL define deterministic smoke checks for validating live runtime readiness before full manual end-to-end testing using the single structured-reply Room-2 decision path.
 
 #### Scenario: Pre-E2E smoke execution
 
 - **WHEN** operators prepare for manual end-to-end testing
-- **THEN** they MUST be able to verify service startup, database readiness, webhook endpoint reachability, and Room-2 structured reply readiness with documented deterministic checks
-- **AND** they MUST be able to verify dashboard API reachability with authenticated role-based access
-
-### Requirement: Cloudflare Tunnel Webhook Validation Path
-
-The project SHALL provide an explicit validation path for tunneled webhook callbacks using existing HMAC authentication behavior.
-
-#### Scenario: Tunneling webhook traffic
-
-- **WHEN** operators expose `bot-api` via Cloudflare tunnel for callback testing
-- **THEN** they MUST be able to send a signed callback request that reaches `/callbacks/triage-decision` and follows existing callback validation rules
+- **THEN** they MUST be able to verify service startup, database readiness, and Room-2 structured reply readiness with documented deterministic checks
 
 ### Requirement: Configurable External Dependency Test Modes
 
