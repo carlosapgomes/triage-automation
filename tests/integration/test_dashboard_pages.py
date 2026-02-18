@@ -259,7 +259,8 @@ async def test_dashboard_case_list_page_renders_filters_and_paginated_rows_with_
     with _build_client(async_url, token_service=token_service) as client:
         response = client.get(
             "/dashboard/cases?page=1&page_size=2"
-            f"&from_date={filter_date}&to_date={filter_date}"
+            f"&from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {reader_token}"},
         )
 
     assert response.status_code == 200
@@ -327,7 +328,10 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
                 "/dashboard/cases?page=1&page_size=10&status=WAIT_DOCTOR"
                 f"&from_date={filter_date}&to_date={filter_date}"
             ),
-            headers={"X-Up-Target": "#cases-list-fragment"},
+            headers={
+                "Authorization": f"Bearer {reader_token}",
+                "X-Up-Target": "#cases-list-fragment",
+            },
         )
 
     assert response.status_code == 200
@@ -336,6 +340,75 @@ async def test_dashboard_case_list_fragment_update_respects_filters_and_paginati
     assert 'id="cases-list-fragment"' in response.text
     assert str(wait_case) in response.text
     assert str(failed_case) not in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_list_requires_bearer_token(tmp_path: Path) -> None:
+    _, async_url = _upgrade_head(tmp_path, "dashboard_page_list_auth_required.db")
+
+    with _build_client(async_url, token_service=OpaqueTokenService()) as client:
+        response = client.get("/dashboard/cases")
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "missing bearer token"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("role", "token"),
+    [
+        ("reader", "reader-dashboard-access"),
+        ("admin", "admin-dashboard-access"),
+    ],
+)
+async def test_dashboard_case_list_accepts_reader_and_admin_roles(
+    tmp_path: Path,
+    role: str,
+    token: str,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, f"dashboard_page_list_auth_{role}.db")
+    token_service = OpaqueTokenService()
+    user_id = uuid4()
+    case_id = uuid4()
+    now = datetime.now(tz=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(
+            connection,
+            user_id=user_id,
+            email=f"{role}@example.org",
+            role=role,
+        )
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=user_id,
+            token=token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=now - timedelta(minutes=20),
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            event_id=f"$evt-{role}",
+            captured_at=now - timedelta(minutes=5),
+        )
+
+    filter_date = now.date().isoformat()
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/dashboard/cases"
+            f"?from_date={filter_date}&to_date={filter_date}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    assert str(case_id) in response.text
 
 
 @pytest.mark.asyncio
