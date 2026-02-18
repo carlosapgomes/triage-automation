@@ -9,7 +9,8 @@
 Backend services for an event-driven triage workflow over Matrix rooms.
 
 Core services:
-- `bot-api` (FastAPI webhook + auth foundation)
+
+- `bot-api` (FastAPI auth/runtime foundation)
 - `bot-matrix` (Matrix event ingestion wiring)
 - `worker` (job execution runtime)
 
@@ -33,14 +34,11 @@ This repo is implemented with strict TDD and OpenSpec slice history under `opens
 ```text
 Matrix Rooms ---> bot-matrix ----\
                                   \
-Webhook Callback ---> bot-api -----> PostgreSQL <---- worker
-                                  /
-Login/Auth ----------> bot-api ---/
+Login/Auth ----------> bot-api ----> PostgreSQL <---- worker
 ```
 
 ## Public API Surface (Current)
 
-- `POST /callbacks/triage-decision` (HMAC-protected webhook callback)
 - `POST /auth/login` (opaque-token login endpoint)
 
 ## Project Docs
@@ -65,21 +63,25 @@ openspec/                     # Change/spec workflow artifacts
 ## Quick Start
 
 1. Install dependencies:
+
 ```bash
 uv sync
 ```
 
-2. Create local env file:
+1. Create local env file:
+
 ```bash
 cp .env.example .env
 ```
 
-3. Run database migrations:
+1. Run database migrations:
+
 ```bash
 uv run alembic upgrade head
 ```
 
-4. Run local quality gates:
+1. Run local quality gates:
+
 ```bash
 uv run ruff check .
 uv run mypy src apps
@@ -93,6 +95,7 @@ docker compose up --build
 ```
 
 Compose expects `.env` to be present and starts:
+
 - `postgres`
 - `bot-api`
 - `bot-matrix`

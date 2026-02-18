@@ -35,6 +35,7 @@ Required variables (from `.env.example`):
 - `POSTGRES_PASSWORD`
 
 Provider mode optional variables:
+
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
@@ -64,23 +65,25 @@ docker compose up --build
 Follow `docs/runtime-smoke.md` to validate:
 
 - local `uv` runtime process startup
-- webhook HMAC validation (invalid and valid signature paths)
-- Cloudflare tunnel callback reachability
+- Matrix structured reply readiness for Room-2 decisions
 - deterministic LLM runtime mode for provider-unavailable testing
 
 ## Common commands
 
 - Create migration:
+
 ```bash
 uv run alembic revision -m "describe-change"
 ```
 
 - Apply latest migration:
+
 ```bash
 uv run alembic upgrade head
 ```
 
 - Roll back one migration:
+
 ```bash
 uv run alembic downgrade -1
 ```
