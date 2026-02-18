@@ -17,6 +17,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseRoom2WidgetSnapshot,
 )
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
@@ -219,6 +220,19 @@ class PostRoom2WidgetService:
                 kind="room2_case_root",
             )
         )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case.case_id,
+                room_id=self._room2_id,
+                event_id=root_event_id,
+                sender="bot",
+                message_type="room2_case_root",
+                message_text=(
+                    f"filename={root_filename} mxc_url={case.pdf_mxc_url} "
+                    "mimetype=application/pdf"
+                ),
+            )
+        )
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(
@@ -271,6 +285,17 @@ class PostRoom2WidgetService:
                 kind="room2_case_summary",
             )
         )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case.case_id,
+                room_id=self._room2_id,
+                event_id=summary_event_id,
+                sender="bot",
+                message_type="room2_case_summary",
+                message_text=summary_body,
+                reply_to_event_id=root_event_id,
+            )
+        )
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(
@@ -315,6 +340,17 @@ class PostRoom2WidgetService:
                 kind="room2_case_instructions",
             )
         )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case.case_id,
+                room_id=self._room2_id,
+                event_id=instructions_event_id,
+                sender="bot",
+                message_type="room2_case_instructions",
+                message_text=instructions_body,
+                reply_to_event_id=root_event_id,
+            )
+        )
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(
@@ -355,6 +391,17 @@ class PostRoom2WidgetService:
                 event_id=template_event_id,
                 sender_user_id=None,
                 kind="room2_case_template",
+            )
+        )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case.case_id,
+                room_id=self._room2_id,
+                event_id=template_event_id,
+                sender="bot",
+                message_type="room2_case_template",
+                message_text=template_body,
+                reply_to_event_id=root_event_id,
             )
         )
 

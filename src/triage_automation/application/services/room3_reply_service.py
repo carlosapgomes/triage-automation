@@ -17,6 +17,7 @@ from triage_automation.application.ports.case_repository_port import (
 )
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
@@ -110,6 +111,17 @@ class Room3ReplyService:
         if case_id is None:
             return Room3ReplyResult(processed=False, reason="unknown_reply_target")
         logger.info("room3_reply_mapped_to_case case_id=%s", case_id)
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case_id,
+                room_id=event.room_id,
+                event_id=event.event_id,
+                sender=event.sender_user_id,
+                message_type="room3_reply",
+                message_text=event.body,
+                reply_to_event_id=event.reply_to_event_id,
+            )
+        )
 
         snapshot = await self._case_repository.get_case_doctor_decision_snapshot(case_id=case_id)
         if snapshot is None:
@@ -172,6 +184,17 @@ class Room3ReplyService:
                     event_id=reprompt_event_id,
                     sender_user_id=None,
                     kind="bot_reformat_prompt_room3",
+                )
+            )
+            await self._message_repository.append_case_matrix_message_transcript(
+                CaseMatrixMessageTranscriptCreateInput(
+                    case_id=case_id,
+                    room_id=event.room_id,
+                    event_id=reprompt_event_id,
+                    sender="bot",
+                    message_type="bot_reformat_prompt_room3",
+                    message_text=reprompt,
+                    reply_to_event_id=event.event_id,
                 )
             )
             logger.warning(
@@ -301,6 +324,17 @@ class Room3ReplyService:
                 event_id=ack_event_id,
                 sender_user_id=None,
                 kind="bot_ack",
+            )
+        )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case_id,
+                room_id=room_id,
+                event_id=ack_event_id,
+                sender="bot",
+                message_type="bot_ack",
+                message_text=body,
+                reply_to_event_id=related_event_id,
             )
         )
         await self._audit_repository.append_event(

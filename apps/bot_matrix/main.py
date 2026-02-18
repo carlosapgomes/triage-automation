@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from triage_automation.application.dto.webhook_models import Decision, SupportFlag
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     DuplicateCaseMessageError,
 )
@@ -638,6 +639,20 @@ async def _route_room2_replies_from_sync(
             )
             continue
 
+        body = _extract_text_body(timeline_event.event)
+        if body is not None:
+            await message_repository.append_case_matrix_message_transcript(
+                CaseMatrixMessageTranscriptCreateInput(
+                    case_id=parsed.case_id,
+                    room_id=room2_id,
+                    event_id=parsed.event_id,
+                    sender=parsed.sender_user_id,
+                    message_type="room2_doctor_reply",
+                    message_text=body,
+                    reply_to_event_id=parsed.reply_to_event_id,
+                )
+            )
+
         result = await room2_reply_service.handle_reply(
             Room2ReplyEvent(
                 room_id=parsed.room_id,
@@ -736,6 +751,16 @@ def _extract_sender_user_id(event: dict[str, object]) -> str | None:
     if not isinstance(sender, str) or not sender:
         return None
     return sender
+
+
+def _extract_text_body(event: dict[str, object]) -> str | None:
+    content = event.get("content")
+    if not isinstance(content, dict):
+        return None
+    body = content.get("body")
+    if not isinstance(body, str):
+        return None
+    return body
 
 
 async def _send_room2_error_feedback(

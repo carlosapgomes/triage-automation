@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -65,6 +65,20 @@ class FakeMatrixPoster:
         reply_event_id = f"$room2-{self._counter}"
         self.reply_calls.append((room_id, event_id, body, reply_event_id, formatted_body))
         return reply_event_id
+
+    async def reply_file_from_mxc(
+        self,
+        *,
+        room_id: str,
+        event_id: str,
+        filename: str,
+        mxc_url: str,
+        mimetype: str,
+    ) -> str:
+        _ = room_id, event_id, filename, mxc_url, mimetype
+        self._counter += 1
+        return f"$room2-reply-file-{self._counter}"
+
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
     db_path = tmp_path / filename
@@ -148,7 +162,8 @@ def _extract_payload_from_widget_body(body: str) -> dict[str, Any]:
     marker = "```json\n"
     start = body.index(marker) + len(marker)
     end = body.index("\n```", start)
-    return json.loads(body[start:end])
+    parsed = json.loads(body[start:end])
+    return cast(dict[str, Any], parsed)
 
 
 @pytest.mark.asyncio
@@ -333,6 +348,15 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
             ),
             {"room_id": "!room2:example.org", "event_id": root_event_id},
         ).scalar_one_or_none()
+        transcript_rows = connection.execute(
+            sa.text(
+                "SELECT event_id, message_type, sender, message_text, reply_to_event_id "
+                "FROM case_matrix_message_transcripts "
+                "WHERE case_id = :case_id "
+                "ORDER BY id"
+            ),
+            {"case_id": current_case.case_id.hex},
+        ).mappings().all()
 
     assert status == "WAIT_DOCTOR"
     assert list(kinds) == [
@@ -343,6 +367,20 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     ]
     assert root_case_id is not None
     assert UUID(str(root_case_id)) == current_case.case_id
+    assert len(transcript_rows) == 4
+    assert transcript_rows[0]["message_type"] == "room2_case_root"
+    assert transcript_rows[0]["sender"] == "bot"
+    assert root_filename in str(transcript_rows[0]["message_text"])
+    assert transcript_rows[0]["reply_to_event_id"] is None
+    assert transcript_rows[1]["message_type"] == "room2_case_summary"
+    assert transcript_rows[1]["message_text"] == summary_body
+    assert transcript_rows[1]["reply_to_event_id"] == root_event_id
+    assert transcript_rows[2]["message_type"] == "room2_case_instructions"
+    assert transcript_rows[2]["message_text"] == instructions_body
+    assert transcript_rows[2]["reply_to_event_id"] == root_event_id
+    assert transcript_rows[3]["message_type"] == "room2_case_template"
+    assert transcript_rows[3]["message_text"] == template_body
+    assert transcript_rows[3]["reply_to_event_id"] == root_event_id
     parsed_status_payload = (
         status_event_payload
         if isinstance(status_event_payload, dict)

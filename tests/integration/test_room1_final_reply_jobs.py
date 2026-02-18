@@ -262,8 +262,15 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         room1_final_message_count = connection.execute(
             sa.text("SELECT COUNT(*) FROM case_messages WHERE kind = 'room1_final'")
         ).scalar_one()
+        room1_final_transcript_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM case_matrix_message_transcripts "
+                "WHERE message_type = 'room1_final'"
+            )
+        ).scalar_one()
 
     assert len(rows) == 4
     assert all(row["status"] == "WAIT_R1_CLEANUP_THUMBS" for row in rows)
     assert all(row["room1_final_reply_event_id"] is not None for row in rows)
     assert int(room1_final_message_count) == 4
+    assert int(room1_final_transcript_count) == 4

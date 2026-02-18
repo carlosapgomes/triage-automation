@@ -262,6 +262,16 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
             ),
             {"case_id": case_id.hex},
         ).scalar_one()
+        transcript_rows = connection.execute(
+            sa.text(
+                "SELECT message_type, sender, message_text, reply_to_event_id "
+                "FROM case_matrix_message_transcripts "
+                "WHERE case_id = :case_id "
+                "AND message_type IN ('room2_doctor_reply', 'room2_decision_ack') "
+                "ORDER BY id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().all()
 
     assert case_row["status"] == "DOCTOR_ACCEPTED"
     assert case_row["doctor_decision"] == "accept"
@@ -269,6 +279,15 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     assert case_row["doctor_user_id"] == "@doctor:example.org"
     assert jobs == "post_room3_request"
     assert int(room2_reply_count) == 1
+    assert len(transcript_rows) == 2
+    assert transcript_rows[0]["message_type"] == "room2_doctor_reply"
+    assert transcript_rows[0]["sender"] == "@doctor:example.org"
+    assert transcript_rows[0]["message_text"] == body
+    assert transcript_rows[0]["reply_to_event_id"] == root_event_id
+    assert transcript_rows[1]["message_type"] == "room2_decision_ack"
+    assert transcript_rows[1]["sender"] == "bot"
+    assert transcript_rows[1]["message_text"] == ack_body
+    assert transcript_rows[1]["reply_to_event_id"] == "$doctor-room2-reply-1"
 
 
 @pytest.mark.asyncio

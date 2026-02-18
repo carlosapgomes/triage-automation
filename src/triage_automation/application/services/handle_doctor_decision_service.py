@@ -18,6 +18,7 @@ from triage_automation.application.ports.case_repository_port import (
 )
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
@@ -234,6 +235,17 @@ class HandleDoctorDecisionService:
                 event_id=ack_event_id,
                 sender_user_id=None,
                 kind="room2_decision_ack",
+            )
+        )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=payload.case_id,
+                room_id=self._room2_id,
+                event_id=ack_event_id,
+                sender="bot",
+                message_type="room2_decision_ack",
+                message_text=body,
+                reply_to_event_id=related_event_id,
             )
         )
         await self._audit_repository.append_event(

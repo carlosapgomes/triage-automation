@@ -13,6 +13,7 @@ from triage_automation.application.ports.audit_repository_port import (
 )
 from triage_automation.application.ports.case_repository_port import CaseRepositoryPort
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
@@ -157,6 +158,16 @@ class PostRoom3RequestService:
                 kind="room3_request",
             )
         )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case_id,
+                room_id=self._room3_id,
+                event_id=request_event_id,
+                sender="bot",
+                message_type="room3_request",
+                message_text=request_body,
+            )
+        )
 
         await self._audit_repository.append_event(
             AuditEventCreateInput(
@@ -187,6 +198,16 @@ class PostRoom3RequestService:
                 event_id=template_event_id,
                 sender_user_id=None,
                 kind="room3_template",
+            )
+        )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case_id,
+                room_id=self._room3_id,
+                event_id=template_event_id,
+                sender="bot",
+                message_type="room3_template",
+                message_text=template_body,
             )
         )
 

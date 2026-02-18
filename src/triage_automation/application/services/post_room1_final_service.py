@@ -16,6 +16,7 @@ from triage_automation.application.ports.case_repository_port import (
     CaseRepositoryPort,
 )
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
@@ -132,6 +133,17 @@ class PostRoom1FinalService:
                 event_id=event_id,
                 sender_user_id=None,
                 kind="room1_final",
+            )
+        )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=case_id,
+                room_id=case.room1_origin_room_id,
+                event_id=event_id,
+                sender="bot",
+                message_type="room1_final",
+                message_text=body,
+                reply_to_event_id=case.room1_origin_event_id,
             )
         )
 

@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     CaseMessageLookup,
     CaseMessageRef,
@@ -16,6 +17,18 @@ from triage_automation.application.ports.message_repository_port import (
     MessageRepositoryPort,
 )
 from triage_automation.infrastructure.db.metadata import case_messages
+
+case_matrix_message_transcripts = sa.table(
+    "case_matrix_message_transcripts",
+    sa.column("id", sa.BigInteger()),
+    sa.column("case_id", sa.Uuid()),
+    sa.column("room_id", sa.Text()),
+    sa.column("event_id", sa.Text()),
+    sa.column("sender", sa.Text()),
+    sa.column("message_type", sa.Text()),
+    sa.column("message_text", sa.Text()),
+    sa.column("reply_to_event_id", sa.Text()),
+)
 
 
 def _is_duplicate_room_event_error(error: IntegrityError) -> bool:
@@ -49,6 +62,29 @@ class SqlAlchemyMessageRepository(MessageRepositoryPort):
                 if _is_duplicate_room_event_error(error):
                     raise DuplicateCaseMessageError("Duplicate case message room/event") from error
                 raise
+
+        inserted_id = result.scalar_one()
+        return int(inserted_id)
+
+    async def append_case_matrix_message_transcript(
+        self,
+        payload: CaseMatrixMessageTranscriptCreateInput,
+    ) -> int:
+        """Insert full Matrix message transcript row and return inserted id."""
+
+        statement = sa.insert(case_matrix_message_transcripts).values(
+            case_id=payload.case_id,
+            room_id=payload.room_id,
+            event_id=payload.event_id,
+            sender=payload.sender,
+            message_type=payload.message_type,
+            message_text=payload.message_text,
+            reply_to_event_id=payload.reply_to_event_id,
+        ).returning(case_matrix_message_transcripts.c.id)
+
+        async with self._session_factory() as session:
+            result = await session.execute(statement)
+            await session.commit()
 
         inserted_id = result.scalar_one()
         return int(inserted_id)

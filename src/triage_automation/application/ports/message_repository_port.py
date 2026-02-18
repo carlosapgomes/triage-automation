@@ -38,11 +38,30 @@ class CaseMessageRef:
     event_id: str
 
 
+@dataclass(frozen=True)
+class CaseMatrixMessageTranscriptCreateInput:
+    """Append-only payload for full Matrix message transcript persistence."""
+
+    case_id: UUID
+    room_id: str
+    event_id: str
+    sender: str
+    message_type: str
+    message_text: str
+    reply_to_event_id: str | None = None
+
+
 class MessageRepositoryPort(Protocol):
     """Async case message repository contract."""
 
     async def add_message(self, payload: CaseMessageCreateInput) -> int:
         """Insert a case message mapping and return its numeric id."""
+
+    async def append_case_matrix_message_transcript(
+        self,
+        payload: CaseMatrixMessageTranscriptCreateInput,
+    ) -> int:
+        """Insert one full Matrix transcript row and return its numeric id."""
 
     async def has_message_kind(self, *, case_id: UUID, room_id: str, kind: str) -> bool:
         """Return whether a message mapping exists for case/room/kind."""

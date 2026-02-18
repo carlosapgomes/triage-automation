@@ -89,10 +89,26 @@ async def test_valid_pdf_creates_case_and_enqueues_job(tmp_path: Path) -> None:
         message_kinds = connection.execute(
             sa.text("SELECT kind FROM case_messages ORDER BY id")
         ).scalars().all()
+        transcript_rows = connection.execute(
+            sa.text(
+                "SELECT message_type, sender, message_text, reply_to_event_id "
+                "FROM case_matrix_message_transcripts "
+                "ORDER BY id"
+            )
+        ).mappings().all()
 
     assert int(case_count) == 1
     assert int(job_count.scalar_one()) == 1
     assert list(message_kinds) == ["room1_origin", "bot_processing"]
+    assert len(transcript_rows) == 2
+    assert transcript_rows[0]["message_type"] == "room1_origin"
+    assert transcript_rows[0]["sender"] == "@human:example.org"
+    assert "mxc://example.org/pdf" in str(transcript_rows[0]["message_text"])
+    assert transcript_rows[0]["reply_to_event_id"] is None
+    assert transcript_rows[1]["message_type"] == "bot_processing"
+    assert transcript_rows[1]["sender"] == "bot"
+    assert transcript_rows[1]["message_text"] == "processando..."
+    assert transcript_rows[1]["reply_to_event_id"] == "$origin-1"
 
 
 @pytest.mark.asyncio

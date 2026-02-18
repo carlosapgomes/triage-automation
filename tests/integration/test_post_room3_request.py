@@ -121,9 +121,27 @@ async def test_room3_request_posts_request_and_template_and_moves_wait_appt(tmp_
             ),
             {"case_id": case.case_id.hex},
         ).scalars().all()
+        transcript_rows = connection.execute(
+            sa.text(
+                "SELECT message_type, sender, message_text, reply_to_event_id "
+                "FROM case_matrix_message_transcripts "
+                "WHERE case_id = :case_id "
+                "ORDER BY id"
+            ),
+            {"case_id": case.case_id.hex},
+        ).mappings().all()
 
     assert status == "WAIT_APPT"
     assert list(kinds) == ["room3_request", "room3_template"]
+    assert len(transcript_rows) == 2
+    assert transcript_rows[0]["message_type"] == "room3_request"
+    assert transcript_rows[0]["sender"] == "bot"
+    assert transcript_rows[0]["message_text"] == request_body
+    assert transcript_rows[0]["reply_to_event_id"] is None
+    assert transcript_rows[1]["message_type"] == "room3_template"
+    assert transcript_rows[1]["sender"] == "bot"
+    assert transcript_rows[1]["message_text"] == template_body
+    assert transcript_rows[1]["reply_to_event_id"] is None
 
 
 @pytest.mark.asyncio

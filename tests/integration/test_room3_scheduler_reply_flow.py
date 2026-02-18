@@ -34,6 +34,14 @@ class _FakeSyncClient:
         self.calls.append((since, timeout_ms))
         return self._payload
 
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        _ = room_id, event_id, body
+        raise AssertionError("reply_text should not be called on _FakeSyncClient")
+
+    async def send_text(self, *, room_id: str, body: str) -> str:
+        _ = room_id, body
+        raise AssertionError("send_text should not be called on _FakeSyncClient")
+
 
 class FakeMatrixPoster:
     def __init__(self) -> None:
@@ -321,11 +329,30 @@ async def test_confirmed_template_enqueues_final_appointment_job(tmp_path: Path)
             ),
             {"case_id": case_id.hex},
         ).scalar_one()
+        transcript_rows = connection.execute(
+            sa.text(
+                "SELECT message_type, sender, message_text, reply_to_event_id "
+                "FROM case_matrix_message_transcripts "
+                "WHERE case_id = :case_id "
+                "AND message_type IN ('room3_reply', 'bot_ack') "
+                "ORDER BY id"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().all()
 
     assert status == "APPT_CONFIRMED"
     assert job_type == "post_room1_final_appt"
     assert int(ack_count) == 1
     assert int(scheduler_reply_count) == 1
+    assert len(transcript_rows) == 2
+    assert transcript_rows[0]["message_type"] == "room3_reply"
+    assert transcript_rows[0]["sender"] == "@scheduler:example.org"
+    assert transcript_rows[0]["message_text"] == body
+    assert transcript_rows[0]["reply_to_event_id"] == request_event_id
+    assert transcript_rows[1]["message_type"] == "bot_ack"
+    assert transcript_rows[1]["sender"] == "bot"
+    assert transcript_rows[1]["message_text"] == matrix_poster.reply_calls[0][2]
+    assert transcript_rows[1]["reply_to_event_id"] == "$scheduler-4"
 
 
 @pytest.mark.asyncio

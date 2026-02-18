@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from typing import Protocol
@@ -18,6 +19,7 @@ from triage_automation.application.ports.case_repository_port import (
 )
 from triage_automation.application.ports.job_queue_port import JobEnqueueInput, JobQueuePort
 from triage_automation.application.ports.message_repository_port import (
+    CaseMatrixMessageTranscriptCreateInput,
     CaseMessageCreateInput,
     MessageRepositoryPort,
 )
@@ -110,6 +112,23 @@ class Room1IntakeService:
                 kind="room1_origin",
             )
         )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=created_case.case_id,
+                room_id=parsed.room_id,
+                event_id=parsed.event_id,
+                sender=parsed.sender_user_id,
+                message_type="room1_origin",
+                message_text=json.dumps(
+                    {
+                        "mxc_url": parsed.mxc_url,
+                        "filename": parsed.filename,
+                        "mimetype": parsed.mimetype,
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+        )
 
         processing_event_id = await self._matrix_poster.reply_text(
             room_id=parsed.room_id,
@@ -124,6 +143,17 @@ class Room1IntakeService:
                 event_id=processing_event_id,
                 sender_user_id=None,
                 kind="bot_processing",
+            )
+        )
+        await self._message_repository.append_case_matrix_message_transcript(
+            CaseMatrixMessageTranscriptCreateInput(
+                case_id=created_case.case_id,
+                room_id=parsed.room_id,
+                event_id=processing_event_id,
+                sender="bot",
+                message_type="bot_processing",
+                message_text="processando...",
+                reply_to_event_id=parsed.event_id,
             )
         )
 
