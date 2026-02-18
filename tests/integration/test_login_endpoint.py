@@ -7,26 +7,19 @@ from uuid import UUID, uuid4
 import pytest
 import sqlalchemy as sa
 from alembic.config import Config
+from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from alembic import command
 from apps.bot_api.main import create_app
 from triage_automation.application.services.auth_service import AuthService
-from triage_automation.application.services.handle_doctor_decision_service import (
-    HandleDoctorDecisionService,
-)
-from triage_automation.infrastructure.db.audit_repository import SqlAlchemyAuditRepository
 from triage_automation.infrastructure.db.auth_event_repository import SqlAlchemyAuthEventRepository
 from triage_automation.infrastructure.db.auth_token_repository import SqlAlchemyAuthTokenRepository
-from triage_automation.infrastructure.db.case_repository import SqlAlchemyCaseRepository
-from triage_automation.infrastructure.db.job_queue_repository import SqlAlchemyJobQueueRepository
 from triage_automation.infrastructure.db.session import create_session_factory
 from triage_automation.infrastructure.db.user_repository import SqlAlchemyUserRepository
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 from triage_automation.infrastructure.security.token_service import OpaqueTokenService
-
-SECRET = "webhook-secret"
 
 
 def _upgrade_head(tmp_path: Path, filename: str) -> tuple[str, str]:
@@ -67,11 +60,6 @@ def _insert_user(
 
 def _build_client(async_url: str, *, token_service: OpaqueTokenService | None = None) -> TestClient:
     session_factory = create_session_factory(async_url)
-    decision_service = HandleDoctorDecisionService(
-        case_repository=SqlAlchemyCaseRepository(session_factory),
-        audit_repository=SqlAlchemyAuditRepository(session_factory),
-        job_queue=SqlAlchemyJobQueueRepository(session_factory),
-    )
     auth_service = AuthService(
         users=SqlAlchemyUserRepository(session_factory),
         auth_events=SqlAlchemyAuthEventRepository(session_factory),
@@ -79,8 +67,6 @@ def _build_client(async_url: str, *, token_service: OpaqueTokenService | None = 
     )
     token_repository = SqlAlchemyAuthTokenRepository(session_factory)
     app = create_app(
-        webhook_hmac_secret=SECRET,
-        decision_service=decision_service,
         auth_service=auth_service,
         auth_token_repository=token_repository,
         token_service=token_service,
@@ -231,14 +217,21 @@ async def test_route_paths_only_add_login_endpoint(tmp_path: Path) -> None:
     _, async_url = _upgrade_head(tmp_path, "login_routes.db")
 
     with _build_client(async_url) as client:
-        paths = {route.path for route in client.app.routes if isinstance(route, APIRoute)}
+        app = client.app
+        assert isinstance(app, FastAPI)
+        paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
 
-    assert paths == {
-        "/auth/login",
-        "/callbacks/triage-decision",
-        "/widget/room2",
-        "/widget/room2/app.js",
-        "/widget/room2/bootstrap",
-        "/widget/room2/styles.css",
-        "/widget/room2/submit",
-    }
+    assert paths == {"/auth/login"}
+
+
+@pytest.mark.asyncio
+async def test_legacy_callback_and_widget_endpoints_are_absent(tmp_path: Path) -> None:
+    _, async_url = _upgrade_head(tmp_path, "login_legacy_endpoints_absent.db")
+
+    with _build_client(async_url) as client:
+        assert client.post("/callbacks/triage-decision", json={}).status_code == 404
+        assert client.get("/widget/room2").status_code == 404
+        assert client.get("/widget/room2/app.js").status_code == 404
+        assert client.get("/widget/room2/styles.css").status_code == 404
+        assert client.get("/widget/room2/bootstrap").status_code == 404
+        assert client.post("/widget/room2/submit", json={}).status_code == 404

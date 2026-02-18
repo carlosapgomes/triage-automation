@@ -14,7 +14,7 @@
 
 ## 3. Update Tests and Contracts
 
-- [ ] 3.1 Ajustar/criar testes de integração do `bot-api` validando ausência de endpoints legados (`/callbacks/triage-decision` e `/widget/room2*`).
+- [x] 3.1 Ajustar/criar testes de integração do `bot-api` validando ausência de endpoints legados (`/callbacks/triage-decision` e `/widget/room2*`).
 - [ ] 3.2 Atualizar testes que dependiam do caminho callback/widget para validar o comportamento equivalente no fluxo Matrix-only.
 - [ ] 3.3 Garantir que os testes do fluxo Room-2 structured reply permaneçam verdes sem regressão de estado/idempotência.
 
