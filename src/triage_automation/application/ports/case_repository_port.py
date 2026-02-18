@@ -140,6 +140,36 @@ class CaseRecoverySnapshot:
     cleanup_completed_at: datetime | None
 
 
+@dataclass(frozen=True)
+class CaseMonitoringListFilter:
+    """Filter/pagination options for dashboard case listing queries."""
+
+    status: CaseStatus | None
+    activity_from: datetime | None
+    activity_to: datetime | None
+    page: int
+    page_size: int
+
+
+@dataclass(frozen=True)
+class CaseMonitoringListItem:
+    """Case row projection returned by monitoring list queries."""
+
+    case_id: UUID
+    status: CaseStatus
+    latest_activity_at: datetime
+
+
+@dataclass(frozen=True)
+class CaseMonitoringListPage:
+    """Paginated monitoring list payload returned by case repository."""
+
+    items: list[CaseMonitoringListItem]
+    page: int
+    page_size: int
+    total: int
+
+
 class CaseRepositoryPort(Protocol):
     """Async case repository contract."""
 
@@ -210,6 +240,13 @@ class CaseRepositoryPort(Protocol):
 
     async def list_non_terminal_cases_for_recovery(self) -> list[CaseRecoverySnapshot]:
         """List non-terminal cases used by restart recovery scans."""
+
+    async def list_cases_for_monitoring(
+        self,
+        *,
+        filters: CaseMonitoringListFilter,
+    ) -> CaseMonitoringListPage:
+        """List cases ordered by latest activity with period/status filters and pagination."""
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""

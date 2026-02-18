@@ -152,3 +152,37 @@ async def test_widget_auth_guard_accepts_valid_admin_token() -> None:
 
     assert authenticated_user.user_id == admin.user_id
     assert authenticated_user.role is Role.ADMIN
+
+
+@pytest.mark.asyncio
+async def test_widget_auth_guard_accepts_valid_reader_for_audit_access() -> None:
+    token_service = OpaqueTokenService()
+    reader = _user(role=Role.READER)
+    reader_token = "reader-token"
+    reader_hash = token_service.hash_token(reader_token)
+    token_record = _token_record(user=reader)
+
+    guard = WidgetAuthGuard(
+        token_service=token_service,
+        auth_token_repository=FakeAuthTokenRepository(
+            records_by_hash={
+                reader_hash: AuthTokenRecord(
+                    id=token_record.id,
+                    user_id=token_record.user_id,
+                    token_hash=reader_hash,
+                    issued_at=token_record.issued_at,
+                    expires_at=token_record.expires_at,
+                    revoked_at=token_record.revoked_at,
+                    last_used_at=token_record.last_used_at,
+                )
+            }
+        ),
+        user_repository=FakeUserRepository(users_by_id={reader.user_id: reader}),
+    )
+
+    authenticated_user = await guard.require_audit_user(
+        authorization_header=f"Bearer {reader_token}"
+    )
+
+    assert authenticated_user.user_id == reader.user_id
+    assert authenticated_user.role is Role.READER

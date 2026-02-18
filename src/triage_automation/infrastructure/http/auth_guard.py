@@ -48,6 +48,20 @@ class WidgetAuthGuard:
     async def require_admin_user(self, *, authorization_header: str | None) -> UserRecord:
         """Resolve active caller from bearer token and require explicit `admin` role."""
 
+        user = await self._resolve_active_user(authorization_header=authorization_header)
+        self._access_guard.require_admin(role=user.role)
+        return user
+
+    async def require_audit_user(self, *, authorization_header: str | None) -> UserRecord:
+        """Resolve active caller and require dashboard audit-read permission."""
+
+        user = await self._resolve_active_user(authorization_header=authorization_header)
+        self._access_guard.require_audit_read(role=user.role)
+        return user
+
+    async def _resolve_active_user(self, *, authorization_header: str | None) -> UserRecord:
+        """Resolve bearer token to an active persisted user record."""
+
         token = extract_bearer_token(authorization_header)
         token_hash = self._token_service.hash_token(token)
         token_record = await self._auth_token_repository.get_active_by_hash(token_hash=token_hash)
@@ -58,5 +72,4 @@ class WidgetAuthGuard:
         if user is None or not user.is_active:
             raise InvalidAuthTokenError("invalid or expired auth token")
 
-        self._access_guard.require_admin(role=user.role)
         return user

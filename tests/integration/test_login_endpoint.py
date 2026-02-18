@@ -213,7 +213,7 @@ async def test_inactive_user_returns_forbidden_and_no_token_row(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_route_paths_only_add_login_endpoint(tmp_path: Path) -> None:
+async def test_route_paths_include_login_and_monitoring_list(tmp_path: Path) -> None:
     _, async_url = _upgrade_head(tmp_path, "login_routes.db")
 
     with _build_client(async_url) as client:
@@ -221,7 +221,7 @@ async def test_route_paths_only_add_login_endpoint(tmp_path: Path) -> None:
         assert isinstance(app, FastAPI)
         paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
 
-    assert paths == {"/auth/login"}
+    assert paths == {"/auth/login", "/monitoring/cases"}
 
 
 @pytest.mark.asyncio

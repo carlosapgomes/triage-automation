@@ -17,6 +17,9 @@ from triage_automation.application.ports.case_repository_port import (
     CaseDoctorDecisionSnapshot,
     CaseFinalReplySnapshot,
     CaseLlmInteractionCreateInput,
+    CaseMonitoringListFilter,
+    CaseMonitoringListItem,
+    CaseMonitoringListPage,
     CaseRecord,
     CaseRecoverySnapshot,
     CaseRepositoryPort,
@@ -35,6 +38,7 @@ case_report_transcripts = sa.table(
     "case_report_transcripts",
     sa.column("case_id", sa.Uuid()),
     sa.column("extracted_text", sa.Text()),
+    sa.column("captured_at", sa.DateTime(timezone=True)),
 )
 case_llm_interactions = sa.table(
     "case_llm_interactions",
@@ -47,6 +51,12 @@ case_llm_interactions = sa.table(
     sa.column("prompt_user_name", sa.Text()),
     sa.column("prompt_user_version", sa.Integer()),
     sa.column("model_name", sa.Text()),
+    sa.column("captured_at", sa.DateTime(timezone=True)),
+)
+case_matrix_message_transcripts = sa.table(
+    "case_matrix_message_transcripts",
+    sa.column("case_id", sa.Uuid()),
+    sa.column("captured_at", sa.DateTime(timezone=True)),
 )
 
 
@@ -501,6 +511,92 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
                 )
             )
         return snapshots
+
+    async def list_cases_for_monitoring(
+        self,
+        *,
+        filters: CaseMonitoringListFilter,
+    ) -> CaseMonitoringListPage:
+        """List cases ordered by latest activity with period/status filtering."""
+
+        activity_rows = sa.union_all(
+            sa.select(
+                cases.c.case_id.label("case_id"),
+                cases.c.updated_at.label("activity_at"),
+            ),
+            sa.select(
+                case_report_transcripts.c.case_id.label("case_id"),
+                case_report_transcripts.c.captured_at.label("activity_at"),
+            ),
+            sa.select(
+                case_llm_interactions.c.case_id.label("case_id"),
+                case_llm_interactions.c.captured_at.label("activity_at"),
+            ),
+            sa.select(
+                case_matrix_message_transcripts.c.case_id.label("case_id"),
+                case_matrix_message_transcripts.c.captured_at.label("activity_at"),
+            ),
+        ).subquery("case_activity_rows")
+
+        latest_activity = (
+            sa.select(
+                activity_rows.c.case_id,
+                sa.func.max(activity_rows.c.activity_at).label("latest_activity_at"),
+            )
+            .group_by(activity_rows.c.case_id)
+            .subquery("case_latest_activity")
+        )
+        from_clause = cases.join(latest_activity, latest_activity.c.case_id == cases.c.case_id)
+        where_clauses: list[sa.ColumnElement[bool]] = []
+        if filters.status is not None:
+            where_clauses.append(cases.c.status == filters.status.value)
+        if filters.activity_from is not None:
+            where_clauses.append(latest_activity.c.latest_activity_at >= filters.activity_from)
+        if filters.activity_to is not None:
+            where_clauses.append(latest_activity.c.latest_activity_at < filters.activity_to)
+
+        total_statement = sa.select(sa.func.count()).select_from(from_clause)
+        if where_clauses:
+            total_statement = total_statement.where(*where_clauses)
+
+        offset = (filters.page - 1) * filters.page_size
+        statement = (
+            sa.select(
+                cases.c.case_id,
+                cases.c.status,
+                latest_activity.c.latest_activity_at,
+            )
+            .select_from(from_clause)
+            .order_by(
+                latest_activity.c.latest_activity_at.desc(),
+                cases.c.case_id.desc(),
+            )
+            .offset(offset)
+            .limit(filters.page_size)
+        )
+        if where_clauses:
+            statement = statement.where(*where_clauses)
+
+        async with self._session_factory() as session:
+            total_result = await session.execute(total_statement)
+            result = await session.execute(statement)
+
+        total = int(total_result.scalar_one())
+        items: list[CaseMonitoringListItem] = []
+        for row in result.mappings().all():
+            items.append(
+                CaseMonitoringListItem(
+                    case_id=cast("Any", row["case_id"]),
+                    status=CaseStatus(cast(str, row["status"])),
+                    latest_activity_at=cast(datetime, row["latest_activity_at"]),
+                )
+            )
+        return CaseMonitoringListPage(
+            items=items,
+            page=filters.page,
+            page_size=filters.page_size,
+            total=total,
+        )
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:
         """Update case status and touch updated_at timestamp."""
