@@ -11,6 +11,7 @@ Também já existe fundação de autenticação/autorização com `users`, `auth
 - Disponibilizar visão temporal completa por caso, com sequência de eventos/mensagens e metadados de sala, ator e horário.
 - Persistir conteúdo integral das interações necessárias para auditoria técnica e melhoria contínua (incluindo payloads LLM e mensagens Matrix completas).
 - Expor APIs para dashboard com controle de acesso por papel (`reader` e `admin`).
+- Padronizar frontend do dashboard em stack sem build step para reduzir complexidade operacional.
 - Permitir que `admin` gerencie prompts versionados sem romper o carregamento dinâmico atual do worker.
 
 ## Non-Goals
@@ -60,12 +61,22 @@ Também já existe fundação de autenticação/autorização com `users`, `auth
 - Alternative considered: gerar trilha somente por batch offline.
   - Rejected por atraso e risco de inconsistência.
 
+### Decision 6: Stack do dashboard será server-rendered com dependências estáveis
+
+- Choice: implementar dashboard com `FastAPI` + `Jinja2` (SSR), `Bootstrap 5.3` para UI base, `Unpoly` para navegação parcial e `JavaScript vanilla` para interações pontuais.
+- Rationale: reduz curva operacional, evita pipeline `npm`/bundler e mantém deploy alinhado ao runtime Python já existente.
+- Alternative considered: SPA com framework JS moderno (React/Vue + build step).
+  - Rejected por adicionar complexidade de toolchain e manutenção sem ganho proporcional para o escopo inicial de monitoramento/admin.
+- Alternative considered: `HTMX` no lugar de `Unpoly`.
+  - Rejected nesta mudança por preferência explícita por `Unpoly` e maior cobertura de recursos de navegação parcial para o fluxo proposto.
+
 ## Risks / Trade-offs
 
 - [Crescimento acelerado de volume de dados textuais] → Mitigation: índices por `case_id`/`timestamp`, paginação obrigatória e política de retenção definida em operação.
 - [Exposição de conteúdo sensível em dashboard] → Mitigation: RBAC estrito, trilha de acesso/auditoria e revisão de máscara/ocultação em campos de alto risco.
 - [Impacto de performance ao escrever trilha em tempo real] → Mitigation: escrita enxuta por evento, payloads estruturados e testes de carga em rotas de maior frequência.
 - [Complexidade de consistência entre múltiplas fontes (Matrix/LLM/PDF)] → Mitigation: schema explícito de origem/tipo de evento e ordenação por timestamp de ingestão com ids estáveis.
+- [Dependência de assets CDN (Bootstrap/Unpoly)] → Mitigation: prever fallback de versionamento fixo e opção de servir assets localmente em ambientes restritos.
 
 ## Migration Plan
 
@@ -73,7 +84,7 @@ Também já existe fundação de autenticação/autorização com `users`, `auth
 2. Atualizar adapters/serviços para capturar e persistir conteúdo integral novo (sem backfill obrigatório de históricos antigos).
 3. Implementar endpoints de monitoramento para listagem de casos e timeline detalhada.
 4. Implementar endpoints de gestão de prompts para `admin`, preservando invariantes de uma versão ativa por prompt.
-5. Implementar UI do dashboard com visão de thread temporal e diferenciação visual de sala/tipo.
+5. Implementar UI server-rendered do dashboard (`FastAPI` + `Jinja2` + `Bootstrap 5.3` + `Unpoly`) com visão de thread temporal e diferenciação visual de sala/tipo.
 6. Validar com testes (unit/integration) e checklist manual de RBAC, timeline e prompt management.
 
 Rollback strategy:

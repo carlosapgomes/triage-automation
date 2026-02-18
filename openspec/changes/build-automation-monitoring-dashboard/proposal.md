@@ -7,6 +7,11 @@ A operação precisa de rastreabilidade completa por caso para auditoria, invest
 ## What Changes
 
 - Criar dashboard de monitoramento para listar casos processados e abrir visão em linha do tempo (thread) por caso.
+- Fixar stack do dashboard em tecnologia "boring" sem build step frontend:
+  - backend e renderização: `FastAPI` + `Jinja2`,
+  - UI/CSS: `Bootstrap 5.3`,
+  - navegação parcial/interações HTML-first: `Unpoly`,
+  - JavaScript adicional: `vanilla` somente quando necessário.
 - Exibir, por evento da thread, sala/origem, data-hora, ator/autor, tipo da mensagem e conteúdo integral (incluindo ACKs).
 - Introduzir diferenciação de acesso:
   - Perfil `reader`: consulta/monitoramento.
@@ -39,5 +44,5 @@ A operação precisa de rastreabilidade completa por caso para auditoria, invest
 - Banco de dados: novas tabelas/colunas/índices e migrações para persistência textual integral e consultas por timeline.
 - Backend `bot-api`: novos endpoints de monitoramento e administração de prompts com guardas de role.
 - Camada de aplicação/infra: captura explícita de payloads LLM, mensagens Matrix e ACKs com associação por `case_id`.
-- Frontend administrativo: nova aplicação/painel para listagem de casos e visualização de thread temporal.
+- Frontend administrativo: painel server-rendered no `bot-api` (Jinja2 + Bootstrap + Unpoly), sem pipeline de build frontend dedicado.
 - Segurança e operação: revisão de retenção, mascaramento e acesso a conteúdo sensível em ambiente hospitalar.
