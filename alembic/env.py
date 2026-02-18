@@ -7,6 +7,7 @@ import os
 from logging.config import fileConfig
 from pathlib import Path
 
+import sqlalchemy as sa
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import Connection
@@ -51,7 +52,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in online mode."""
 
-    configured_url = config.get_main_option("sqlalchemy.url")
+    configured_url = config.get_main_option("sqlalchemy.url") or _DEFAULT_ALEMBIC_URL
     if _is_async_driver_url(configured_url):
         asyncio.run(run_async_migrations())
         return
@@ -74,6 +75,7 @@ def run_sync_migrations() -> None:
 def do_run_migrations(connection: Connection) -> None:
     """Configure and run migrations for an active DB connection."""
 
+    _ensure_postgres_version_table_capacity(connection)
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()
@@ -98,6 +100,41 @@ def _is_async_driver_url(url: str) -> bool:
     """Return whether a SQLAlchemy URL uses an async driver."""
 
     return "+asyncpg" in url or "+aiosqlite" in url
+
+
+def _ensure_postgres_version_table_capacity(connection: Connection) -> None:
+    """Ensure Postgres alembic_version table accepts long revision identifiers."""
+
+    if connection.dialect.name != "postgresql":
+        return
+
+    inspector = sa.inspect(connection)
+    if "alembic_version" not in inspector.get_table_names():
+        with connection.begin():
+            connection.execute(
+                sa.text(
+                    "CREATE TABLE alembic_version ("
+                    "version_num VARCHAR(191) NOT NULL, "
+                    "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)"
+                    ")"
+                )
+            )
+        return
+
+    columns = {column["name"]: column for column in inspector.get_columns("alembic_version")}
+    version_column = columns.get("version_num")
+    if version_column is None:
+        return
+
+    length = getattr(version_column["type"], "length", None)
+    if isinstance(length, int) and length < 191:
+        with connection.begin():
+            connection.execute(
+                sa.text(
+                    "ALTER TABLE alembic_version "
+                    "ALTER COLUMN version_num TYPE VARCHAR(191)"
+                )
+            )
 
 
 if context.is_offline_mode():
