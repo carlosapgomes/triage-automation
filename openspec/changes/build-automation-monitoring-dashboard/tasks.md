@@ -4,7 +4,7 @@
 
 - [x] 1.1 Criar migration para armazenar texto extraido integral do relatorio por `case_id`.
 - [x] 1.2 Criar migration para armazenar interacoes LLM1/LLM2 com payload de entrada, payload de saida, estagio e metadados de prompt/modelo.
-- [ ] 1.3 Criar migration para armazenar mensagens completas Matrix (bot e humano), incluindo replies e ACKs, com `room_id`, `sender`, `timestamp` e tipo.
+- [x] 1.3 Criar migration para armazenar mensagens completas Matrix (bot e humano), incluindo replies e ACKs, com `room_id`, `sender`, `timestamp` e tipo.
 - [ ] 1.4 Adicionar indices para consultas por `case_id` e ordenacao cronologica por timestamp.
 
 ## 2. Captura de eventos nos boundaries
