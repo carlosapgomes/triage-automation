@@ -98,18 +98,17 @@ class ProcessPdfCaseService:
             case_id,
             len(extracted_text),
         )
-        await self._case_repository.append_case_report_transcript(
-            case_id=case_id,
-            extracted_text=extracted_text,
-        )
-        logger.info("process_pdf_case_report_transcript_appended case_id=%s", case_id)
-
         record_result = extract_and_strip_agency_record_number(extracted_text)
         logger.info(
             "process_pdf_case_record_extract_ok case_id=%s agency_record_number=%s",
             case_id,
             record_result.agency_record_number,
         )
+        await self._case_repository.append_case_report_transcript(
+            case_id=case_id,
+            extracted_text=record_result.cleaned_text,
+        )
+        logger.info("process_pdf_case_report_transcript_appended case_id=%s", case_id)
 
         await self._case_repository.store_pdf_extraction(
             case_id=case_id,

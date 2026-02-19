@@ -122,7 +122,7 @@ async def test_record_number_persisted_and_stripped_from_text(tmp_path: Path) ->
     assert row["agency_record_number"] == "12345"
     assert row["agency_record_extracted_at"] is not None
     assert row["extracted_text"] == "RELATORIO DE OCORRENCIAS patient data details 99999"
-    assert transcript_row["extracted_text"] == text
+    assert transcript_row["extracted_text"] == "RELATORIO DE OCORRENCIAS patient data details 99999"
     assert transcript_row["captured_at"] is not None
 
 

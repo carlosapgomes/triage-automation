@@ -52,3 +52,4 @@
 
 - [x] 8.1 Persistir `sender_display_name` e `reactor_display_name` nas tabelas append-only de transcript e checkpoints.
 - [x] 8.2 Priorizar display name na timeline do dashboard/API quando disponivel, com fallback para Matrix ID.
+- [x] 8.3 Exibir `pdf_report_extracted` com texto limpo (sem watermark) no timeline ao persistir transcript ja sanitizado.
