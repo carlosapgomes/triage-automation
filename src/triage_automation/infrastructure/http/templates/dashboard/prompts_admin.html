@@ -56,9 +56,7 @@
                       >
                         Ver conteudo
                       </a>
-                      {% if item.is_active %}
-                        <span class="badge text-bg-light border text-secondary">Sem acao</span>
-                      {% else %}
+                      {% if not item.is_active %}
                         <form
                           method="post"
                           action="/admin/prompts/{{ prompt_name }}/activate-form"

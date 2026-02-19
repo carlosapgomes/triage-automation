@@ -67,3 +67,4 @@
 - [x] 10.3 Implementar criacao de nova versao append-only por formulario, mantendo versao ativa inalterada.
 - [x] 10.4 Registrar auditoria de criacao de versao de prompt (`prompt_version_created`) com versao de origem e versao criada.
 - [x] 10.5 Ajustar alinhamento visual das acoes por linha (`Ver conteudo` + `Ativar/Sem acao`) para evitar quebra/desalinhamento na tabela.
+- [x] 10.6 Ocultar indicador textual de "Sem acao" na linha ativa para reduzir ruido visual, mantendo apenas o botao `Ver conteudo`.

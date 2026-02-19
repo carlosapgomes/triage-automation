@@ -315,9 +315,9 @@ async def test_admin_renders_prompt_management_html_page_with_versions(tmp_path:
     assert "llm1_system" in response.text
     assert 'href="/admin/prompts/llm1_system/versions/4"' in response.text
     assert 'class="d-flex justify-content-end align-items-center gap-2 flex-wrap"' in response.text
-    assert 'class="badge text-bg-light border text-secondary">Sem acao</span>' in response.text
     assert 'action="/admin/prompts/llm1_system/activate-form"' in response.text
     assert 'class="d-inline mb-0"' in response.text
+    assert "Sem acao" not in response.text
     assert '<form method="post" action="/logout"' in response.text
     assert 'href="/dashboard/cases"' in response.text
     assert 'href="/admin/prompts"' in response.text
