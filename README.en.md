@@ -94,12 +94,24 @@ Role matrix:
 
 ## Project Docs
 
-- Setup: `docs/setup.md`
-- Admin operations (bootstrap + password reset): `docs/setup.md#7-admin-operations`
-- Runtime smoke runbook: `docs/runtime-smoke.md`
-- Architecture: `docs/architecture.md`
-- Security: `docs/security.md`
+- Setup: `docs/en/setup.md`
+- Admin operations (bootstrap + password reset): `docs/en/setup.md#8-admin-operations`
+- Runtime smoke runbook: `docs/en/runtime-smoke.md`
+- Architecture: `docs/en/architecture.md`
+- Security: `docs/en/security.md`
 - Internal implementation context: `PROJECT_CONTEXT.md`
+
+## Bilingual Documentation Contribution Checklist
+
+1. Changed `README.md`? Update `README.en.md` in the same PR.
+1. Changed `docs/<file>.md`? Update `docs/en/<file>.md` in the same PR.
+1. Keep language selector links at the top of both mirrored files.
+1. Run:
+
+```bash
+uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q
+markdownlint-cli2 "README.md" "README.en.md" "docs/*.md" "docs/en/*.md"
+```
 
 ## Repository Layout
 

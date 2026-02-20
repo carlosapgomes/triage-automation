@@ -17,7 +17,7 @@
 
 ## 3. Hardening de Sincronizacao (Slice 3)
 
-- [ ] 3.1 Incluir no `AGENTS.md` a regra obrigatoria de sincronizacao de traducao para `README` e `docs/`.
-- [ ] 3.2 Adicionar/ajustar teste automatizado para detectar drift basico de espelhamento PT/EN em `docs/`.
-- [ ] 3.3 Atualizar checklist operacional de contribuicao para documentacao bilingue.
-- [ ] 3.4 Executar verificacoes finais do change e registrar limitacoes, se houver.
+- [x] 3.1 Incluir no `AGENTS.md` a regra obrigatoria de sincronizacao de traducao para `README` e `docs/`.
+- [x] 3.2 Adicionar/ajustar teste automatizado para detectar drift basico de espelhamento PT/EN em `docs/`.
+- [x] 3.3 Atualizar checklist operacional de contribuicao para documentacao bilingue.
+- [x] 3.4 Executar verificacoes finais do change e registrar limitacoes, se houver.

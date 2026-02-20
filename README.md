@@ -101,6 +101,18 @@ Matriz de papeis:
 - Seguranca: `docs/security.md`
 - Contexto interno de implementacao: `PROJECT_CONTEXT.md`
 
+## Checklist de contribuicao da documentacao bilingue
+
+1. Alterou `README.md`? Atualize `README.en.md` no mesmo PR.
+1. Alterou `docs/<arquivo>.md`? Atualize `docs/en/<arquivo>.md` no mesmo PR.
+1. Mantenha os seletores de idioma no topo dos dois arquivos espelhados.
+1. Execute:
+
+```bash
+uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q
+markdownlint-cli2 "README.md" "README.en.md" "docs/*.md" "docs/en/*.md"
+```
+
 ## Estrutura do Repositorio
 
 ```text

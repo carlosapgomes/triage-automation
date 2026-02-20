@@ -59,6 +59,18 @@ If a command cannot be run, report why explicitly.
 2. Do not bundle unrelated changes in the same commit.
 3. Do not rewrite history unless explicitly requested.
 
+## Bilingual Documentation Sync (Mandatory)
+
+Portuguese (`pt-BR`) is the primary documentation language in this repository.
+English is a required mirror for `README` and `docs/`.
+
+1. If `README.md` changes, update `README.en.md` in the same slice/PR.
+2. If any file under `docs/*.md` changes, update `docs/en/<same-file>.md` in the same slice/PR.
+3. Keep language selector links at the top of both mirrored files.
+4. If same-slice synchronization is impossible, record the exception explicitly in the task file and create follow-up work before merge.
+5. Run bilingual doc guards when applicable:
+   - `uv run pytest tests/unit/test_readme_bilingual_baseline.py tests/unit/test_docs_bilingual_mirror.py -q`
+
 ## Markdown Formatting for OpenSpec Artifacts
 
 When creating or editing `proposal.md`, `design.md`, `tasks.md`, and `specs/**/spec.md`:
