@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from triage_automation.application.ports.auth_token_repository_port import (
@@ -56,6 +57,24 @@ class SqlAlchemyAuthTokenRepository(AuthTokenRepositoryPort):
         if row is None:
             return None
         return _to_auth_token_record(row)
+
+    async def revoke_active_tokens_for_user(self, *, user_id: UUID) -> int:
+        """Revoke all currently non-revoked tokens for one user."""
+
+        statement = (
+            sa.update(auth_tokens)
+            .where(
+                auth_tokens.c.user_id == user_id,
+                auth_tokens.c.revoked_at.is_(None),
+            )
+            .values(revoked_at=sa.text("CURRENT_TIMESTAMP"))
+        )
+
+        async with self._session_factory() as session:
+            result = cast(CursorResult[Any], await session.execute(statement))
+            await session.commit()
+
+        return int(result.rowcount or 0)
 
 
 def _to_auth_token_record(row: sa.RowMapping) -> AuthTokenRecord:

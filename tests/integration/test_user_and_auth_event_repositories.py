@@ -191,6 +191,66 @@ async def test_auth_token_repository_persists_and_resolves_active_tokens(tmp_pat
 
 
 @pytest.mark.asyncio
+async def test_auth_token_repository_revokes_active_tokens_for_user(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "auth_token_revoke_by_user.db")
+    session_factory = create_session_factory(async_url)
+    token_repo = SqlAlchemyAuthTokenRepository(session_factory)
+
+    engine = sa.create_engine(sync_url)
+    target_user_id = uuid4()
+    other_user_id = uuid4()
+    with engine.begin() as connection:
+        _insert_user(
+            connection,
+            user_id=target_user_id,
+            email="target@example.org",
+            role="reader",
+            is_active=True,
+        )
+        _insert_user(
+            connection,
+            user_id=other_user_id,
+            email="other@example.org",
+            role="admin",
+            is_active=True,
+        )
+
+    expires_at = datetime.now(tz=UTC) + timedelta(hours=1)
+    await token_repo.create_token(
+        AuthTokenCreateInput(
+            user_id=target_user_id,
+            token_hash="target-token-1",
+            expires_at=expires_at,
+        )
+    )
+    target_token_2 = await token_repo.create_token(
+        AuthTokenCreateInput(
+            user_id=target_user_id,
+            token_hash="target-token-2",
+            expires_at=expires_at,
+        )
+    )
+    await token_repo.create_token(
+        AuthTokenCreateInput(
+            user_id=other_user_id,
+            token_hash="other-token-1",
+            expires_at=expires_at,
+        )
+    )
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text("UPDATE auth_tokens SET revoked_at = CURRENT_TIMESTAMP WHERE id = :id"),
+            {"id": target_token_2.id},
+        )
+
+    revoked_count = await token_repo.revoke_active_tokens_for_user(user_id=target_user_id)
+    assert revoked_count == 1
+
+    assert await token_repo.get_active_by_hash(token_hash="target-token-1") is None
+    assert await token_repo.get_active_by_hash(token_hash="target-token-2") is None
+    assert await token_repo.get_active_by_hash(token_hash="other-token-1") is not None
+
+@pytest.mark.asyncio
 async def test_user_repository_lists_users_with_account_status(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "user_repo_list.db")
     session_factory = create_session_factory(async_url)

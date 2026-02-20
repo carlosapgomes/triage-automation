@@ -38,3 +38,6 @@ class AuthTokenRepositoryPort(Protocol):
 
     async def get_active_by_hash(self, *, token_hash: str) -> AuthTokenRecord | None:
         """Return active token record by hash (not revoked and not expired)."""
+
+    async def revoke_active_tokens_for_user(self, *, user_id: UUID) -> int:
+        """Revoke all currently non-revoked tokens for one user and return affected count."""
