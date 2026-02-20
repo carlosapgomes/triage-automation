@@ -1,11 +1,13 @@
-# Manual E2E Runbook
+# Runbook Manual E2E
 
-This runbook validates the Room-2 structured Matrix reply path end-to-end in a deterministic local environment.
-Run `docs/runtime-smoke.md` first to confirm process startup and callback reachability.
+Idioma: **Portugues (BR)** | [English](en/manual_e2e_runbook.md)
 
-## Prerequisites
+Este runbook valida ponta a ponta o caminho de resposta Matrix estruturada da Sala 2 em ambiente local deterministico.
+Execute `docs/runtime-smoke.md` antes para confirmar startup de processo e alcance de callback.
 
-1. Start runtime processes with the same commands used in `docs/runtime-smoke.md`:
+## Pre-requisitos
+
+1. Inicie os processos de runtime com os mesmos comandos usados em `docs/runtime-smoke.md`:
 
 ```bash
 uv run uvicorn apps.bot_api.main:create_app --factory --host 0.0.0.0 --port 8000
@@ -13,146 +15,146 @@ uv run python -m apps.bot_matrix.main
 uv run python -m apps.worker.main
 ```
 
-1. Use a test case already moved to `WAIT_DOCTOR` with Room-2 case context posted by bot.
+1. Use um caso de teste ja movido para `WAIT_DOCTOR` com contexto de caso na Sala 2 postado pelo bot.
 
-## Web Login and Role Menu Checks
+## Checagens de login web e menu por papel
 
-1. Anonymous browser access:
+1. Acesso anonimo no navegador:
 
-- open `GET /`
-- expected: redirect to `/login`
+- abrir `GET /`
+- esperado: redirect para `/login`
 
-1. Reader session checks:
+1. Checagens de sessao `reader`:
 
-- login as a `reader` user via `POST /login` form
-- verify `GET /dashboard/cases` returns `200`
-- verify shell nav contains `Dashboard`
-- verify shell nav does not contain `Prompts`
-- verify `GET /admin/prompts` returns `403`
+- login como usuario `reader` via formulario `POST /login`
+- verificar `GET /dashboard/cases` retorna `200`
+- verificar shell nav contem `Dashboard`
+- verificar shell nav nao contem `Prompts`
+- verificar `GET /admin/prompts` retorna `403`
 
-1. Admin session checks:
+1. Checagens de sessao `admin`:
 
-- login as an `admin` user via `POST /login` form
-- verify `GET /dashboard/cases` returns `200`
-- verify shell nav contains both `Dashboard` and `Prompts`
-- verify `GET /admin/prompts` returns `200` with prompt list and activation controls
+- login como usuario `admin` via formulario `POST /login`
+- verificar `GET /dashboard/cases` retorna `200`
+- verificar shell nav contem `Dashboard` e `Prompts`
+- verificar `GET /admin/prompts` retorna `200` com lista e controles de ativacao
 
 1. Logout:
 
-- submit `POST /logout` from shell header
-- expected: redirect to `/login`
-- verify a new `GET /` request redirects to `/login`
+- enviar `POST /logout` no cabecalho da shell
+- esperado: redirect para `/login`
+- verificar que um novo `GET /` redireciona para `/login`
 
-## Room-2 Structured Reply Positive Path
+## Caminho positivo de resposta estruturada da Sala 2
 
-1. Validate the three-message Room-2 combo for the target case in desktop and mobile clients:
+1. Validar o combo de tres mensagens da Sala 2 para o caso alvo em clientes desktop e mobile:
 
-- message I: original PDF context
-- message II: extracted data + summary + recommendation (reply to message I)
-- message III: strict template instructions (reply to message I)
-- verify in both desktop and mobile that messages remain grouped under message I
+- message I: contexto original do PDF
+- message II: dados extraidos + resumo + recomendacao (reply para message I)
+- message III: instrucoes de template estrito (reply para message I)
+- verificar em desktop e mobile que mensagens permanecem agrupadas sob message I
 
-1. Open message III and copy the strict template.
+1. Abrir message III e copiar o template estrito.
 
-2. Submit decision by sending a Matrix reply to message I (reply to message I):
+1. Enviar decisao como reply Matrix para message I (reply to message I):
 
-- include template fields exactly:
+- incluir campos do template exatamente:
   - `decision: accept|deny`
   - `support_flag: none|anesthesist|anesthesist_icu`
   - `reason: <texto livre ou vazio>`
   - `case_id: <case-id>`
 
-1. For positive flow validation, send:
+1. Para validacao do fluxo positivo, enviar:
 
 - `decision: accept`
 - `support_flag: none`
-- optional `reason`
+- `reason` opcional
 
-1. Validate expected progression:
+1. Validar progressao esperada:
 
-- Case status moves to `DOCTOR_ACCEPTED`
-- A next job `post_room3_request` is enqueued
-- Audit includes the Matrix sender as actor and outcome
+- status do caso move para `DOCTOR_ACCEPTED`
+- proximo job `post_room3_request` e enfileirado
+- auditoria inclui sender Matrix como ator e outcome
 
-## Widget Negative Auth Checks
+## Checagens negativas de auth do widget
 
-1. Submit without Authorization header (without Authorization):
-
-- `POST /widget/room2/submit`
-- Expected: `401`
-
-1. Submit with reader role token (reader role token):
+1. Enviar sem Authorization header (without Authorization):
 
 - `POST /widget/room2/submit`
-- Expected: `403`
+- esperado: `401`
 
-1. Validate no unexpected state/job mutation (state/job mutation):
+1. Enviar com token de papel reader (reader role token):
 
-- Case status does not change
-- No additional decision job is enqueued
-- Only expected auth/audit records are present
+- `POST /widget/room2/submit`
+- esperado: `403`
 
-## Room-2 Negative Reply Checks
+1. Validar ausencia de mutacao inesperada de estado/job (state/job mutation):
 
-1. Post malformed template reply (malformed template):
+- status do caso nao muda
+- nenhum job adicional de decisao e enfileirado
+- apenas registros esperados de auth/auditoria sao adicionados
 
-- reply to message I with missing/invalid required lines
-- expected bot feedback includes `error_code: invalid_template`
-- expected no decision mutation and no new downstream job enqueue
+## Checagens negativas de reply da Sala 2
 
-1. Post valid template on wrong reply-parent (wrong reply-parent):
+1. Postar reply com template malformado (malformed template):
 
-- send template as reply to message II/III or unrelated event (not message I root)
-- expected bot feedback includes `error_code: invalid_template`
-- expected no decision mutation and no new downstream job enqueue
+- reply para message I com linhas obrigatorias ausentes/invalidas
+- esperado: feedback do bot inclui `error_code: invalid_template`
+- esperado: no decision mutation e nenhum novo downstream job enfileirado
 
-## Dashboard and Monitoring API Checks
+1. Postar template valido no parent de reply errado (wrong reply-parent):
 
-1. Open server-rendered dashboard list in browser:
+- enviar template como reply para message II/III ou evento nao relacionado (nao message I root)
+- esperado: feedback do bot inclui `error_code: invalid_template`
+- esperado: no decision mutation e nenhum novo downstream job enfileirado
 
-- `GET /dashboard/cases` with a valid bearer token
-- expected HTML list renders with cases and filters
+## Checagens de dashboard e API de monitoramento
 
-1. Validate monitoring list API:
+1. Abrir listagem de dashboard server-rendered no navegador:
+
+- `GET /dashboard/cases` com bearer token valido
+- esperado: lista HTML renderiza casos e filtros
+
+1. Validar API de listagem de monitoramento:
 
 - `GET /monitoring/cases`
-- expected `200` and JSON with `items`, `page`, `page_size`, `total`
+- esperado: `200` com JSON contendo `items`, `page`, `page_size`, `total`
 
-1. Validate per-case detail API and auditable events:
+1. Validar API de detalhe por caso e eventos auditaveis:
 
 - `GET /monitoring/cases/{case_id}`
-- expected `200` and a chronological timeline ordered by `timestamp`
-- timeline must include `source`, `channel`, `actor`, `event_type`
-- when applicable, validate both ACK and human reply events are present
+- esperado: `200` com chronological timeline ordenada por `timestamp`
+- timeline deve incluir `source`, `channel`, `actor`, `event_type`
+- quando aplicavel, validar presenca de eventos ACK e human reply
 
-1. Cross-check API vs dashboard detail:
+1. Cruzar API com detalhe do dashboard:
 
-- open `GET /dashboard/cases/{case_id}`
-- verify chronological timeline visible in UI matches monitoring API for the same case
+- abrir `GET /dashboard/cases/{case_id}`
+- verificar timeline cronologica visivel na UI igual a API de monitoramento para o mesmo caso
 
-## Prompt Management Authorization Flow
+## Fluxo de autorizacao de gerenciamento de prompts
 
-1. Using reader token (reader token), verify read-only behavior:
+1. Usando token de reader (reader token), verificar comportamento read-only:
 
-- `GET /monitoring/cases` returns `200`
-- `GET /admin/prompts/versions` returns `403`
-- `GET /admin/prompts/{prompt_name}/active` returns `403`
-- `POST /admin/prompts/{prompt_name}/activate` returns `403`
+- `GET /monitoring/cases` retorna `200`
+- `GET /admin/prompts/versions` retorna `403`
+- `GET /admin/prompts/{prompt_name}/active` retorna `403`
+- `POST /admin/prompts/{prompt_name}/activate` retorna `403`
 
-1. Using admin token (admin token), verify prompt mutation behavior:
+1. Usando token de admin (admin token), verificar mutacao de prompts:
 
-- `GET /admin/prompts/versions` returns `200`
-- `GET /admin/prompts/{prompt_name}/active` returns `200`
-- `POST /admin/prompts/{prompt_name}/activate` returns `200`
+- `GET /admin/prompts/versions` retorna `200`
+- `GET /admin/prompts/{prompt_name}/active` retorna `200`
+- `POST /admin/prompts/{prompt_name}/activate` retorna `200`
 
-1. Validate prompt activation side effects:
+1. Validar efeitos colaterais de ativacao de prompt:
 
-- exactly one active version remains for the prompt name
-- auth audit includes `prompt_version_activated` with actor and target prompt/version
+- exatamente uma versao ativa permanece para o nome do prompt
+- auditoria auth inclui `prompt_version_activated` com ator e prompt/version alvo
 
-1. Validate prompt activation via HTML form (`admin` session):
+1. Validar ativacao de prompt via formulario HTML (sessao admin):
 
-- open `GET /admin/prompts`
-- submit activation form `POST /admin/prompts/{prompt_name}/activate-form`
-- expected: redirect back to `/admin/prompts` with activation feedback
-- validate `auth_events` last row has `event_type=prompt_version_activated`
+- abrir `GET /admin/prompts`
+- enviar formulario `POST /admin/prompts/{prompt_name}/activate-form`
+- esperado: redirect para `/admin/prompts` com feedback de ativacao
+- validar ultima linha em `auth_events` com `event_type=prompt_version_activated`

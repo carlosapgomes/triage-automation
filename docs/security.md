@@ -1,37 +1,39 @@
-# Security Notes
+# Notas de Seguranca
 
-## Secrets handling
+Idioma: **Portugues (BR)** | [English](en/security.md)
 
-- Never commit real secrets, production room IDs, or production homeserver values.
-- Keep local runtime secrets in `.env` only.
-- Keep `.env.example` sanitized placeholders only.
-- For first-admin bootstrap, prefer `BOOTSTRAP_ADMIN_PASSWORD_FILE` over plain env password.
+## Tratamento de segredos
 
-## Auth model (current)
+- Nunca commitar segredos reais, IDs de sala de producao, ou valores reais de homeserver.
+- Manter segredos locais de runtime somente em `.env`.
+- Manter `.env.example` apenas com placeholders sanitizados.
+- Para bootstrap do primeiro admin, prefira `BOOTSTRAP_ADMIN_PASSWORD_FILE` em vez de senha em texto no ambiente.
 
-- Webhook callback auth: HMAC signature verification.
-- Login foundation: opaque token issuance with persisted token hash.
-- Password storage: bcrypt hash only (no plaintext).
-- Role model: explicit `admin` and `reader`.
+## Modelo de auth (atual)
 
-## Public repository safety checklist
+- Auth de callback webhook: validacao de assinatura HMAC.
+- Fundacao de login: emissao de token opaco com hash persistido.
+- Armazenamento de senha: apenas hash bcrypt (sem plaintext).
+- Modelo de papeis: `admin` e `reader` explicitos.
 
-Before creating or publishing a remote:
+## Checklist de seguranca para repositorio publico
 
-1. Ensure `.env.example` contains placeholders only.
-2. Run secret scans:
+Antes de criar ou publicar um remoto:
+
+1. Garantir que `.env.example` contenha apenas placeholders.
+2. Rodar scans de segredo:
    - `gitleaks git .`
-3. Confirm no local secret files are tracked:
-   - `git ls-files | rg '^\\.env$|^\\.env\\.'`
-4. Review commit history for accidental leaks if sensitive values were ever committed.
+3. Confirmar que nenhum arquivo local de segredo esta versionado:
+   - `git ls-files | rg '^\.env$|^\.env\.'`
+4. Revisar historico de commits para vazamentos acidentais, se valores sensiveis ja foram commitados.
 
-## If a secret leak is detected
+## Se um vazamento de segredo for detectado
 
-1. Rotate affected credentials immediately.
-2. Rewrite local git history to purge leaked values.
-3. Garbage-collect unreachable git objects.
-4. Re-scan history before any push.
+1. Rotacionar credenciais afetadas imediatamente.
+2. Reescrever historico local do git para remover valores vazados.
+3. Rodar garbage-collect de objetos inalcancaveis.
+4. Reescanear historico antes de qualquer push.
 
-## Reporting security issues
+## Reporte de incidentes de seguranca
 
-Until a dedicated security policy file is added, report issues privately to repository maintainers and avoid opening public issue threads with exploit details.
+Ate existir uma policy dedicada de seguranca, reporte problemas de forma privada para mantenedores do repositorio e evite abrir issues publicas com detalhes de exploracao.

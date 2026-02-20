@@ -13,12 +13,12 @@ def test_runtime_smoke_runbook_exists_and_covers_required_flows() -> None:
         "uv run uvicorn apps.bot_api.main:create_app --factory --host 0.0.0.0 --port 8000"
     )
 
-    assert "## Local UV Runtime Smoke" in runbook
-    assert "## Deterministic LLM Smoke Path" in runbook
+    assert "## Smoke local com UV" in runbook
+    assert "## Caminho deterministico de LLM no smoke" in runbook
     assert uvicorn_cmd in runbook
     assert "uv run python -m apps.bot_matrix.main" in runbook
     assert "uv run python -m apps.worker.main" in runbook
-    assert "Matrix structured replies" in runbook
+    assert "respostas estruturadas Matrix" in runbook
     assert "/callbacks/triage-decision" not in runbook
     assert "x-signature" not in runbook
 
@@ -44,13 +44,13 @@ def test_runtime_smoke_runbook_declares_matrix_only_decision_path() -> None:
 
     assert "/callbacks/triage-decision" not in runbook
     assert "Cloudflare Tunnel Webhook Validation" not in runbook
-    assert "standard Room-2 decisions use Matrix structured replies" in runbook
+    assert "decisoes padrao da Sala 2 usam respostas estruturadas Matrix" in runbook
 
 
 def test_manual_e2e_runbook_exists_and_covers_matrix_reply_positive_flow() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
-    assert "## Room-2 Structured Reply Positive Path" in runbook
+    assert "## Caminho positivo de resposta estruturada da Sala 2" in runbook
     assert "message I" in runbook
     assert "message II" in runbook
     assert "message III" in runbook
@@ -64,7 +64,7 @@ def test_manual_e2e_runbook_exists_and_covers_matrix_reply_positive_flow() -> No
 def test_manual_e2e_runbook_defines_widget_negative_auth_checks() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
-    assert "## Widget Negative Auth Checks" in runbook
+    assert "## Checagens negativas de auth do widget" in runbook
     assert "without Authorization" in runbook
     assert "reader role token" in runbook
     assert "401" in runbook
@@ -75,7 +75,7 @@ def test_manual_e2e_runbook_defines_widget_negative_auth_checks() -> None:
 def test_manual_e2e_runbook_defines_room2_negative_reply_checks() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
-    assert "## Room-2 Negative Reply Checks" in runbook
+    assert "## Checagens negativas de reply da Sala 2" in runbook
     assert "malformed template" in runbook
     assert "wrong reply-parent" in runbook
     assert "error_code: invalid_template" in runbook
@@ -85,7 +85,7 @@ def test_manual_e2e_runbook_defines_room2_negative_reply_checks() -> None:
 def test_manual_e2e_runbook_defines_dashboard_api_and_auditable_timeline_checks() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
-    assert "## Dashboard and Monitoring API Checks" in runbook
+    assert "## Checagens de dashboard e API de monitoramento" in runbook
     assert "/dashboard/cases" in runbook
     assert "/monitoring/cases" in runbook
     assert "/monitoring/cases/{case_id}" in runbook
@@ -97,7 +97,7 @@ def test_manual_e2e_runbook_defines_dashboard_api_and_auditable_timeline_checks(
 def test_manual_e2e_runbook_defines_prompt_authorization_flow_checks() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
-    assert "## Prompt Management Authorization Flow" in runbook
+    assert "## Fluxo de autorizacao de gerenciamento de prompts" in runbook
     assert "/admin/prompts/versions" in runbook
     assert "/admin/prompts/{prompt_name}/active" in runbook
     assert "/admin/prompts/{prompt_name}/activate" in runbook

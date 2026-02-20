@@ -9,11 +9,11 @@
 
 ## 2. Espelhamento de `docs/` (Slice 2)
 
-- [ ] 2.1 Traduzir para pt-BR os documentos em `docs/` (arquitetura, setup, seguranca, smoke e runbook).
-- [ ] 2.2 Criar espelho em ingles em `docs/en/` com os mesmos nomes e escopo.
-- [ ] 2.3 Inserir seletor PT/EN no topo de todos os arquivos de `docs/` e `docs/en/`.
-- [ ] 2.4 Atualizar links internos para manter navegacao consistente entre idiomas.
-- [ ] 2.5 Executar verificacoes do slice (`markdownlint-cli2` e testes relevantes).
+- [x] 2.1 Traduzir para pt-BR os documentos em `docs/` (arquitetura, setup, seguranca, smoke e runbook).
+- [x] 2.2 Criar espelho em ingles em `docs/en/` com os mesmos nomes e escopo.
+- [x] 2.3 Inserir seletor PT/EN no topo de todos os arquivos de `docs/` e `docs/en/`.
+- [x] 2.4 Atualizar links internos para manter navegacao consistente entre idiomas.
+- [x] 2.5 Executar verificacoes do slice (`markdownlint-cli2` e testes relevantes).
 
 ## 3. Hardening de Sincronizacao (Slice 3)
 

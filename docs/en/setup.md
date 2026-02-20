@@ -1,26 +1,26 @@
-# Guia de Setup
+# Setup Guide
 
-Idioma: **Portugues (BR)** | [English](en/setup.md)
+Language: [Portugues (BR)](../setup.md) | **English**
 
-## Pre-requisitos
+## Prerequisites
 
 - Python `3.12.x`
 - `uv`
-- Docker + Docker Compose (opcional, mas recomendado para stack local)
+- Docker + Docker Compose (optional but recommended for local stack)
 
-## 1. Instalar dependencias
+## 1. Install dependencies
 
 ```bash
 uv sync
 ```
 
-## 2. Criar arquivo local de ambiente
+## 2. Create local environment file
 
 ```bash
 cp .env.example .env
 ```
 
-Variaveis principais para runtime Matrix-only de decisao:
+Core variables for Matrix-only decision runtime:
 
 - `ROOM1_ID`
 - `ROOM2_ID`
@@ -33,33 +33,33 @@ Variaveis principais para runtime Matrix-only de decisao:
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
 
-Para o contrato completo de ambiente, revise `.env.example`.
+For the complete environment contract, review `.env.example`.
 
-Variaveis opcionais para modo provider:
+Provider mode optional variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
 
-Variaveis opcionais para bootstrap do primeiro admin:
+Optional first-admin bootstrap variables:
 
 - `BOOTSTRAP_ADMIN_EMAIL`
-- `BOOTSTRAP_ADMIN_PASSWORD` ou `BOOTSTRAP_ADMIN_PASSWORD_FILE` (definir apenas uma)
+- `BOOTSTRAP_ADMIN_PASSWORD` or `BOOTSTRAP_ADMIN_PASSWORD_FILE` (set only one)
 
-Comportamento de bootstrap:
+Bootstrap behavior:
 
-- Executado pelo `bot-api` no startup
-- Cria usuario inicial `admin` apenas quando a tabela `users` estiver vazia
-- Se ja existirem usuarios, o bootstrap e ignorado
-- `BOOTSTRAP_ADMIN_PASSWORD_FILE` e recomendado em ambientes mais proximos de producao
+- Executed by `bot-api` on startup
+- Creates initial `admin` user only when `users` table is empty
+- If users already exist, bootstrap is skipped
+- `BOOTSTRAP_ADMIN_PASSWORD_FILE` is recommended in production-like environments
 
-## 3. Executar migracoes de banco
+## 3. Run database migrations
 
 ```bash
 uv run alembic upgrade head
 ```
 
-## 4. Executar testes e quality gates
+## 4. Run test and quality gates
 
 ```bash
 uv run ruff check .
@@ -67,60 +67,60 @@ uv run mypy src apps
 uv run pytest -q
 ```
 
-## 5. Fluxo web de login/logout
+## 5. Browser-first login/logout flow
 
-Depois das migracoes e startup dos servicos, use o portal direto no navegador.
+After migrations and service startup, use the portal directly in a browser.
 
-1. Abra pagina raiz:
+1. Open root page:
 
 - URL: `http://localhost:8000/`
-- esperado para usuario anonimo: redirect para `/login`
+- expected for anonymous user: redirect to `/login`
 
 1. Login:
 
-- envie `email` + `password` em `GET /login`
-- sucesso esperado: redirect para `/dashboard/cases`
-- credenciais invalidas: erro HTML na pagina de login, sem cookie de sessao
+- submit `email` + `password` on `GET /login`
+- expected success: redirect to `/dashboard/cases`
+- expected invalid credentials: HTML error on login page, no session cookie
 
-1. Autorizacao por papel:
+1. Authorization by role:
 
-- `reader`: acessa paginas de dashboard, nao acessa paginas admin de prompts
-- `admin`: acessa paginas de dashboard e paginas admin de prompts
+- `reader`: can access dashboard pages, cannot access prompt-admin pages
+- `admin`: can access dashboard pages and prompt-admin pages
 
 1. Logout:
 
-- envie `POST /logout` (botao `Sair` no cabecalho)
-- resultado esperado: redirect para `/login` e cookie de sessao limpo
+- submit `POST /logout` (button `Sair` in header)
+- expected result: redirect to `/login` and session cookie cleared
 
-## 6. Subir stack local (opcional)
+## 6. Run local stack (optional)
 
 ```bash
 docker compose up --build
 ```
 
-## 7. Validacao de smoke do runtime (recomendado antes do E2E manual)
+## 7. Runtime smoke validation (recommended before manual E2E)
 
-Siga `docs/runtime-smoke.md` para validar:
+Follow `docs/en/runtime-smoke.md` to validate:
 
-- startup local dos processos com `uv`
-- prontidao de respostas estruturadas Matrix para decisoes da Sala 2
-- modo deterministico de runtime LLM para testes sem provider
+- local `uv` runtime process startup
+- Matrix structured reply readiness for Room-2 decisions
+- deterministic LLM runtime mode for provider-unavailable testing
 
-## 8. Operacoes de admin
+## 8. Admin operations
 
-### 8.1 Reset de senha admin (CLI)
+### 8.1 Reset admin password (CLI)
 
-Use este fluxo quando uma senha de admin precisar de rotacao ou recuperacao.
-Ele atualiza o hash bcrypt diretamente em `users` usando o `DATABASE_URL` configurado.
+Use this flow when an admin password needs rotation or recovery.
+It updates the bcrypt hash directly in `users` using the configured `DATABASE_URL`.
 
-1. Defina identidade alvo e nova senha:
+1. Set target admin identity and new password:
 
 ```bash
 export ADMIN_EMAIL=admin@example.org
 export ADMIN_NEW_PASSWORD='change-me-now'
 ```
 
-1. Aplique reset:
+1. Apply reset:
 
 ```bash
 uv run python - <<'PY'
@@ -162,29 +162,29 @@ asyncio.run(main())
 PY
 ```
 
-1. Verifique via login:
+1. Verify with login:
 
-- `POST /auth/login` com o mesmo `ADMIN_EMAIL` e a nova senha
-- resultado esperado: `200` com payload de token
+- `POST /auth/login` with the same `ADMIN_EMAIL` and new password
+- expected result: `200` and a token payload
 
-### 8.2 Reset de senha admin (Docker Compose)
+### 8.2 Reset admin password (Docker Compose)
 
-Use este fluxo quando a stack estiver em containers e voce preferir nao usar Python no host.
+Use this flow when the stack runs in containers and you prefer not to use host Python tooling.
 
-1. Garanta que `bot-api` esteja em execucao:
+1. Ensure `bot-api` is running:
 
 ```bash
 docker compose up -d postgres bot-api
 ```
 
-1. Defina identidade alvo e nova senha:
+1. Set target admin identity and new password:
 
 ```bash
 export ADMIN_EMAIL=admin@example.org
 export ADMIN_NEW_PASSWORD='change-me-now'
 ```
 
-1. Aplique reset de dentro do container `bot-api`:
+1. Apply reset from inside `bot-api` container:
 
 ```bash
 docker compose exec -T \
@@ -230,26 +230,26 @@ asyncio.run(main())
 PY
 ```
 
-1. Verifique via login:
+1. Verify with login:
 
-- `POST /auth/login` com o mesmo `ADMIN_EMAIL` e a nova senha
-- resultado esperado: `200` com payload de token
+- `POST /auth/login` with the same `ADMIN_EMAIL` and new password
+- expected result: `200` and a token payload
 
-## Comandos comuns
+## Common commands
 
-- Criar migracao:
+- Create migration:
 
 ```bash
 uv run alembic revision -m "describe-change"
 ```
 
-- Aplicar migracao mais recente:
+- Apply latest migration:
 
 ```bash
 uv run alembic upgrade head
 ```
 
-- Reverter uma migracao:
+- Roll back one migration:
 
 ```bash
 uv run alembic downgrade -1

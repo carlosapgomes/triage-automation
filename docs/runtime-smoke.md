@@ -1,37 +1,39 @@
-# Runtime Smoke Runbook
+# Runbook de Smoke do Runtime
 
-This runbook validates local runtime readiness before manual end-to-end testing.
-It does not change workflow behavior; it only verifies that runtime processes,
-database migrations, Matrix decision-path readiness, and deterministic LLM
-execution are working in a reproducible way.
+Idioma: **Portugues (BR)** | [English](en/runtime-smoke.md)
 
-## Decision Path Notice
+Este runbook valida prontidao local do runtime antes do teste manual end-to-end.
+Ele nao altera comportamento do workflow; apenas verifica se processos de runtime,
+migracoes de banco, prontidao do caminho de decisao Matrix e execucao
+LLM deterministica estao funcionando de forma reproduzivel.
 
-- standard Room-2 decisions use Matrix structured replies.
-- HTTP callback/widget decision submission is not part of runtime operation.
+## Aviso de caminho de decisao
 
-## Local UV Runtime Smoke
+- decisoes padrao da Sala 2 usam respostas estruturadas Matrix.
+- envio de decisao por callback/widget HTTP nao faz parte da operacao de runtime.
 
-1. Prepare dependencies and env:
+## Smoke local com UV
+
+1. Preparar dependencias e ambiente:
 
 ```bash
 uv sync
 cp .env.example .env
 ```
 
-1. Start only Postgres:
+1. Iniciar somente Postgres:
 
 ```bash
 docker compose up -d postgres
 ```
 
-1. Apply migrations:
+1. Aplicar migracoes:
 
 ```bash
 uv run alembic upgrade head
 ```
 
-1. Start runtime processes in separate terminals:
+1. Iniciar processos em terminais separados:
 
 ```bash
 uv run uvicorn apps.bot_api.main:create_app --factory --host 0.0.0.0 --port 8000
@@ -45,56 +47,56 @@ uv run python -m apps.bot_matrix.main
 uv run python -m apps.worker.main
 ```
 
-Set `LOG_LEVEL=DEBUG` in `.env` when you need heartbeat-style runtime traces.
-At `INFO`, logs show startup and meaningful routed/claimed job activity.
+Defina `LOG_LEVEL=DEBUG` no `.env` quando precisar de traces estilo heartbeat.
+Em `INFO`, logs mostram startup e atividades relevantes de roteamento/claim de job.
 
-1. Check API reachability:
+1. Verificar alcance da API:
 
 ```bash
 curl -i http://127.0.0.1:8000/openapi.json
 ```
 
-## Matrix Structured Reply Readiness
+## Prontidao de resposta estruturada Matrix
 
-Run a focused integration test that exercises Room-2 structured reply handling:
+Rode um teste de integracao focado no fluxo de resposta estruturada da Sala 2:
 
 ```bash
 uv run pytest tests/integration/test_room2_reply_flow.py -q
 ```
 
-Expected result:
+Resultado esperado:
 
-- Room-2 reply parsing/validation paths execute successfully.
-- Decision handling is driven by Matrix reply events (no HTTP decision surface).
+- caminhos de parsing/validacao de reply na Sala 2 executam com sucesso.
+- tratamento de decisao e dirigido por eventos de reply Matrix (sem superficie HTTP de decisao).
 
-## Deterministic LLM Smoke Path
+## Caminho deterministico de LLM no smoke
 
-Use deterministic mode when provider credentials are unavailable:
+Use modo deterministico quando credenciais de provider nao estiverem disponiveis:
 
 ```bash
 export LLM_RUNTIME_MODE=deterministic
 ```
 
-In this mode, worker runtime uses deterministic LLM adapters and still executes
-the LLM-dependent stages (`LLM1`/`LLM2`) and enqueue transitions without changing
-triage semantics.
+Nesse modo, o runtime do worker usa adapters LLM deterministicos e ainda executa
+estagios dependentes de LLM (`LLM1`/`LLM2`) e transicoes de enqueue sem mudar a
+semantica clinica da triagem.
 
-For provider mode, set:
+Para modo provider, defina:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
 
-## UV and Compose Parity
+## Paridade UV e Compose
 
-Use the same entrypoint commands from `docker-compose.yml`:
+Use os mesmos comandos de entrypoint definidos em `docker-compose.yml`:
 
 ```bash
 docker compose up --build
 docker compose logs -f bot-api bot-matrix worker
 ```
 
-Compose command parity:
+Paridade de comandos no Compose:
 
 - `bot-api`: `uv run uvicorn apps.bot_api.main:create_app --factory --host 0.0.0.0 --port 8000`
 - `bot-matrix`: `uv run python -m apps.bot_matrix.main`

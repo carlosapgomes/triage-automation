@@ -15,7 +15,7 @@ def test_setup_doc_runtime_section_is_matrix_only() -> None:
     assert "WEBHOOK_PUBLIC_URL" not in setup
     assert "WIDGET_PUBLIC_URL" not in setup
     assert "WEBHOOK_HMAC_SECRET" not in setup
-    assert "Matrix structured reply" in setup
+    assert "respostas estruturadas Matrix" in setup
 
 
 def test_architecture_doc_no_longer_describes_webhook_callback_surface() -> None:
