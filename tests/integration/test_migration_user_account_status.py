@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 import sqlalchemy as sa
 from alembic.config import Config
 
@@ -76,3 +77,21 @@ def test_upgrade_from_0012_maps_legacy_users_to_account_status(tmp_path: Path) -
     assert bool(by_email["active@example.org"]["is_active"]) is True
     assert by_email["blocked@example.org"]["account_status"] == "blocked"
     assert bool(by_email["blocked@example.org"]["is_active"]) is False
+
+
+def test_users_schema_rejects_invalid_account_status_value(tmp_path: Path) -> None:
+    db_path = tmp_path / "slice_user_account_status_invalid_value.db"
+    database_url = f"sqlite+pysqlite:///{db_path}"
+
+    command.upgrade(_configure_alembic(database_url), "head")
+
+    engine = sa.create_engine(database_url)
+    with engine.begin() as connection:
+        with pytest.raises(sa.exc.IntegrityError):
+            connection.execute(
+                sa.text(
+                    "INSERT INTO users (id, email, password_hash, role, is_active, account_status) "
+                    "VALUES ('00000000-0000-0000-0000-000000000201', "
+                    "'invalid-status@example.org', 'h3', 'reader', 1, 'paused')"
+                )
+            )

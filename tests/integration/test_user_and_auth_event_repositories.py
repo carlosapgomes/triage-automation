@@ -250,6 +250,7 @@ async def test_auth_token_repository_revokes_active_tokens_for_user(tmp_path: Pa
     assert await token_repo.get_active_by_hash(token_hash="target-token-2") is None
     assert await token_repo.get_active_by_hash(token_hash="other-token-1") is not None
 
+
 @pytest.mark.asyncio
 async def test_user_repository_lists_users_with_account_status(tmp_path: Path) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, "user_repo_list.db")
@@ -345,3 +346,53 @@ async def test_user_repository_creates_user_and_applies_status_transitions(tmp_p
     assert row["role"] == "admin"
     assert bool(row["is_active"]) is True
     assert row["account_status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_user_repository_create_blocked_user_sets_is_active_false(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "user_repo_create_blocked.db")
+    session_factory = create_session_factory(async_url)
+    repo = SqlAlchemyUserRepository(session_factory)
+
+    created = await repo.create_user(
+        UserCreateInput(
+            user_id=uuid4(),
+            email="blocked-user@example.org",
+            password_hash="hashed-password",
+            role=Role.READER,
+            account_status=AccountStatus.BLOCKED,
+        )
+    )
+    assert created.account_status is AccountStatus.BLOCKED
+    assert created.is_active is False
+
+    engine = sa.create_engine(sync_url)
+    with engine.connect() as connection:
+        row = (
+            connection.execute(
+                sa.text(
+                    "SELECT is_active, account_status FROM users WHERE id = :id"
+                ),
+                {"id": created.user_id.hex},
+            )
+            .mappings()
+            .one()
+        )
+    assert bool(row["is_active"]) is False
+    assert row["account_status"] == "blocked"
+
+
+@pytest.mark.asyncio
+async def test_user_repository_set_account_status_returns_none_for_unknown_user(
+    tmp_path: Path,
+) -> None:
+    _, async_url = _upgrade_head(tmp_path, "user_repo_set_status_missing.db")
+    session_factory = create_session_factory(async_url)
+    repo = SqlAlchemyUserRepository(session_factory)
+
+    updated = await repo.set_account_status(
+        user_id=uuid4(),
+        account_status=AccountStatus.BLOCKED,
+    )
+
+    assert updated is None
