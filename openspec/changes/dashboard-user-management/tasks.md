@@ -9,7 +9,7 @@
 
 ## 2. Application Services And Security Invariants
 
-- [ ] 2.1 Implementar serviço de gestão de usuários com casos de uso: listar, criar, bloquear, reativar e remover.
+- [x] 2.1 Implementar serviço de gestão de usuários com casos de uso: listar, criar, bloquear, reativar e remover.
 - [ ] 2.2 Implementar validações de segurança: proibir auto-bloqueio/auto-remoção e impedir zero admins ativos.
 - [ ] 2.3 Reutilizar normalização de email e política de senha existente na criação de contas.
 - [ ] 2.4 Registrar eventos de auditoria (`user_created`, `user_blocked`, `user_reactivated`, `user_removed`) com metadados de ator/alvo.
