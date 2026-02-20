@@ -7,6 +7,8 @@ The system is designed to assist communication, organization, and information fl
 
 The primary goal of ATS is to improve coordination, traceability, and situational awareness during triage processes.
 
+ATS is intended as a support tool for healthcare teams and must always be used under professional supervision within established clinical protocols.
+
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Lint](https://img.shields.io/badge/lint-ruff-orange.svg)
