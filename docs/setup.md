@@ -1,14 +1,14 @@
 # Guia de Setup
 
-Idioma: **Portugues (BR)** | [English](en/setup.md)
+Idioma: **Português (BR)** | [English](en/setup.md)
 
-## Pre-requisitos
+## Pré-requisitos
 
 - Python `3.12.x`
 - `uv`
 - Docker + Docker Compose (opcional, mas recomendado para stack local)
 
-## 1. Instalar dependencias
+## 1. Instalar dependências
 
 ```bash
 uv sync
@@ -20,7 +20,7 @@ uv sync
 cp .env.example .env
 ```
 
-Variaveis principais para runtime Matrix-only de decisao:
+Variáveis principais para runtime Matrix-only de decisão:
 
 - `ROOM1_ID`
 - `ROOM2_ID`
@@ -35,13 +35,13 @@ Variaveis principais para runtime Matrix-only de decisao:
 
 Para o contrato completo de ambiente, revise `.env.example`.
 
-Variaveis opcionais para modo provider:
+Variáveis opcionais para modo provider:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
 
-Variaveis opcionais para bootstrap do primeiro admin:
+Variáveis opcionais para bootstrap do primeiro admin:
 
 - `BOOTSTRAP_ADMIN_EMAIL`
 - `BOOTSTRAP_ADMIN_PASSWORD` ou `BOOTSTRAP_ADMIN_PASSWORD_FILE` (definir apenas uma)
@@ -49,11 +49,11 @@ Variaveis opcionais para bootstrap do primeiro admin:
 Comportamento de bootstrap:
 
 - Executado pelo `bot-api` no startup
-- Cria usuario inicial `admin` apenas quando a tabela `users` estiver vazia
-- Se ja existirem usuarios, o bootstrap e ignorado
-- `BOOTSTRAP_ADMIN_PASSWORD_FILE` e recomendado em ambientes mais proximos de producao
+- Cria usuário inicial `admin` apenas quando a tabela `users` estiver vazia
+- Se já existirem usuários, o bootstrap é ignorado
+- `BOOTSTRAP_ADMIN_PASSWORD_FILE` é recomendado em ambientes mais próximos de produção
 
-## 3. Executar migracoes de banco
+## 3. Executar migrações de banco
 
 ```bash
 uv run alembic upgrade head
@@ -69,28 +69,28 @@ uv run pytest -q
 
 ## 5. Fluxo web de login/logout
 
-Depois das migracoes e startup dos servicos, use o portal direto no navegador.
+Depois das migrações e startup dos serviços, use o portal direto no navegador.
 
-1. Abra pagina raiz:
+1. Abra página raiz:
 
 - URL: `http://localhost:8000/`
-- esperado para usuario anonimo: redirect para `/login`
+- esperado para usuário anônimo: redirect para `/login`
 
 1. Login:
 
 - envie `email` + `password` em `GET /login`
 - sucesso esperado: redirect para `/dashboard/cases`
-- credenciais invalidas: erro HTML na pagina de login, sem cookie de sessao
+- credenciais inválidas: erro HTML na página de login, sem cookie de sessão
 
-1. Autorizacao por papel:
+1. Autorização por papel:
 
-- `reader`: acessa paginas de dashboard, nao acessa paginas admin de prompts
-- `admin`: acessa paginas de dashboard e paginas admin de prompts
+- `reader`: acessa páginas de dashboard, não acessa páginas admin de prompts
+- `admin`: acessa páginas de dashboard e páginas admin de prompts
 
 1. Logout:
 
-- envie `POST /logout` (botao `Sair` no cabecalho)
-- resultado esperado: redirect para `/login` e cookie de sessao limpo
+- envie `POST /logout` (botão `Sair` no cabeçalho)
+- resultado esperado: redirect para `/login` e cookie de sessão limpo
 
 ## 6. Subir stack local (opcional)
 
@@ -98,19 +98,19 @@ Depois das migracoes e startup dos servicos, use o portal direto no navegador.
 docker compose up --build
 ```
 
-## 7. Validacao de smoke do runtime (recomendado antes do E2E manual)
+## 7. Validação de smoke do runtime (recomendado antes do E2E manual)
 
 Siga `docs/runtime-smoke.md` para validar:
 
 - startup local dos processos com `uv`
-- prontidao de respostas estruturadas Matrix para decisoes da Sala 2
-- modo deterministico de runtime LLM para testes sem provider
+- prontidão de respostas estruturadas Matrix para decisões da Sala 2
+- modo determinístico de runtime LLM para testes sem provider
 
-## 8. Operacoes de admin
+## 8. Operações de admin
 
 ### 8.1 Reset de senha admin (CLI)
 
-Use este fluxo quando uma senha de admin precisar de rotacao ou recuperacao.
+Use este fluxo quando uma senha de admin precisar de rotação ou recuperação.
 Ele atualiza o hash bcrypt diretamente em `users` usando o `DATABASE_URL` configurado.
 
 1. Defina identidade alvo e nova senha:
@@ -169,9 +169,9 @@ PY
 
 ### 8.2 Reset de senha admin (Docker Compose)
 
-Use este fluxo quando a stack estiver em containers e voce preferir nao usar Python no host.
+Use este fluxo quando a stack estiver em containers e você preferir não usar Python no host.
 
-1. Garanta que `bot-api` esteja em execucao:
+1. Garanta que `bot-api` esteja em execução:
 
 ```bash
 docker compose up -d postgres bot-api
@@ -237,19 +237,19 @@ PY
 
 ## Comandos comuns
 
-- Criar migracao:
+- Criar migração:
 
 ```bash
 uv run alembic revision -m "describe-change"
 ```
 
-- Aplicar migracao mais recente:
+- Aplicar migração mais recente:
 
 ```bash
 uv run alembic upgrade head
 ```
 
-- Reverter uma migracao:
+- Reverter uma migração:
 
 ```bash
 uv run alembic downgrade -1

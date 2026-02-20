@@ -20,7 +20,7 @@ def test_docs_portuguese_default_have_english_links_and_mirror_files() -> None:
         assert en_path.exists()
 
         pt_content = _read(pt_path)
-        assert f"Idioma: **Portugues (BR)** | [English](en/{name})" in pt_content
+        assert f"Idioma: **Português (BR)** | [English](en/{name})" in pt_content
 
 
 def test_docs_english_mirror_have_portuguese_links() -> None:

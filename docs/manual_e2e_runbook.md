@@ -1,11 +1,11 @@
 # Runbook Manual E2E
 
-Idioma: **Portugues (BR)** | [English](en/manual_e2e_runbook.md)
+Idioma: **Português (BR)** | [English](en/manual_e2e_runbook.md)
 
-Este runbook valida ponta a ponta o caminho de resposta Matrix estruturada da Sala 2 em ambiente local deterministico.
+Este runbook valida ponta a ponta o caminho de resposta Matrix estruturada da Sala 2 em ambiente local determinístico.
 Execute `docs/runtime-smoke.md` antes para confirmar startup de processo e alcance de callback.
 
-## Pre-requisitos
+## Pré-requisitos
 
 1. Inicie os processos de runtime com os mesmos comandos usados em `docs/runtime-smoke.md`:
 
@@ -15,48 +15,48 @@ uv run python -m apps.bot_matrix.main
 uv run python -m apps.worker.main
 ```
 
-1. Use um caso de teste ja movido para `WAIT_DOCTOR` com contexto de caso na Sala 2 postado pelo bot.
+1. Use um caso de teste já movido para `WAIT_DOCTOR` com contexto de caso na Sala 2 postado pelo bot.
 
 ## Checagens de login web e menu por papel
 
-1. Acesso anonimo no navegador:
+1. Acesso anônimo no navegador:
 
 - abrir `GET /`
 - esperado: redirect para `/login`
 
-1. Checagens de sessao `reader`:
+1. Checagens de sessão `reader`:
 
-- login como usuario `reader` via formulario `POST /login`
+- login como usuário `reader` via formulário `POST /login`
 - verificar `GET /dashboard/cases` retorna `200`
-- verificar shell nav contem `Dashboard`
-- verificar shell nav nao contem `Prompts`
+- verificar shell nav contém `Dashboard`
+- verificar shell nav não contém `Prompts`
 - verificar `GET /admin/prompts` retorna `403`
 
-1. Checagens de sessao `admin`:
+1. Checagens de sessão `admin`:
 
-- login como usuario `admin` via formulario `POST /login`
+- login como usuário `admin` via formulário `POST /login`
 - verificar `GET /dashboard/cases` retorna `200`
-- verificar shell nav contem `Dashboard` e `Prompts`
-- verificar `GET /admin/prompts` retorna `200` com lista e controles de ativacao
+- verificar shell nav contém `Dashboard` e `Prompts`
+- verificar `GET /admin/prompts` retorna `200` com lista e controles de ativação
 
 1. Logout:
 
-- enviar `POST /logout` no cabecalho da shell
+- enviar `POST /logout` no cabeçalho da shell
 - esperado: redirect para `/login`
 - verificar que um novo `GET /` redireciona para `/login`
 
 ## Caminho positivo de resposta estruturada da Sala 2
 
-1. Validar o combo de tres mensagens da Sala 2 para o caso alvo em clientes desktop e mobile:
+1. Validar o combo de três mensagens da Sala 2 para o caso alvo em clientes desktop e mobile:
 
 - message I: contexto original do PDF
-- message II: dados extraidos + resumo + recomendacao (reply para message I)
-- message III: instrucoes de template estrito (reply para message I)
+- message II: dados extraídos + resumo + recomendação (reply para message I)
+- message III: instruções de template estrito (reply para message I)
 - verificar em desktop e mobile que mensagens permanecem agrupadas sob message I
 
 1. Abrir message III e copiar o template estrito.
 
-1. Enviar decisao como reply Matrix para message I (reply to message I):
+1. Enviar decisão como reply Matrix para message I (reply to message I):
 
 - incluir campos do template exatamente:
   - `decision: accept|deny`
@@ -64,16 +64,16 @@ uv run python -m apps.worker.main
   - `reason: <texto livre ou vazio>`
   - `case_id: <case-id>`
 
-1. Para validacao do fluxo positivo, enviar:
+1. Para validação do fluxo positivo, enviar:
 
 - `decision: accept`
 - `support_flag: none`
 - `reason` opcional
 
-1. Validar progressao esperada:
+1. Validar progressão esperada:
 
 - status do caso move para `DOCTOR_ACCEPTED`
-- proximo job `post_room3_request` e enfileirado
+- próximo job `post_room3_request` é enfileirado
 - auditoria inclui sender Matrix como ator e outcome
 
 ## Checagens negativas de auth do widget
@@ -88,23 +88,23 @@ uv run python -m apps.worker.main
 - `POST /widget/room2/submit`
 - esperado: `403`
 
-1. Validar ausencia de mutacao inesperada de estado/job (state/job mutation):
+1. Validar ausência de mutação inesperada de estado/job (state/job mutation):
 
-- status do caso nao muda
-- nenhum job adicional de decisao e enfileirado
-- apenas registros esperados de auth/auditoria sao adicionados
+- status do caso não muda
+- nenhum job adicional de decisão é enfileirado
+- apenas registros esperados de auth/auditoria são adicionados
 
 ## Checagens negativas de reply da Sala 2
 
 1. Postar reply com template malformado (malformed template):
 
-- reply para message I com linhas obrigatorias ausentes/invalidas
+- reply para message I com linhas obrigatórias ausentes/inválidas
 - esperado: feedback do bot inclui `error_code: invalid_template`
 - esperado: no decision mutation e nenhum novo downstream job enfileirado
 
 1. Postar template valido no parent de reply errado (wrong reply-parent):
 
-- enviar template como reply para message II/III ou evento nao relacionado (nao message I root)
+- enviar template como reply para message II/III ou evento não relacionado (não message I root)
 - esperado: feedback do bot inclui `error_code: invalid_template`
 - esperado: no decision mutation e nenhum novo downstream job enfileirado
 
@@ -120,19 +120,19 @@ uv run python -m apps.worker.main
 - `GET /monitoring/cases`
 - esperado: `200` com JSON contendo `items`, `page`, `page_size`, `total`
 
-1. Validar API de detalhe por caso e eventos auditaveis:
+1. Validar API de detalhe por caso e eventos auditáveis:
 
 - `GET /monitoring/cases/{case_id}`
 - esperado: `200` com chronological timeline ordenada por `timestamp`
 - timeline deve incluir `source`, `channel`, `actor`, `event_type`
-- quando aplicavel, validar presenca de eventos ACK e human reply
+- quando aplicável, validar presença de eventos ACK e human reply
 
 1. Cruzar API com detalhe do dashboard:
 
 - abrir `GET /dashboard/cases/{case_id}`
-- verificar timeline cronologica visivel na UI igual a API de monitoramento para o mesmo caso
+- verificar timeline cronológica visível na UI igual a API de monitoramento para o mesmo caso
 
-## Fluxo de autorizacao de gerenciamento de prompts
+## Fluxo de autorização de gerenciamento de prompts
 
 1. Usando token de reader (reader token), verificar comportamento read-only:
 
@@ -141,20 +141,20 @@ uv run python -m apps.worker.main
 - `GET /admin/prompts/{prompt_name}/active` retorna `403`
 - `POST /admin/prompts/{prompt_name}/activate` retorna `403`
 
-1. Usando token de admin (admin token), verificar mutacao de prompts:
+1. Usando token de admin (admin token), verificar mutação de prompts:
 
 - `GET /admin/prompts/versions` retorna `200`
 - `GET /admin/prompts/{prompt_name}/active` retorna `200`
 - `POST /admin/prompts/{prompt_name}/activate` retorna `200`
 
-1. Validar efeitos colaterais de ativacao de prompt:
+1. Validar efeitos colaterais de ativação de prompt:
 
-- exatamente uma versao ativa permanece para o nome do prompt
+- exatamente uma versão ativa permanece para o nome do prompt
 - auditoria auth inclui `prompt_version_activated` com ator e prompt/version alvo
 
-1. Validar ativacao de prompt via formulario HTML (sessao admin):
+1. Validar ativação de prompt via formulário HTML (sessão admin):
 
 - abrir `GET /admin/prompts`
-- enviar formulario `POST /admin/prompts/{prompt_name}/activate-form`
-- esperado: redirect para `/admin/prompts` com feedback de ativacao
-- validar ultima linha em `auth_events` com `event_type=prompt_version_activated`
+- enviar formulário `POST /admin/prompts/{prompt_name}/activate-form`
+- esperado: redirect para `/admin/prompts` com feedback de ativação
+- validar última linha em `auth_events` com `event_type=prompt_version_activated`

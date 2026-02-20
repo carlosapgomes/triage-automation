@@ -10,9 +10,9 @@ def _read(path: str) -> str:
 def test_readme_default_is_portuguese_with_english_link() -> None:
     readme = _read("README.md")
 
-    assert "Idioma: **Portugues (BR)** | [English](README.en.md)" in readme
-    assert "servico de backend" in readme
-    assert "## Checklist de contribuicao da documentacao bilingue" in readme
+    assert "Idioma: **Português (BR)** | [English](README.en.md)" in readme
+    assert "serviço de backend" in readme
+    assert "## Checklist de contribuição da documentação bilíngue" in readme
 
 
 def test_english_readme_exists_with_portuguese_link() -> None:

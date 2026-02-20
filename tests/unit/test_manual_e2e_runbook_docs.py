@@ -14,7 +14,7 @@ def test_runtime_smoke_runbook_exists_and_covers_required_flows() -> None:
     )
 
     assert "## Smoke local com UV" in runbook
-    assert "## Caminho deterministico de LLM no smoke" in runbook
+    assert "## Caminho determinístico de LLM no smoke" in runbook
     assert uvicorn_cmd in runbook
     assert "uv run python -m apps.bot_matrix.main" in runbook
     assert "uv run python -m apps.worker.main" in runbook
@@ -44,7 +44,7 @@ def test_runtime_smoke_runbook_declares_matrix_only_decision_path() -> None:
 
     assert "/callbacks/triage-decision" not in runbook
     assert "Cloudflare Tunnel Webhook Validation" not in runbook
-    assert "decisoes padrao da Sala 2 usam respostas estruturadas Matrix" in runbook
+    assert "decisões padrão da Sala 2 usam respostas estruturadas Matrix" in runbook
 
 
 def test_manual_e2e_runbook_exists_and_covers_matrix_reply_positive_flow() -> None:
@@ -97,7 +97,7 @@ def test_manual_e2e_runbook_defines_dashboard_api_and_auditable_timeline_checks(
 def test_manual_e2e_runbook_defines_prompt_authorization_flow_checks() -> None:
     runbook = _read("docs/manual_e2e_runbook.md")
 
-    assert "## Fluxo de autorizacao de gerenciamento de prompts" in runbook
+    assert "## Fluxo de autorização de gerenciamento de prompts" in runbook
     assert "/admin/prompts/versions" in runbook
     assert "/admin/prompts/{prompt_name}/active" in runbook
     assert "/admin/prompts/{prompt_name}/activate" in runbook
