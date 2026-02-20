@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
-from uuid import UUID
+from dataclasses import dataclass
+from uuid import UUID, uuid4
 
 from triage_automation.application.ports.auth_token_repository_port import AuthTokenRepositoryPort
+from triage_automation.application.ports.password_hasher_port import PasswordHasherPort
 from triage_automation.application.ports.user_repository_port import (
     UserCreateInput,
     UserRecord,
     UserRepositoryPort,
 )
 from triage_automation.domain.auth.account_status import AccountStatus
+from triage_automation.domain.auth.credentials import (
+    normalize_user_email,
+    normalize_user_password,
+)
 from triage_automation.domain.auth.roles import Role
 
 
@@ -36,6 +42,29 @@ class LastActiveAdminError(PermissionError):
         super().__init__("at least one active admin must remain")
 
 
+class InvalidUserEmailError(ValueError):
+    """Raised when create-user payload has invalid email value."""
+
+    def __init__(self) -> None:
+        super().__init__("user email cannot be blank")
+
+
+class InvalidUserPasswordError(ValueError):
+    """Raised when create-user payload has invalid password value."""
+
+    def __init__(self) -> None:
+        super().__init__("user password cannot be blank")
+
+
+@dataclass(frozen=True)
+class UserCreateRequest:
+    """Application-layer request for creating one user account."""
+
+    email: str
+    password: str
+    role: Role
+
+
 class UserManagementService:
     """Expose user listing and lifecycle management use-cases."""
 
@@ -44,19 +73,31 @@ class UserManagementService:
         *,
         users: UserRepositoryPort,
         auth_tokens: AuthTokenRepositoryPort,
+        password_hasher: PasswordHasherPort,
     ) -> None:
         self._users = users
         self._auth_tokens = auth_tokens
+        self._password_hasher = password_hasher
 
     async def list_users(self) -> list[UserRecord]:
         """Return deterministic user listing for admin surfaces."""
 
         return await self._users.list_users()
 
-    async def create_user(self, *, payload: UserCreateInput) -> UserRecord:
-        """Create one user account and return persisted row."""
+    async def create_user(self, *, payload: UserCreateRequest) -> UserRecord:
+        """Create one user account after applying email/password normalization."""
 
-        return await self._users.create_user(payload)
+        normalized_email = self._normalize_email(payload.email)
+        normalized_password = self._normalize_password(payload.password)
+        return await self._users.create_user(
+            UserCreateInput(
+                user_id=uuid4(),
+                email=normalized_email,
+                password_hash=self._password_hasher.hash_password(normalized_password),
+                role=payload.role,
+                account_status=AccountStatus.ACTIVE,
+            )
+        )
 
     async def block_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to blocked state and revoke active sessions."""
@@ -128,3 +169,19 @@ class UserManagementService:
         )
         if active_admin_count <= 1:
             raise LastActiveAdminError()
+
+    def _normalize_email(self, email: str) -> str:
+        """Return normalized email or raise deterministic validation error."""
+
+        try:
+            return normalize_user_email(email=email)
+        except ValueError as exc:
+            raise InvalidUserEmailError() from exc
+
+    def _normalize_password(self, password: str) -> str:
+        """Return normalized password or raise deterministic validation error."""
+
+        try:
+            return normalize_user_password(password=password)
+        except ValueError as exc:
+            raise InvalidUserPasswordError() from exc

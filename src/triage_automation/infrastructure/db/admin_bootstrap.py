@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from triage_automation.application.ports.password_hasher_port import PasswordHasherPort
+from triage_automation.domain.auth.credentials import normalize_user_email, normalize_user_password
 from triage_automation.domain.auth.roles import Role
 from triage_automation.infrastructure.db.metadata import users
 
@@ -83,12 +84,14 @@ def resolve_admin_bootstrap_config(
             "when BOOTSTRAP_ADMIN_EMAIL is set"
         )
 
-    normalized_email = email.strip().lower()
-    normalized_password = resolved_password.strip()
-    if not normalized_email:
-        raise AdminBootstrapConfigError("BOOTSTRAP_ADMIN_EMAIL cannot be blank")
-    if not normalized_password:
-        raise AdminBootstrapConfigError("bootstrap admin password cannot be blank")
+    try:
+        normalized_email = normalize_user_email(email=email)
+    except ValueError as exc:
+        raise AdminBootstrapConfigError("BOOTSTRAP_ADMIN_EMAIL cannot be blank") from exc
+    try:
+        normalized_password = normalize_user_password(password=resolved_password)
+    except ValueError as exc:
+        raise AdminBootstrapConfigError("bootstrap admin password cannot be blank") from exc
 
     return AdminBootstrapConfig(email=normalized_email, password=normalized_password)
 
