@@ -2,6 +2,12 @@
 
 Idioma: **Português (BR)** | [English](README.en.md)
 
+![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Lint](https://img.shields.io/badge/lint-ruff-orange.svg)
+![Type Check](https://img.shields.io/badge/types-mypy-blue.svg)
+![Tests](https://img.shields.io/badge/tests-pytest-brightgreen.svg)
+
 Augmented Triage System (ATS) é um serviço de backend projetado para apoiar fluxos reais de triagem clínica, mantendo profissionais de saúde totalmente no controle das decisões e do cuidado ao paciente.
 
 O ATS não substitui o julgamento clínico nem automatiza decisões médicas.
@@ -10,12 +16,6 @@ O sistema foi projetado para apoiar comunicação, organização e fluxo de info
 O objetivo principal do ATS é melhorar coordenação, rastreabilidade e consciência situacional durante processos de triagem.
 
 O ATS é uma ferramenta de apoio para equipes de saúde e deve sempre ser utilizado sob supervisão profissional e dentro de protocolos clínicos estabelecidos.
-
-![Python](https://img.shields.io/badge/python-3.12-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Lint](https://img.shields.io/badge/lint-ruff-orange.svg)
-![Type Check](https://img.shields.io/badge/types-mypy-blue.svg)
-![Tests](https://img.shields.io/badge/tests-pytest-brightgreen.svg)
 
 Serviços de backend para um fluxo de triagem orientado a eventos em salas Matrix.
 

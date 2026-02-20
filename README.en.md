@@ -2,6 +2,12 @@
 
 Language: [Portugues (BR)](README.md) | **English**
 
+![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Lint](https://img.shields.io/badge/lint-ruff-orange.svg)
+![Type Check](https://img.shields.io/badge/types-mypy-blue.svg)
+![Tests](https://img.shields.io/badge/tests-pytest-brightgreen.svg)
+
 Augmented Triage System (ATS) is a backend service designed to support real-world clinical triage workflows while keeping healthcare professionals fully in control of decisions and patient care.
 
 ATS does not replace clinical judgment or automate medical decision-making.
@@ -10,12 +16,6 @@ The system is designed to assist communication, organization, and information fl
 The primary goal of ATS is to improve coordination, traceability, and situational awareness during triage processes.
 
 ATS is intended as a support tool for healthcare teams and must always be used under professional supervision within established clinical protocols.
-
-![Python](https://img.shields.io/badge/python-3.12-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Lint](https://img.shields.io/badge/lint-ruff-orange.svg)
-![Type Check](https://img.shields.io/badge/types-mypy-blue.svg)
-![Tests](https://img.shields.io/badge/tests-pytest-brightgreen.svg)
 
 Backend services for an event-driven triage workflow over Matrix rooms.
 
