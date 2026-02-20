@@ -1,6 +1,6 @@
 # Augmented Triage System (ATS)
 
-Human-in-the-loop clinical triage support.
+Augmented Triage System (ATS) is a backend service designed to support real-world clinical triage workflows while keeping healthcare professionals fully in control of decisions and patient care.
 
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
