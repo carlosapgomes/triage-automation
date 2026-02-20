@@ -1,13 +1,15 @@
 # Augmented Triage System (ATS)
 
-Augmented Triage System (ATS) is a backend service designed to support real-world clinical triage workflows while keeping healthcare professionals fully in control of decisions and patient care.
+Idioma: **Portugues (BR)** | [English](README.en.md)
 
-ATS does not replace clinical judgment or automate medical decision-making.
-The system is designed to assist communication, organization, and information flow during triage, allowing professionals to work more safely and efficiently in high-demand environments.
+Augmented Triage System (ATS) e um servico de backend projetado para apoiar fluxos reais de triagem clinica, mantendo profissionais de saude totalmente no controle das decisoes e do cuidado ao paciente.
 
-The primary goal of ATS is to improve coordination, traceability, and situational awareness during triage processes.
+O ATS nao substitui o julgamento clinico nem automatiza decisoes medicas.
+O sistema foi projetado para apoiar comunicacao, organizacao e fluxo de informacoes durante a triagem, permitindo que profissionais trabalhem com mais seguranca e eficiencia em ambientes de alta demanda.
 
-ATS is intended as a support tool for healthcare teams and must always be used under professional supervision within established clinical protocols.
+O objetivo principal do ATS e melhorar coordenacao, rastreabilidade e consciencia situacional durante processos de triagem.
+
+O ATS e uma ferramenta de apoio para equipes de saude e deve sempre ser utilizado sob supervisao profissional e dentro de protocolos clinicos estabelecidos.
 
 ![Python](https://img.shields.io/badge/python-3.12-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -15,35 +17,35 @@ ATS is intended as a support tool for healthcare teams and must always be used u
 ![Type Check](https://img.shields.io/badge/types-mypy-blue.svg)
 ![Tests](https://img.shields.io/badge/tests-pytest-brightgreen.svg)
 
-Backend services for an event-driven triage workflow over Matrix rooms.
+Servicos de backend para um fluxo de triagem orientado a eventos em salas Matrix.
 
-Core services:
+Servicos principais:
 
-- `bot-api` (FastAPI auth/runtime foundation)
-- `bot-matrix` (Matrix event ingestion wiring)
-- `worker` (job execution runtime)
+- `bot-api` (fundacao de autenticacao e runtime com FastAPI)
+- `bot-matrix` (integracao de ingestao de eventos Matrix)
+- `worker` (runtime de execucao de jobs)
 
-This repo is implemented with strict TDD and OpenSpec slice history under `openspec/changes/archive/`.
+Este repositorio e implementado com TDD estrito e historico de slices OpenSpec em `openspec/changes/archive/`.
 
-## Why This Project
+## Por Que Este Projeto
 
-- Automates multi-step triage flow across Matrix rooms.
-- Preserves auditability with append-only event records.
-- Uses deterministic state transitions and queued background jobs.
-- Adds admin backend foundations (roles/auth/prompt templates) without introducing UI behavior.
+- Automatiza fluxo de triagem em multiplas etapas entre salas Matrix.
+- Preserva auditabilidade com registros append-only.
+- Usa transicoes de estado deterministicas e jobs em fila.
+- Adiciona fundacoes administrativas (roles, auth e prompts) sem introduzir comportamento de UI no runtime clinico.
 
-## Current Scope
+## Escopo Atual
 
-- Triage workflow foundation is implemented and covered by automated tests.
-- Admin and monitoring surface is available in `bot-api`:
-  - web session flow (`GET /`, `GET /login`, `POST /login`, `POST /logout`)
+- A fundacao do fluxo de triagem esta implementada e coberta por testes automatizados.
+- A superficie administrativa e de monitoramento esta disponivel no `bot-api`:
+  - fluxo web de sessao (`GET /`, `GET /login`, `POST /login`, `POST /logout`)
   - login/auth (`/auth/login`)
-  - monitoring API (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
-  - server-rendered dashboard (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
-  - server-rendered prompt admin (`GET /admin/prompts`, `POST /admin/prompts/{prompt_name}/activate-form`)
-  - admin prompt-management API (`/admin/prompts/*`)
+  - API de monitoramento (`/monitoring/cases`, `/monitoring/cases/{case_id}`)
+  - dashboard server-rendered (`/dashboard/cases`, `/dashboard/cases/{case_id}`)
+  - admin de prompts server-rendered (`GET /admin/prompts`, `POST /admin/prompts/{prompt_name}/activate-form`)
+  - API de administracao de prompts (`/admin/prompts/*`)
 
-## Runtime Topology
+## Topologia de Runtime
 
 ```text
 Matrix Rooms ---> bot-matrix ----\
@@ -51,9 +53,9 @@ Matrix Rooms ---> bot-matrix ----\
 Login/Auth ----------> bot-api ----> PostgreSQL <---- worker
 ```
 
-## Public Surface (Current)
+## Superficie Publica (Atual)
 
-Web pages and session routes:
+Paginas web e rotas de sessao:
 
 - `GET /`
 - `GET /login`
@@ -64,7 +66,7 @@ Web pages and session routes:
 - `GET /admin/prompts`
 - `POST /admin/prompts/{prompt_name}/activate-form`
 
-JSON API routes:
+Rotas de API JSON:
 
 - `POST /auth/login`
 - `GET /monitoring/cases`
@@ -73,73 +75,73 @@ JSON API routes:
 - `GET /admin/prompts/{prompt_name}/active`
 - `POST /admin/prompts/{prompt_name}/activate`
 
-## Web Access and Roles
+## Acesso Web e Papeis
 
-Browser-first access flow:
+Fluxo de acesso pelo navegador:
 
-1. Open `/` in a browser.
-2. Anonymous access is redirected to `/login`.
-3. Submit email and password in the login form.
-4. On success, the app redirects to `/dashboard/cases`.
-5. Use `Sair` (`POST /logout`) to end the session.
+1. Abra `/` no navegador.
+1. Acesso anonimo e redirecionado para `/login`.
+1. Envie email e senha no formulario de login.
+1. Em caso de sucesso, o app redireciona para `/dashboard/cases`.
+1. Use `Sair` (`POST /logout`) para encerrar a sessao.
 
-Role matrix:
+Matriz de papeis:
 
-| Role | Dashboard pages | Prompt admin pages | Prompt admin APIs |
+| Papel | Paginas de dashboard | Paginas admin de prompt | APIs admin de prompt |
 | --- | --- | --- | --- |
-| `reader` | allowed | forbidden (`403`) | forbidden (`403`) |
-| `admin` | allowed | allowed | allowed |
+| `reader` | permitido | proibido (`403`) | proibido (`403`) |
+| `admin` | permitido | permitido | permitido |
 
-## Project Docs
+## Documentacao do Projeto
 
 - Setup: `docs/setup.md`
-- Admin operations (bootstrap + password reset): `docs/setup.md#7-admin-operations`
-- Runtime smoke runbook: `docs/runtime-smoke.md`
-- Architecture: `docs/architecture.md`
-- Security: `docs/security.md`
-- Internal implementation context: `PROJECT_CONTEXT.md`
+- Operacoes admin (bootstrap + reset de senha): `docs/setup.md#7-admin-operations`
+- Runbook de smoke de runtime: `docs/runtime-smoke.md`
+- Arquitetura: `docs/architecture.md`
+- Seguranca: `docs/security.md`
+- Contexto interno de implementacao: `PROJECT_CONTEXT.md`
 
-## Repository Layout
+## Estrutura do Repositorio
 
 ```text
-apps/                         # Runtime entrypoints (bot-api, bot-matrix, worker)
-src/triage_automation/        # Application/domain/infrastructure code
-alembic/                      # DB migrations
-tests/                        # Unit, integration, and e2e tests
-docs/                         # Public project docs
-openspec/                     # Change/spec workflow artifacts
+apps/                         # Entrypoints de runtime (bot-api, bot-matrix, worker)
+src/triage_automation/        # Codigo de application/domain/infrastructure
+alembic/                      # Migracoes de banco
+tests/                        # Testes unitarios, integracao e e2e
+docs/                         # Documentacao publica do projeto
+openspec/                     # Artefatos de change/spec
 ```
 
-## Quick Start
+## Inicio Rapido
 
-1. Install dependencies:
+1. Instale dependencias:
 
 ```bash
 uv sync
 ```
 
-1. Create local env file:
+1. Crie arquivo de ambiente local:
 
 ```bash
 cp .env.example .env
 ```
 
-1. Run database migrations:
+1. Execute migracoes de banco:
 
 ```bash
 uv run alembic upgrade head
 ```
 
-1. Optional: bootstrap first admin at startup (one-time when `users` is empty):
+1. Opcional: bootstrap do primeiro admin no startup (uma vez, quando `users` estiver vazio):
 
 ```bash
 export BOOTSTRAP_ADMIN_EMAIL=admin@example.org
 export BOOTSTRAP_ADMIN_PASSWORD='change-me-now'
 ```
 
-For production-like environments, prefer `BOOTSTRAP_ADMIN_PASSWORD_FILE`.
+Para ambientes mais proximos de producao, prefira `BOOTSTRAP_ADMIN_PASSWORD_FILE`.
 
-1. Run local quality gates:
+1. Execute quality gates locais:
 
 ```bash
 uv run ruff check .
@@ -147,33 +149,33 @@ uv run mypy src apps
 uv run pytest -q
 ```
 
-## Local Services (Docker Compose)
+## Servicos Locais (Docker Compose)
 
 ```bash
 docker compose up --build
 ```
 
-Compose expects `.env` to be present and starts:
+O Compose espera `.env` presente e inicia:
 
 - `postgres`
 - `bot-api`
 - `bot-matrix`
 - `worker`
 
-## Deployment Note
+## Nota de Deploy
 
-This repository is currently optimized for local/dev deployment with Docker Compose.
-For production deployment, add environment-specific hardening (secret manager integration,
-network policy, TLS termination, and observability).
+Este repositorio esta otimizado atualmente para deploy local/dev com Docker Compose.
+Para deploy em producao, adicione hardening especifico de ambiente (integracao com secret manager,
+politica de rede, terminacao TLS e observabilidade).
 
 ## CI
 
-Quality gates are enforced in `.github/workflows/quality-gates.yml`.
+Quality gates sao aplicados em `.github/workflows/quality-gates.yml`.
 
-## License
+## Licenca
 
-MIT. See `LICENSE`.
+MIT. Veja `LICENSE`.
 
-## Attribution
+## Creditos
 
-This project was developed with assistance from large language models (LLMs).
+Este projeto foi desenvolvido com assistencia de modelos de linguagem de grande porte (LLMs).
