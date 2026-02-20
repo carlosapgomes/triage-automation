@@ -12,6 +12,8 @@ from triage_automation.application.ports.auth_token_repository_port import (
 )
 from triage_automation.application.ports.user_repository_port import UserCreateInput, UserRecord
 from triage_automation.application.services.user_management_service import (
+    LastActiveAdminError,
+    SelfUserManagementError,
     UserManagementService,
     UserNotFoundError,
 )
@@ -155,7 +157,10 @@ async def test_block_user_updates_status_and_revokes_tokens() -> None:
     auth_tokens = FakeAuthTokenRepository()
     service = UserManagementService(users=users, auth_tokens=auth_tokens)
 
-    blocked = await service.block_user(user_id=target.user_id)
+    blocked = await service.block_user(
+        actor_user_id=uuid4(),
+        user_id=target.user_id,
+    )
 
     assert blocked.account_status is AccountStatus.BLOCKED
     assert blocked.is_active is False
@@ -183,7 +188,10 @@ async def test_remove_user_updates_status_and_revokes_tokens() -> None:
     auth_tokens = FakeAuthTokenRepository()
     service = UserManagementService(users=users, auth_tokens=auth_tokens)
 
-    removed = await service.remove_user(user_id=target.user_id)
+    removed = await service.remove_user(
+        actor_user_id=uuid4(),
+        user_id=target.user_id,
+    )
 
     assert removed.account_status is AccountStatus.REMOVED
     assert removed.is_active is False
@@ -196,4 +204,81 @@ async def test_block_user_raises_user_not_found_for_unknown_user() -> None:
     service = UserManagementService(users=users, auth_tokens=FakeAuthTokenRepository())
 
     with pytest.raises(UserNotFoundError):
-        await service.block_user(user_id=uuid4())
+        await service.block_user(
+            actor_user_id=uuid4(),
+            user_id=uuid4(),
+        )
+
+
+@pytest.mark.asyncio
+async def test_block_user_rejects_self_block_action() -> None:
+    actor = _make_user(role=Role.ADMIN, account_status=AccountStatus.ACTIVE)
+    other_admin = _make_user(role=Role.ADMIN, email="other-admin@example.org")
+    users = FakeUserRepository(users={actor.user_id: actor, other_admin.user_id: other_admin})
+    service = UserManagementService(users=users, auth_tokens=FakeAuthTokenRepository())
+
+    with pytest.raises(SelfUserManagementError):
+        await service.block_user(
+            actor_user_id=actor.user_id,
+            user_id=actor.user_id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_remove_user_rejects_self_remove_action() -> None:
+    actor = _make_user(role=Role.ADMIN, account_status=AccountStatus.ACTIVE)
+    other_admin = _make_user(role=Role.ADMIN, email="other-admin@example.org")
+    users = FakeUserRepository(users={actor.user_id: actor, other_admin.user_id: other_admin})
+    service = UserManagementService(users=users, auth_tokens=FakeAuthTokenRepository())
+
+    with pytest.raises(SelfUserManagementError):
+        await service.remove_user(
+            actor_user_id=actor.user_id,
+            user_id=actor.user_id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_block_user_rejects_disabling_last_active_admin() -> None:
+    last_admin = _make_user(role=Role.ADMIN, account_status=AccountStatus.ACTIVE)
+    blocked_admin = _make_user(
+        role=Role.ADMIN,
+        email="blocked-admin@example.org",
+        account_status=AccountStatus.BLOCKED,
+    )
+    users = FakeUserRepository(
+        users={
+            last_admin.user_id: last_admin,
+            blocked_admin.user_id: blocked_admin,
+        }
+    )
+    service = UserManagementService(users=users, auth_tokens=FakeAuthTokenRepository())
+
+    with pytest.raises(LastActiveAdminError):
+        await service.block_user(
+            actor_user_id=uuid4(),
+            user_id=last_admin.user_id,
+        )
+
+
+@pytest.mark.asyncio
+async def test_remove_user_rejects_disabling_last_active_admin() -> None:
+    last_admin = _make_user(role=Role.ADMIN, account_status=AccountStatus.ACTIVE)
+    blocked_admin = _make_user(
+        role=Role.ADMIN,
+        email="blocked-admin@example.org",
+        account_status=AccountStatus.BLOCKED,
+    )
+    users = FakeUserRepository(
+        users={
+            last_admin.user_id: last_admin,
+            blocked_admin.user_id: blocked_admin,
+        }
+    )
+    service = UserManagementService(users=users, auth_tokens=FakeAuthTokenRepository())
+
+    with pytest.raises(LastActiveAdminError):
+        await service.remove_user(
+            actor_user_id=uuid4(),
+            user_id=last_admin.user_id,
+        )

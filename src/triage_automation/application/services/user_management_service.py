@@ -11,6 +11,7 @@ from triage_automation.application.ports.user_repository_port import (
     UserRepositoryPort,
 )
 from triage_automation.domain.auth.account_status import AccountStatus
+from triage_automation.domain.auth.roles import Role
 
 
 class UserNotFoundError(LookupError):
@@ -19,6 +20,20 @@ class UserNotFoundError(LookupError):
     def __init__(self, *, user_id: UUID) -> None:
         super().__init__(f"user not found: {user_id}")
         self.user_id = user_id
+
+
+class SelfUserManagementError(PermissionError):
+    """Raised when admin attempts to block/remove their own account."""
+
+    def __init__(self) -> None:
+        super().__init__("self-block/self-remove is not allowed")
+
+
+class LastActiveAdminError(PermissionError):
+    """Raised when operation would leave the system with zero active admins."""
+
+    def __init__(self) -> None:
+        super().__init__("at least one active admin must remain")
 
 
 class UserManagementService:
@@ -43,14 +58,18 @@ class UserManagementService:
 
         return await self._users.create_user(payload)
 
-    async def block_user(self, *, user_id: UUID) -> UserRecord:
+    async def block_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to blocked state and revoke active sessions."""
+
+        target = await self._require_existing_user(user_id=user_id)
+        self._require_not_self_action(actor_user_id=actor_user_id, user_id=user_id)
+        await self._require_not_disabling_last_active_admin(target=target)
 
         blocked = await self._users.set_account_status(
             user_id=user_id,
             account_status=AccountStatus.BLOCKED,
         )
-        if blocked is None:
+        if blocked is None:  # pragma: no cover - defensive; target already loaded.
             raise UserNotFoundError(user_id=user_id)
         await self._auth_tokens.revoke_active_tokens_for_user(user_id=user_id)
         return blocked
@@ -66,14 +85,46 @@ class UserManagementService:
             raise UserNotFoundError(user_id=user_id)
         return active
 
-    async def remove_user(self, *, user_id: UUID) -> UserRecord:
+    async def remove_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to removed state and revoke active sessions."""
+
+        target = await self._require_existing_user(user_id=user_id)
+        self._require_not_self_action(actor_user_id=actor_user_id, user_id=user_id)
+        await self._require_not_disabling_last_active_admin(target=target)
 
         removed = await self._users.set_account_status(
             user_id=user_id,
             account_status=AccountStatus.REMOVED,
         )
-        if removed is None:
+        if removed is None:  # pragma: no cover - defensive; target already loaded.
             raise UserNotFoundError(user_id=user_id)
         await self._auth_tokens.revoke_active_tokens_for_user(user_id=user_id)
         return removed
+
+    async def _require_existing_user(self, *, user_id: UUID) -> UserRecord:
+        """Return target user or raise deterministic not-found error."""
+
+        target = await self._users.get_by_id(user_id=user_id)
+        if target is None:
+            raise UserNotFoundError(user_id=user_id)
+        return target
+
+    def _require_not_self_action(self, *, actor_user_id: UUID, user_id: UUID) -> None:
+        """Reject self block/remove administrative actions."""
+
+        if actor_user_id == user_id:
+            raise SelfUserManagementError()
+
+    async def _require_not_disabling_last_active_admin(self, *, target: UserRecord) -> None:
+        """Reject actions that would remove the final active admin account."""
+
+        if target.role is not Role.ADMIN or not target.is_active:
+            return
+
+        active_admin_count = sum(
+            1
+            for user in await self._users.list_users()
+            if user.role is Role.ADMIN and user.is_active
+        )
+        if active_admin_count <= 1:
+            raise LastActiveAdminError()
