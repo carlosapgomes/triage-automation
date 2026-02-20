@@ -2,7 +2,7 @@
 
 ## 1. Data Model And Persistence Foundations
 
-- [ ] 1.1 Criar migration para estado de conta em `users` (`active`/`blocked`/`removed`) mantendo compatibilidade com `is_active`.
+- [x] 1.1 Criar migration para estado de conta em `users` (`active`/`blocked`/`removed`) mantendo compatibilidade com `is_active`.
 - [ ] 1.2 Estender portas e repositórios de usuário para listar usuários, criar conta e aplicar transições de estado.
 - [ ] 1.3 Adicionar operação de revogação em lote de `auth_tokens` por `user_id` para ações de bloqueio/remoção.
 - [ ] 1.4 Cobrir repositórios/migration com testes focados de persistência e invariantes básicos de estado.

@@ -200,6 +200,12 @@ users = sa.Table(
     sa.Column("role", sa.Text(), nullable=False),
     sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
     sa.Column(
+        "account_status",
+        sa.Text(),
+        nullable=False,
+        server_default=sa.text("'active'"),
+    ),
+    sa.Column(
         "created_at",
         sa.DateTime(timezone=True),
         nullable=False,
@@ -213,6 +219,10 @@ users = sa.Table(
     ),
     sa.UniqueConstraint("email", name="uq_users_email"),
     sa.CheckConstraint("role IN ('admin', 'reader')", name="ck_users_role"),
+    sa.CheckConstraint(
+        "account_status IN ('active', 'blocked', 'removed')",
+        name="ck_users_account_status",
+    ),
 )
 sa.Index("ix_users_email", users.c.email)
 
