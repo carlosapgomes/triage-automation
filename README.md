@@ -96,6 +96,7 @@ Matriz de papéis:
 
 - Setup: `docs/setup.md`
 - Operações admin (bootstrap + reset de senha): `docs/setup.md#7-admin-operations`
+- Runbook operacional Ansible (instalação inicial): `docs/ansible_ops_runbook.md`
 - Runbook de smoke de runtime: `docs/runtime-smoke.md`
 - Arquitetura: `docs/architecture.md`
 - Seguranca: `docs/security.md`

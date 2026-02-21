@@ -96,6 +96,7 @@ Role matrix:
 
 - Setup: `docs/en/setup.md`
 - Admin operations (bootstrap + password reset): `docs/en/setup.md#8-admin-operations`
+- Ansible operations runbook (initial installation): `docs/en/ansible_ops_runbook.md`
 - Runtime smoke runbook: `docs/en/runtime-smoke.md`
 - Architecture: `docs/en/architecture.md`
 - Security: `docs/en/security.md`
