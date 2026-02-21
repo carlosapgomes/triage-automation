@@ -1,0 +1,46 @@
+---
+- name: Bootstrap ATS runtime host
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate required runtime environment mapping exists
+      ansible.builtin.assert:
+        that:
+          - ats_runtime_env_required is mapping
+          - ats_runtime_env_required | length > 0
+        fail_msg: >
+          Variable mapping `ats_runtime_env_required` must be defined with mandatory
+          runtime environment values before bootstrap.
+
+    - name: Validate required runtime environment values are non-empty
+      ansible.builtin.assert:
+        that:
+          - item.value is string
+          - item.value | trim | length > 0
+        fail_msg: >
+          Required runtime variable `{{ item.key }}` is missing or empty. Define it
+          in host_vars/group_vars before running bootstrap.
+      loop: "{{ ats_runtime_env_required | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Validate service user and image coordinates
+      ansible.builtin.assert:
+        that:
+          - ats_service_user is string
+          - ats_service_user | trim | length > 0
+          - ats_runtime_image_registry is string
+          - ats_runtime_image_registry | trim | length > 0
+          - ats_runtime_image_repository is string
+          - ats_runtime_image_repository | trim | length > 0
+          - ats_runtime_image_tag is string
+          - ats_runtime_image_tag | trim | length > 0
+        fail_msg: >
+          Service-user and runtime image variables must be non-empty before bootstrap.
+
+  tasks:
+    - name: Confirm bootstrap preflight validation completed
+      ansible.builtin.debug:
+        msg: "Bootstrap preflight checks passed."
