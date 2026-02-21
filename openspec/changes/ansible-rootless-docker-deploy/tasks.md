@@ -2,7 +2,7 @@
 
 ## 1. Estrutura base da automacao
 
-- [ ] 1.1 Criar estrutura `ansible/` com `inventory/`, `group_vars/`, `host_vars/`, `playbooks/`, `roles/` e `templates/`.
+- [x] 1.1 Criar estrutura `ansible/` com `inventory/`, `group_vars/`, `host_vars/`, `playbooks/`, `roles/` e `templates/`.
 - [ ] 1.2 Definir variaveis obrigatorias e defaults para deploy remoto (incluindo usuario de servico, imagem/tag em GHCR publico, `.env` e parametros de runtime).
 - [ ] 1.3 Adicionar validacoes iniciais no bootstrap para falhar cedo quando variaveis obrigatorias estiverem ausentes.
 
