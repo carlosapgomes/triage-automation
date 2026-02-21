@@ -30,6 +30,25 @@ def test_ansible_ops_runbook_documents_initial_installation_in_portuguese() -> N
     assert "MATRIX_ACCESS_TOKEN" in runbook
 
 
+def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_portuguese() -> None:
+    runbook = _read("docs/ansible_ops_runbook.md")
+    upgrade_command = (
+        "ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/upgrade.yml"
+    )
+    rollback_command = (
+        "ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/rollback.yml"
+    )
+
+    assert "## Fluxo oficial de upgrade" in runbook
+    assert "ats_runtime_image_tag=v1.0.1" in runbook
+    assert upgrade_command in runbook
+    assert "Validate all runtime services are running after upgrade" in runbook
+    assert "## Fluxo oficial de rollback" in runbook
+    assert "ats_runtime_rollback_image_tag=v1.0.0" in runbook
+    assert rollback_command in runbook
+    assert "Validate all runtime services are running after rollback" in runbook
+
+
 def test_ansible_ops_runbook_documents_initial_installation_in_english() -> None:
     runbook = _read("docs/en/ansible_ops_runbook.md")
     bootstrap_command = (
@@ -51,3 +70,22 @@ def test_ansible_ops_runbook_documents_initial_installation_in_english() -> None
     assert "ats_runtime_image_tag=v1.0.0" in runbook
     assert "DATABASE_URL" in runbook
     assert "MATRIX_ACCESS_TOKEN" in runbook
+
+
+def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_english() -> None:
+    runbook = _read("docs/en/ansible_ops_runbook.md")
+    upgrade_command = (
+        "ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/upgrade.yml"
+    )
+    rollback_command = (
+        "ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/rollback.yml"
+    )
+
+    assert "## Official Upgrade Flow" in runbook
+    assert "ats_runtime_image_tag=v1.0.1" in runbook
+    assert upgrade_command in runbook
+    assert "Validate all runtime services are running after upgrade" in runbook
+    assert "## Official Rollback Flow" in runbook
+    assert "ats_runtime_rollback_image_tag=v1.0.0" in runbook
+    assert rollback_command in runbook
+    assert "Validate all runtime services are running after rollback" in runbook

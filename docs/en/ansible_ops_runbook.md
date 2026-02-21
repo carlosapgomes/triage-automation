@@ -74,3 +74,33 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy.yml \
 - `bot-api`, `bot-matrix`, and `worker` services started.
 - runtime artifacts rendered under `{{ ats_runtime_root }}` on the remote host.
 - playbook completes without failures.
+
+## Official Upgrade Flow
+
+1. Set the new target tag (do not use `latest`):
+
+```bash
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/upgrade.yml \
+  -e ats_runtime_image_tag=v1.0.1
+```
+
+1. Expected result:
+
+- services remain running after the update.
+- playbook post-deploy validation runs `Validate all runtime services are running after upgrade`.
+- playbook completes without failures.
+
+## Official Rollback Flow
+
+1. Set the previous stable tag to return to:
+
+```bash
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/rollback.yml \
+  -e ats_runtime_rollback_image_tag=v1.0.0
+```
+
+1. Expected result:
+
+- services return to the stable version defined for rollback.
+- playbook post-rollback validation runs `Validate all runtime services are running after rollback`.
+- playbook completes without failures.
