@@ -16,7 +16,7 @@
 ## 3. Deploy de servicos com idempotencia
 
 - [x] 3.1 Implementar role `app_runtime` para gerar arquivos de configuracao via templates (ambiente/segredos por variavel).
-- [ ] 3.2 Implementar role `deploy` para subir `bot-api`, `bot-matrix` e `worker` em modo rootless no usuario dedicado.
+- [x] 3.2 Implementar role `deploy` para subir `bot-api`, `bot-matrix` e `worker` em modo rootless no usuario dedicado.
 - [ ] 3.3 Garantir idempotencia do deploy (reexecucao com mesmos inputs sem efeitos colaterais destrutivos).
 - [ ] 3.4 Garantir compatibilidade dos comandos de runtime suportados com o caminho oficial via Ansible.
 

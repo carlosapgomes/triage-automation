@@ -1,0 +1,36 @@
+---
+- name: Resolve service user uid for deploy runtime context
+  ansible.builtin.command: "id -u {{ ats_service_user }}"
+  register: ats_deploy_service_user_uid
+  changed_when: false
+
+- name: Build deploy XDG runtime directory path
+  ansible.builtin.set_fact:
+    ats_deploy_xdg_runtime_dir: "/run/user/{{ ats_deploy_service_user_uid.stdout }}"
+
+- name: Pull runtime images for configured services
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    pull {{ ats_runtime_deploy_services | join(' ') }}
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
+  changed_when: false
+
+- name: Start runtime services in detached mode
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    up --detach {{ ats_runtime_deploy_services | join(' ') }}
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"

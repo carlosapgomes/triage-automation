@@ -1,0 +1,14 @@
+---
+- name: Deploy ATS runtime services
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Render runtime configuration artifacts
+      ansible.builtin.include_role:
+        name: app_runtime
+
+    - name: Deploy runtime services with rootless Docker
+      ansible.builtin.include_role:
+        name: deploy

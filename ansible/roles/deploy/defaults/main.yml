@@ -1,0 +1,5 @@
+---
+ats_runtime_deploy_services:
+  - bot-api
+  - bot-matrix
+  - worker
