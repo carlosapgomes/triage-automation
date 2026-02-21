@@ -15,7 +15,7 @@
     docker compose
     --project-name {{ ats_runtime_compose_project_name }}
     --file {{ ats_runtime_compose_file }}
-    pull {{ ats_runtime_deploy_services | join(' ') }}
+    pull --policy {{ ats_runtime_pull_policy }} {{ ats_runtime_deploy_services | join(' ') }}
   args:
     chdir: "{{ ats_runtime_root }}"
   environment:
@@ -29,8 +29,13 @@
     docker compose
     --project-name {{ ats_runtime_compose_project_name }}
     --file {{ ats_runtime_compose_file }}
-    up --detach {{ ats_runtime_deploy_services | join(' ') }}
+    up {{ ats_runtime_up_flags }} {{ ats_runtime_deploy_services | join(' ') }}
+  register: ats_deploy_up_result
   args:
     chdir: "{{ ats_runtime_root }}"
   environment:
     XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
+  changed_when: >-
+    'Created' in ats_deploy_up_result.stdout
+    or 'Started' in ats_deploy_up_result.stdout
+    or 'Recreated' in ats_deploy_up_result.stdout

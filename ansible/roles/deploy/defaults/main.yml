@@ -3,3 +3,5 @@ ats_runtime_deploy_services:
   - bot-api
   - bot-matrix
   - worker
+ats_runtime_pull_policy: "missing"
+ats_runtime_up_flags: "--detach --no-recreate --no-build"
