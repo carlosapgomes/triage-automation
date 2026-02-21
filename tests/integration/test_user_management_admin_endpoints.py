@@ -319,3 +319,111 @@ async def test_admin_user_actions_block_activate_remove_target(tmp_path: Path) -
     assert bool(target["is_active"]) is False
     assert str(target["account_status"]) == "removed"
     assert events == ["user_blocked", "user_reactivated", "user_removed"]
+
+
+@pytest.mark.asyncio
+async def test_reader_get_users_page_is_forbidden_with_403(tmp_path: Path) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "user_management_reader_get_forbidden.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-users-page-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "admin role required"}
+
+
+@pytest.mark.asyncio
+async def test_reader_user_admin_actions_are_forbidden_and_do_not_mutate_state(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "user_management_reader_actions_forbidden.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    target_id = uuid4()
+    reader_token = "reader-users-actions-token"
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_user(
+            connection,
+            user_id=target_id,
+            email="target.reader@example.org",
+            role="reader",
+        )
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        create_response = client.post(
+            "/admin/users",
+            headers={"Authorization": f"Bearer {reader_token}"},
+            data={
+                "email": "new.reader@example.org",
+                "password": "reader-password",
+                "role": "reader",
+            },
+        )
+        block_response = client.post(
+            f"/admin/users/{target_id}/block",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+        activate_response = client.post(
+            f"/admin/users/{target_id}/activate",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+        remove_response = client.post(
+            f"/admin/users/{target_id}/remove",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    for response in (
+        create_response,
+        block_response,
+        activate_response,
+        remove_response,
+    ):
+        assert response.status_code == 403
+        assert response.json() == {"detail": "admin role required"}
+
+    with sa.create_engine(sync_url).begin() as connection:
+        user_count = connection.execute(sa.text("SELECT COUNT(*) FROM users")).scalar_one()
+        target_row = connection.execute(
+            sa.text(
+                "SELECT is_active, account_status FROM users WHERE id = :id LIMIT 1"
+            ),
+            {"id": target_id.hex},
+        ).mappings().one()
+        admin_event_count = connection.execute(
+            sa.text(
+                "SELECT COUNT(*) FROM auth_events "
+                "WHERE event_type IN ("
+                "'user_created', 'user_blocked', 'user_reactivated', 'user_removed'"
+                ")"
+            )
+        ).scalar_one()
+
+    assert int(user_count) == 2
+    assert bool(target_row["is_active"]) is True
+    assert str(target_row["account_status"]) == "active"
+    assert int(admin_event_count) == 0

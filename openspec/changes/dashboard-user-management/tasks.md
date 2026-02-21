@@ -20,7 +20,7 @@
 - [x] 3.1 Criar router de administração de usuários com `GET /admin/users` e ações `POST` para create/block/activate/remove.
 - [x] 3.2 Implementar página server-rendered de usuários com feedback de sucesso/erro seguindo o shell operacional existente.
 - [x] 3.3 Expandir contexto/layout do shell para exibir navegação de usuários apenas para `admin`.
-- [ ] 3.4 Garantir respostas determinísticas de autorização para `reader` (`403`) nas páginas e ações de user-admin.
+- [x] 3.4 Garantir respostas determinísticas de autorização para `reader` (`403`) nas páginas e ações de user-admin.
 - [ ] 3.5 Adicionar testes HTTP/integração para fluxos de sessão e autorização por papel na nova superfície.
 
 ## 4. Manual E2E And Operational Documentation
