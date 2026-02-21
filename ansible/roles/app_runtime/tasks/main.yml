@@ -1,0 +1,28 @@
+---
+- name: Build merged runtime environment map
+  ansible.builtin.set_fact:
+    ats_runtime_env: "{{ ats_runtime_env_defaults | combine(ats_runtime_env_optional) | combine(ats_runtime_env_required) }}"
+
+- name: Ensure runtime root directory exists for templated config
+  ansible.builtin.file:
+    path: "{{ ats_runtime_root }}"
+    state: directory
+    owner: "{{ ats_service_user }}"
+    group: "{{ ats_service_group }}"
+    mode: "{{ ats_runtime_root_mode }}"
+
+- name: Render runtime environment file from template
+  ansible.builtin.template:
+    src: runtime.env.j2
+    dest: "{{ ats_runtime_env_file }}"
+    owner: "{{ ats_service_user }}"
+    group: "{{ ats_service_group }}"
+    mode: "{{ ats_runtime_environment_file_mode }}"
+
+- name: Render rootless Docker Compose runtime file from template
+  ansible.builtin.template:
+    src: docker-compose.rootless.yml.j2
+    dest: "{{ ats_runtime_compose_file }}"
+    owner: "{{ ats_service_user }}"
+    group: "{{ ats_service_group }}"
+    mode: "{{ ats_runtime_compose_file_mode }}"

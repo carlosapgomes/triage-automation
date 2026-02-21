@@ -1,0 +1,25 @@
+name: {{ ats_runtime_compose_project_name }}
+
+services:
+  bot-api:
+    image: {{ ats_runtime_image }}
+    restart: unless-stopped
+    env_file:
+      - {{ ats_runtime_env_file }}
+    command: {{ ats_runtime_services.bot_api.command | to_json }}
+    ports:
+      - {{ ats_runtime_bot_api_publish_port }}
+
+  bot-matrix:
+    image: {{ ats_runtime_image }}
+    restart: unless-stopped
+    env_file:
+      - {{ ats_runtime_env_file }}
+    command: {{ ats_runtime_services.bot_matrix.command | to_json }}
+
+  worker:
+    image: {{ ats_runtime_image }}
+    restart: unless-stopped
+    env_file:
+      - {{ ats_runtime_env_file }}
+    command: {{ ats_runtime_services.worker.command | to_json }}
