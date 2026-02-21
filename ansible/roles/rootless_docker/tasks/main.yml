@@ -1,0 +1,49 @@
+---
+- name: Install Docker runtime packages
+  ansible.builtin.apt:
+    name: "{{ ats_rootless_docker_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure subuid entry exists for service user
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    regexp: "^{{ ats_service_user }}:"
+    line: "{{ ats_service_user }}:{{ ats_rootless_subid_range_start }}:{{ ats_rootless_subid_range_size }}"
+    state: present
+
+- name: Ensure subgid entry exists for service user
+  ansible.builtin.lineinfile:
+    path: /etc/subgid
+    regexp: "^{{ ats_service_user }}:"
+    line: "{{ ats_service_user }}:{{ ats_rootless_subid_range_start }}:{{ ats_rootless_subid_range_size }}"
+    state: present
+
+- name: Enable linger for service user
+  ansible.builtin.command: "loginctl enable-linger {{ ats_service_user }}"
+  changed_when: false
+
+- name: Resolve service user uid for rootless runtime dir
+  ansible.builtin.command: "id -u {{ ats_service_user }}"
+  register: ats_service_user_uid
+  changed_when: false
+
+- name: Install rootless Docker in service user context
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: dockerd-rootless-setuptool.sh install --force
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ats_service_user_uid.stdout }}"
+  changed_when: false
+
+- name: Ensure rootless Docker user service is enabled and started
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.systemd_service:
+    name: docker.service
+    scope: user
+    state: started
+    enabled: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ ats_service_user_uid.stdout }}"

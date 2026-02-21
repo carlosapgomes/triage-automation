@@ -1,0 +1,7 @@
+---
+ats_rootless_docker_packages:
+  - docker.io
+  - docker-compose-v2
+
+ats_rootless_subid_range_start: 100000
+ats_rootless_subid_range_size: 65536

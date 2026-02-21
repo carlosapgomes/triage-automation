@@ -10,7 +10,7 @@
 
 - [x] 2.1 Implementar role `base_host` para preparar dependencias de sistema exigidas.
 - [x] 2.2 Implementar role para criacao/gestao do usuario de servico dedicado.
-- [ ] 2.3 Implementar role `rootless_docker` com configuracao de runtime rootless no contexto do usuario de servico.
+- [x] 2.3 Implementar role `rootless_docker` com configuracao de runtime rootless no contexto do usuario de servico.
 - [ ] 2.4 Adicionar tarefas de verificacao funcional do Docker rootless antes do deploy da aplicacao.
 
 ## 3. Deploy de servicos com idempotencia

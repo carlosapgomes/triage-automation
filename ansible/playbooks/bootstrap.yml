@@ -48,3 +48,7 @@
     - name: Apply dedicated service user setup
       ansible.builtin.include_role:
         name: service_user
+
+    - name: Apply rootless Docker setup
+      ansible.builtin.include_role:
+        name: rootless_docker
