@@ -41,6 +41,6 @@
           Service-user and runtime image variables must be non-empty before bootstrap.
 
   tasks:
-    - name: Confirm bootstrap preflight validation completed
-      ansible.builtin.debug:
-        msg: "Bootstrap preflight checks passed."
+    - name: Apply base host dependencies
+      ansible.builtin.include_role:
+        name: base_host

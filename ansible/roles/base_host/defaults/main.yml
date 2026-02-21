@@ -1,0 +1,11 @@
+---
+ats_base_host_packages:
+  - ca-certificates
+  - curl
+  - git
+  - uidmap
+  - dbus-user-session
+  - slirp4netns
+  - fuse-overlayfs
+  - python3
+  - python3-apt

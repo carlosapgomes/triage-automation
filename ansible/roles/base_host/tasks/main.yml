@@ -1,0 +1,16 @@
+---
+- name: Validate supported Ubuntu baseline
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == "Ubuntu"
+      - ansible_facts.distribution_version is version("24.04", "==")
+    fail_msg: >
+      Unsupported target host. This automation baseline supports Ubuntu 24.04 LTS
+      only in the first delivery.
+
+- name: Install required base host packages
+  ansible.builtin.apt:
+    name: "{{ ats_base_host_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
