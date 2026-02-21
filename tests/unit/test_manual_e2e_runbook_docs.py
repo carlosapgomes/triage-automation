@@ -106,3 +106,51 @@ def test_manual_e2e_runbook_defines_prompt_authorization_flow_checks() -> None:
     assert "403" in runbook
     assert "200" in runbook
     assert "prompt_version_activated" in runbook
+
+
+def test_manual_e2e_runbook_defines_user_management_authorization_and_audit_checks() -> None:
+    runbook = _read("docs/manual_e2e_runbook.md")
+
+    assert "## Fluxo de autorização de gerenciamento de usuários" in runbook
+    assert "/admin/users" in runbook
+    assert "/admin/users/{user_id}/block" in runbook
+    assert "/admin/users/{user_id}/activate" in runbook
+    assert "/admin/users/{user_id}/remove" in runbook
+    assert "reader token" in runbook
+    assert "403" in runbook
+    assert "auth_events" in runbook
+    assert "payload->>'target_user_id'" in runbook
+    assert "ORDER BY occurred_at DESC" in runbook
+    assert "target_user_id" in runbook
+    assert "target_email" in runbook
+    assert "target_role" in runbook
+    assert "previous_status" in runbook
+    assert "new_status" in runbook
+    assert "user_created" in runbook
+    assert "user_blocked" in runbook
+    assert "user_reactivated" in runbook
+    assert "user_removed" in runbook
+
+
+def test_manual_e2e_runbook_english_mirror_defines_user_management_checks() -> None:
+    runbook = _read("docs/en/manual_e2e_runbook.md")
+
+    assert "## User Management Authorization Flow" in runbook
+    assert "/admin/users" in runbook
+    assert "/admin/users/{user_id}/block" in runbook
+    assert "/admin/users/{user_id}/activate" in runbook
+    assert "/admin/users/{user_id}/remove" in runbook
+    assert "reader token" in runbook
+    assert "403" in runbook
+    assert "auth_events" in runbook
+    assert "payload->>'target_user_id'" in runbook
+    assert "ORDER BY occurred_at DESC" in runbook
+    assert "target_user_id" in runbook
+    assert "target_email" in runbook
+    assert "target_role" in runbook
+    assert "previous_status" in runbook
+    assert "new_status" in runbook
+    assert "user_created" in runbook
+    assert "user_blocked" in runbook
+    assert "user_reactivated" in runbook
+    assert "user_removed" in runbook
