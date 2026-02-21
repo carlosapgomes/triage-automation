@@ -79,7 +79,8 @@ def _insert_token(
     user_id: UUID,
     token: str,
 ) -> None:
-    expires_at = datetime(2026, 2, 20, 0, 0, 0, tzinfo=UTC)
+    issued_at = datetime.now(tz=UTC)
+    expires_at = issued_at + timedelta(hours=1)
     connection.execute(
         sa.text(
             "INSERT INTO auth_tokens (user_id, token_hash, expires_at, issued_at) "
@@ -89,7 +90,7 @@ def _insert_token(
             "user_id": user_id.hex,
             "token_hash": token_service.hash_token(token),
             "expires_at": expires_at,
-            "issued_at": expires_at - timedelta(hours=1),
+            "issued_at": issued_at,
         },
     )
 
@@ -139,6 +140,10 @@ def test_build_runtime_app_exposes_existing_route_paths() -> None:
         "/admin/prompts/versions",
         "/admin/prompts/{prompt_name}/active",
         "/admin/prompts/{prompt_name}/activate",
+        "/admin/users",
+        "/admin/users/{user_id}/block",
+        "/admin/users/{user_id}/activate",
+        "/admin/users/{user_id}/remove",
     }
 
 
@@ -169,11 +174,14 @@ def test_runtime_app_serves_monitoring_and_prompt_admin_routes_in_same_process(
     with TestClient(app) as client:
         monitoring_response = client.get("/monitoring/cases", headers=auth_headers)
         prompt_admin_response = client.get("/admin/prompts/versions", headers=auth_headers)
+        users_admin_response = client.get("/admin/users", headers=auth_headers)
 
     assert monitoring_response.status_code == 200
     assert prompt_admin_response.status_code == 200
+    assert users_admin_response.status_code == 200
     assert "items" in monitoring_response.json()
     assert "items" in prompt_admin_response.json()
+    assert users_admin_response.headers["content-type"].startswith("text/html")
 
 
 def test_runtime_app_keeps_legacy_http_decision_route_absent(tmp_path: Path) -> None:

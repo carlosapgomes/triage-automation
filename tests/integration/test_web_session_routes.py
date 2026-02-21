@@ -161,16 +161,18 @@ async def test_logout_clears_cookie_and_redirects_to_login(tmp_path: Path) -> No
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("role", "expected_prompt_status"),
+    ("role", "expected_prompt_status", "expected_users_status", "expected_user_create_status"),
     [
-        ("admin", 200),
-        ("reader", 403),
+        ("admin", 200, 200, 303),
+        ("reader", 403, 403, 403),
     ],
 )
 async def test_session_role_matrix_dashboard_allowed_and_prompt_admin_restricted(
     tmp_path: Path,
     role: str,
     expected_prompt_status: int,
+    expected_users_status: int,
+    expected_user_create_status: int,
 ) -> None:
     sync_url, async_url = _upgrade_head(tmp_path, f"web_session_role_matrix_{role}.db")
     hasher = BcryptPasswordHasher()
@@ -195,13 +197,64 @@ async def test_session_role_matrix_dashboard_allowed_and_prompt_admin_restricted
         )
         dashboard_response = client.get("/dashboard/cases")
         prompts_response = client.get("/admin/prompts", follow_redirects=False)
+        users_page_response = client.get("/admin/users", follow_redirects=False)
+        create_user_response = client.post(
+            "/admin/users",
+            data={
+                "email": f"created-{role}@example.org",
+                "password": "created-password",
+                "role": "reader",
+            },
+            follow_redirects=False,
+        )
 
     assert login_response.status_code == 303
     assert login_response.headers["location"] == "/dashboard/cases"
     assert dashboard_response.status_code == 200
     assert prompts_response.status_code == expected_prompt_status
+    assert users_page_response.status_code == expected_users_status
+    assert create_user_response.status_code == expected_user_create_status
     if role == "admin":
         assert prompts_response.headers["content-type"].startswith("text/html")
         assert "Gestao de Prompts" in prompts_response.text
+        assert users_page_response.headers["content-type"].startswith("text/html")
+        assert "Gestao de Usuarios" in users_page_response.text
+        assert create_user_response.headers["location"].startswith("/admin/users")
     else:
         assert prompts_response.json() == {"detail": "admin role required"}
+        assert users_page_response.json() == {"detail": "admin role required"}
+        assert create_user_response.json() == {"detail": "admin role required"}
+
+    with sa.create_engine(sync_url).begin() as connection:
+        total_users = connection.execute(sa.text("SELECT COUNT(*) FROM users")).scalar_one()
+
+    if role == "admin":
+        assert int(total_users) == 2
+    else:
+        assert int(total_users) == 1
+
+
+@pytest.mark.asyncio
+async def test_anonymous_access_to_user_admin_routes_redirects_to_login(tmp_path: Path) -> None:
+    _, async_url = _upgrade_head(tmp_path, "web_session_user_admin_anonymous_redirect.db")
+    token_service = OpaqueTokenService()
+    target_user_id = uuid4()
+
+    with _build_client(async_url, token_service=token_service) as client:
+        users_page_response = client.get("/admin/users", follow_redirects=False)
+        create_response = client.post(
+            "/admin/users",
+            data={"email": "anon@example.org", "password": "anon-password", "role": "reader"},
+            follow_redirects=False,
+        )
+        block_response = client.post(
+            f"/admin/users/{target_user_id}/block",
+            follow_redirects=False,
+        )
+
+    assert users_page_response.status_code == 303
+    assert users_page_response.headers["location"] == "/login"
+    assert create_response.status_code == 303
+    assert create_response.headers["location"] == "/login"
+    assert block_response.status_code == 303
+    assert block_response.headers["location"] == "/login"

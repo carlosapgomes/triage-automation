@@ -237,6 +237,10 @@ async def test_route_paths_include_login_and_monitoring_list(tmp_path: Path) -> 
         "/admin/prompts/versions",
         "/admin/prompts/{prompt_name}/active",
         "/admin/prompts/{prompt_name}/activate",
+        "/admin/users",
+        "/admin/users/{user_id}/block",
+        "/admin/users/{user_id}/activate",
+        "/admin/users/{user_id}/remove",
     }
 
 
