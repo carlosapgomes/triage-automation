@@ -1,0 +1,67 @@
+---
+- name: Rollback ATS runtime services
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate explicit rollback image tag
+      ansible.builtin.assert:
+        that:
+          - ats_runtime_rollback_image_tag is defined
+          - ats_runtime_rollback_image_tag is string
+          - ats_runtime_rollback_image_tag | trim | length > 0
+          - ats_runtime_allow_latest_tag or (ats_runtime_rollback_image_tag | lower != "latest")
+        fail_msg: >-
+          Explicit rollback tag is required. Set `ats_runtime_rollback_image_tag=<tag>`
+          and avoid `latest` for deterministic rollback.
+
+    - name: Set rollback image tag as active deploy target
+      ansible.builtin.set_fact:
+        ats_runtime_image_tag: "{{ ats_runtime_rollback_image_tag }}"
+
+    - name: Show selected rollback image reference
+      ansible.builtin.debug:
+        msg: "Rollback target image: {{ ats_runtime_image }}"
+
+  tasks:
+    - name: Render runtime configuration artifacts
+      ansible.builtin.include_role:
+        name: app_runtime
+
+    - name: Rollback runtime services with rootless Docker
+      ansible.builtin.include_role:
+        name: deploy
+
+  post_tasks:
+    - name: Resolve service user uid for rollback checks
+      ansible.builtin.command: "id -u {{ ats_service_user }}"
+      register: ats_rollback_service_user_uid
+      changed_when: false
+
+    - name: Build rollback XDG runtime directory path
+      ansible.builtin.set_fact:
+        ats_rollback_xdg_runtime_dir: "/run/user/{{ ats_rollback_service_user_uid.stdout }}"
+
+    - name: Collect running services after rollback
+      become: true
+      become_user: "{{ ats_service_user }}"
+      ansible.builtin.command: >-
+        docker compose
+        --project-name {{ ats_runtime_compose_project_name }}
+        --file {{ ats_runtime_compose_file }}
+        ps --services --filter status=running
+      register: ats_rollback_running_services
+      changed_when: false
+      args:
+        chdir: "{{ ats_runtime_root }}"
+      environment:
+        XDG_RUNTIME_DIR: "{{ ats_rollback_xdg_runtime_dir }}"
+
+    - name: Validate all runtime services are running after rollback
+      ansible.builtin.assert:
+        that:
+          - ats_runtime_deploy_services | difference(ats_rollback_running_services.stdout_lines) | length == 0
+        fail_msg: >-
+          Rollback validation failed. Missing running services: {{ ats_runtime_deploy_services |
+          difference(ats_rollback_running_services.stdout_lines) }}
