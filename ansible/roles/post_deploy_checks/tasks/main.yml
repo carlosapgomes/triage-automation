@@ -1,0 +1,76 @@
+---
+- name: Resolve service user uid for post-deploy checks
+  ansible.builtin.command: "id -u {{ ats_service_user }}"
+  register: ats_post_deploy_service_user_uid
+  changed_when: false
+
+- name: Build post-deploy XDG runtime directory path
+  ansible.builtin.set_fact:
+    ats_post_deploy_xdg_runtime_dir: "/run/user/{{ ats_post_deploy_service_user_uid.stdout }}"
+
+- name: Collect running services for post-deploy checks
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    ps --services --filter status=running
+  register: ats_post_deploy_running_services
+  changed_when: false
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_post_deploy_xdg_runtime_dir }}"
+
+- name: Validate expected runtime services are running
+  ansible.builtin.assert:
+    that:
+      - ats_post_deploy_expected_services | difference(ats_post_deploy_running_services.stdout_lines) | length == 0
+    fail_msg: >-
+      Post-deploy process check failed. Missing running services: {{ ats_post_deploy_expected_services |
+      difference(ats_post_deploy_running_services.stdout_lines) }}
+
+- name: Collect initial service logs for post-deploy checks
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    logs --no-color --tail {{ ats_post_deploy_logs_tail_lines }}
+    {{ ats_post_deploy_expected_services | join(' ') }}
+  register: ats_post_deploy_logs
+  changed_when: false
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_post_deploy_xdg_runtime_dir }}"
+
+- name: Normalize collected logs to lowercase for deterministic pattern checks
+  ansible.builtin.set_fact:
+    ats_post_deploy_logs_lower: "{{ ats_post_deploy_logs.stdout | lower }}"
+
+- name: Validate logs do not contain critical startup error patterns
+  ansible.builtin.assert:
+    that:
+      - item | lower not in ats_post_deploy_logs_lower
+    fail_msg: >-
+      Post-deploy log check failed. Pattern `{{ item }}` detected in service logs.
+  loop: "{{ ats_post_deploy_log_error_patterns }}"
+
+- name: Validate bot-api health endpoint status and payload
+  ansible.builtin.uri:
+    url: "{{ ats_post_deploy_bot_api_healthcheck_url }}"
+    method: GET
+    status_code: "{{ ats_post_deploy_bot_api_expected_status }}"
+    return_content: true
+  register: ats_post_deploy_bot_api_health_response
+
+- name: Validate bot-api health response contains expected marker text
+  ansible.builtin.assert:
+    that:
+      - ats_post_deploy_bot_api_expected_text in (ats_post_deploy_bot_api_health_response.content | lower)
+    fail_msg: >-
+      Post-deploy health check failed. Response does not contain expected marker
+      `{{ ats_post_deploy_bot_api_expected_text }}`.

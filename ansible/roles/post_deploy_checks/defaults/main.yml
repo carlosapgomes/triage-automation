@@ -1,0 +1,10 @@
+---
+ats_post_deploy_expected_services: "{{ ats_runtime_deploy_services }}"
+ats_post_deploy_logs_tail_lines: 120
+ats_post_deploy_log_error_patterns:
+  - "traceback"
+  - "critical"
+  - "fatal"
+ats_post_deploy_bot_api_healthcheck_url: "http://127.0.0.1:8000/openapi.json"
+ats_post_deploy_bot_api_expected_status: 200
+ats_post_deploy_bot_api_expected_text: "openapi"
