@@ -158,3 +158,42 @@ uv run python -m apps.worker.main
 - submit activation form `POST /admin/prompts/{prompt_name}/activate-form`
 - expected: redirect back to `/admin/prompts` with activation feedback
 - validate `auth_events` last row has `event_type=prompt_version_activated`
+
+## User Management Authorization Flow
+
+1. Using a `reader` token (reader token), validate access denial:
+
+- `GET /admin/users` returns `403`
+- `POST /admin/users` returns `403`
+- `POST /admin/users/{user_id}/block` returns `403`
+- `POST /admin/users/{user_id}/activate` returns `403`
+- `POST /admin/users/{user_id}/remove` returns `403`
+- expected: no user-account mutation
+
+1. Using an `admin` session, validate account creation:
+
+- open `GET /admin/users`
+- submit `POST /admin/users` form to create a `reader`
+- expected: redirect to `/admin/users` with `Usuario criado` feedback
+- validate the new user appears in list with `active` state
+
+1. Using an `admin` session, validate blocking an active account:
+
+- submit `POST /admin/users/{user_id}/block` for an `active` target user
+- expected: redirect to `/admin/users` with update feedback
+- validate target user changes to `blocked` state in listing
+- validate `POST /auth/login` with target user credentials returns `403` (`inactive user`)
+
+1. Using an `admin` session, validate reactivation of a blocked account:
+
+- submit `POST /admin/users/{user_id}/activate` for a `blocked` target user
+- expected: redirect to `/admin/users` with update feedback
+- validate target user returns to `active` state in listing
+- validate `POST /auth/login` with target user credentials returns `200`
+
+1. Using an `admin` session, validate administrative removal (soft delete):
+
+- submit `POST /admin/users/{user_id}/remove` for target user
+- expected: redirect to `/admin/users` with update feedback
+- validate target user changes to `removed` state in listing
+- validate `POST /auth/login` with target user credentials returns `403` (`inactive user`)

@@ -158,3 +158,42 @@ uv run python -m apps.worker.main
 - enviar formulário `POST /admin/prompts/{prompt_name}/activate-form`
 - esperado: redirect para `/admin/prompts` com feedback de ativação
 - validar última linha em `auth_events` com `event_type=prompt_version_activated`
+
+## Fluxo de autorização de gerenciamento de usuários
+
+1. Usando token de `reader` (reader token), validar bloqueio de acesso:
+
+- `GET /admin/users` retorna `403`
+- `POST /admin/users` retorna `403`
+- `POST /admin/users/{user_id}/block` retorna `403`
+- `POST /admin/users/{user_id}/activate` retorna `403`
+- `POST /admin/users/{user_id}/remove` retorna `403`
+- esperado: sem mutação de contas de usuário
+
+1. Usando sessão `admin`, validar criação de conta:
+
+- abrir `GET /admin/users`
+- enviar formulário `POST /admin/users` para criar um `reader`
+- esperado: redirect para `/admin/users` com feedback `Usuario criado`
+- validar que o novo usuário aparece na listagem com estado `active`
+
+1. Usando sessão `admin`, validar bloqueio de conta ativa:
+
+- enviar `POST /admin/users/{user_id}/block` para usuário alvo `active`
+- esperado: redirect para `/admin/users` com feedback de atualização
+- validar na listagem que o usuário alvo muda para estado `blocked`
+- validar `POST /auth/login` com credenciais do usuário alvo retorna `403` (`inactive user`)
+
+1. Usando sessão `admin`, validar reativação de conta bloqueada:
+
+- enviar `POST /admin/users/{user_id}/activate` para usuário alvo `blocked`
+- esperado: redirect para `/admin/users` com feedback de atualização
+- validar na listagem que o usuário alvo volta para estado `active`
+- validar `POST /auth/login` com credenciais do usuário alvo retorna `200`
+
+1. Usando sessão `admin`, validar remoção administrativa (soft delete):
+
+- enviar `POST /admin/users/{user_id}/remove` para usuário alvo
+- esperado: redirect para `/admin/users` com feedback de atualização
+- validar na listagem que o usuário alvo muda para estado `removed`
+- validar `POST /auth/login` com credenciais do usuário alvo retorna `403` (`inactive user`)

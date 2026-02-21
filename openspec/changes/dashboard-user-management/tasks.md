@@ -25,7 +25,7 @@
 
 ## 4. Manual E2E And Operational Documentation
 
-- [ ] 4.1 Atualizar `docs/manual_e2e_runbook.md` com validações de criação, bloqueio, reativação e remoção de usuários.
+- [x] 4.1 Atualizar `docs/manual_e2e_runbook.md` com validações de criação, bloqueio, reativação e remoção de usuários.
 - [ ] 4.2 Incluir no runbook checagens explícitas de auditoria para eventos de gestão de usuários.
 - [ ] 4.3 Atualizar testes de documentação para refletir os novos passos e expectativas de autorização.
 
