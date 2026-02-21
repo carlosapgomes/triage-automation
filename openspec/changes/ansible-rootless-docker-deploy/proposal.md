@@ -15,6 +15,7 @@ A equipe de TI do hospital precisa de uma forma padronizada e reproduzível para
   - configuração de ambiente (`.env`/segredos por variável),
   - deploy/upgrade,
   - validação pós-deploy e procedimentos básicos de rollback.
+- Padronizar publicação de imagens em GHCR público na primeira entrega, mantendo segredos somente em configuração de runtime (`.env`) no host remoto.
 - Incluir documentação operacional para TI (inventário, variáveis obrigatórias, execução, troubleshooting).
 - **BREAKING**: o processo operacional recomendado deixa de ser manual/adhoc e passa a exigir fluxo Ansible como caminho oficial de instalação.
 
@@ -35,3 +36,4 @@ A equipe de TI do hospital precisa de uma forma padronizada e reproduzível para
 - Ajustes de documentação (`README.md`, `docs/setup.md`, guia operacional de deploy).
 - Definição explícita de variáveis de ambiente obrigatórias para ambiente remoto.
 - Impacto operacional positivo: instalação previsível, menor drift entre ambientes e suporte mais simples para TI hospitalar.
+- Escopo inicial objetivo: deploy single-host em Ubuntu 24.04 LTS com runtime rootless.

@@ -20,12 +20,14 @@ Stakeholders principais:
 - Padronizar runtime com usuario de servico dedicado e Docker rootless no host alvo.
 - Estruturar inventario, variaveis obrigatorias, templates de configuracao e passos de rollback.
 - Fornecer documentacao operacional objetiva para TI executar o processo sem conhecimento interno do codigo.
+- Delimitar baseline operacional da primeira entrega (single-host, Ubuntu 24.04 LTS, GHCR publico, segredos apenas via runtime).
 
 **Non-Goals:**
 
 - Alterar o workflow clinico, estados de caso ou prompts de LLM.
 - Redesenhar arquitetura da aplicacao ou mudar contratos de API do bot.
 - Cobrir orquestracao multi-host complexa (cluster) nesta primeira fase.
+- Implementar gerenciamento de segredos externo (Vault/KMS) nesta primeira fase.
 
 ## Decisions
 
@@ -57,7 +59,39 @@ Stakeholders principais:
 - Alternative considered: deploy sempre em `latest`.
   - Rejected por reduzir reprodutibilidade e dificultar investigacao de incidentes.
 
-### Decision 5: Runbook operacional como parte obrigatoria da entrega
+### Decision 5: Baseline de plataforma da primeira entrega
+
+- Choice: suportar oficialmente Ubuntu 24.04 LTS em escopo single-host.
+- Rationale: reduz variabilidade operacional inicial e facilita suporte de primeiro nivel para TI.
+- Alternative considered: suportar multiplas distros na primeira entrega.
+  - Rejected por aumentar matriz de testes e risco operacional sem necessidade imediata.
+
+### Decision 6: Registry de imagens em GHCR publico sem segredos na imagem
+
+- Choice: usar GHCR publico para distribuicao de imagens na primeira entrega.
+- Rationale: simplifica operacao inicial e elimina dependencia de autenticacao de registry para bootstrap basico.
+- Constraint: segredos nao podem ser empacotados na imagem; devem existir apenas no `.env` de runtime no host remoto.
+- Alternative considered: registry privado com autenticacao obrigatoria desde o primeiro release.
+  - Rejected por elevar complexidade operacional inicial sem ganho proporcional para este projeto publico.
+
+### Decision 7: Segredos e configuracao por `.env` template no host
+
+- Choice: gerar `.env` via template Ansible a partir de variaveis obrigatorias/secretas do inventario.
+- Rationale: mantiene contrato declarativo de configuracao com baixo atrito operacional para TI.
+- Alternative considered: editar `.env` manualmente ou depender de Vault na fase inicial.
+  - Rejected por menor rastreabilidade (manual) ou maior complexidade inicial (Vault).
+
+### Decision 8: Criterios objetivos de aprovacao pos-deploy
+
+- Choice: aprovar deploy somente quando:
+  - `bot-api`, `bot-matrix` e `worker` estiverem `running`;
+  - endpoint HTTP de saude do `bot-api` responder com sucesso esperado;
+  - logs iniciais nao mostrarem erro critico de startup.
+- Rationale: oferece gate operacional deterministico para TI antes de liberar uso.
+- Alternative considered: validacao apenas visual/ad-hoc.
+  - Rejected por inconsistencia e baixa auditabilidade operacional.
+
+### Decision 9: Runbook operacional como parte obrigatoria da entrega
 
 - Choice: manter guia de operacao com pre-requisitos, inventario minimo, comandos de execucao, erros comuns e passos de rollback.
 - Rationale: reduz dependencia de suporte direto de desenvolvimento e acelera onboarding da TI.
@@ -71,6 +105,7 @@ Stakeholders principais:
 - [Falhas por variaveis incompletas] -> Mitigation: checklist de variaveis obrigatorias e validacoes assertivas no inicio do playbook.
 - [Problemas de permissao em rootless Docker] -> Mitigation: tarefas dedicadas para ambiente de usuario, PATH/daemon e teste de execucao antes do deploy da aplicacao.
 - [Rollback incompleto em upgrade] -> Mitigation: estrategia de versao/tag fixa e playbook de rollback para restaurar ultima versao estavel.
+- [Exposicao de imagem em registry publico] -> Mitigation: reforcar politica "sem segredos na imagem" e validacao de secrets apenas por `.env` em runtime.
 
 ## Migration Plan
 
@@ -89,6 +124,4 @@ Rollback strategy:
 
 ## Open Questions
 
-- Qual distro Linux (e versao) sera oficialmente suportada na primeira entrega de automacao?
-- O registry de imagens sera privado ou publico, e qual mecanismo de autenticacao padrao sera exigido?
-- Quais checks de saude serao obrigatorios para considerar o deploy aprovado em producao?
+- Nenhuma no momento para iniciar a implementacao do baseline da primeira entrega.
