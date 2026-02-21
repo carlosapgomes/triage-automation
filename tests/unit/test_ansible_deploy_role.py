@@ -61,6 +61,15 @@ def test_deploy_playbook_wires_runtime_render_and_deploy_roles() -> None:
     """Ensure deploy playbook includes app_runtime and deploy roles."""
 
     deploy_playbook = _read("ansible/playbooks/deploy.yml")
+    explicit_tag_guard = (
+        "ats_runtime_allow_latest_tag or "
+        '(ats_runtime_image_tag | lower != "latest")'
+    )
 
+    assert "pre_tasks:" in deploy_playbook
+    assert "Explicit runtime image tag is required" in deploy_playbook
+    assert "ats_runtime_image_tag | trim | length > 0" in deploy_playbook
+    assert explicit_tag_guard in deploy_playbook
+    assert "Deploy target image: {{ ats_runtime_image }}" in deploy_playbook
     assert "name: app_runtime" in deploy_playbook
     assert "name: deploy" in deploy_playbook

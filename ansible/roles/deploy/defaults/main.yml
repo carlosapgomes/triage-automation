@@ -5,6 +5,7 @@ ats_runtime_deploy_services:
   - worker
 ats_runtime_pull_policy: "missing"
 ats_runtime_up_flags: "--detach --no-recreate --no-build"
+ats_runtime_allow_latest_tag: false
 ats_runtime_supported_service_commands:
   bot_api:
     - "uv"

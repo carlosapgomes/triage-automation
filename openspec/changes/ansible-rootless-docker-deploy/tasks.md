@@ -22,7 +22,7 @@
 
 ## 4. Upgrade versionado e rollback
 
-- [ ] 4.1 Implementar deploy por versao/tag explicita de imagem.
+- [x] 4.1 Implementar deploy por versao/tag explicita de imagem.
 - [ ] 4.2 Implementar playbook de upgrade com validacao pos-deploy.
 - [ ] 4.3 Implementar playbook de rollback para retornar a versao estavel anterior.
 

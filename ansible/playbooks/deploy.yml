@@ -4,6 +4,21 @@
   become: true
   gather_facts: true
 
+  pre_tasks:
+    - name: Validate explicit deploy image tag
+      ansible.builtin.assert:
+        that:
+          - ats_runtime_image_tag is string
+          - ats_runtime_image_tag | trim | length > 0
+          - ats_runtime_allow_latest_tag or (ats_runtime_image_tag | lower != "latest")
+        fail_msg: >-
+          Explicit runtime image tag is required. Set `ats_runtime_image_tag=<tag>`
+          and avoid `latest` for deterministic deploys.
+
+    - name: Show selected deploy image reference
+      ansible.builtin.debug:
+        msg: "Deploy target image: {{ ats_runtime_image }}"
+
   tasks:
     - name: Render runtime configuration artifacts
       ansible.builtin.include_role:
