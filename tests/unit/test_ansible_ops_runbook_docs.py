@@ -49,6 +49,17 @@ def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_portuguese() -> N
     assert "Validate all runtime services are running after rollback" in runbook
 
 
+def test_ansible_ops_runbook_documents_first_level_troubleshooting_in_portuguese() -> None:
+    runbook = _read("docs/ansible_ops_runbook.md")
+
+    assert "## Troubleshooting de primeiro nível" in runbook
+    assert "Required runtime variable" in runbook
+    assert "Explicit runtime image tag is required." in runbook
+    assert "Deploy approval gate failed." in runbook
+    assert "## Limites de escalonamento para desenvolvimento" in runbook
+    assert "escalonar para desenvolvimento" in runbook
+
+
 def test_ansible_ops_runbook_documents_initial_installation_in_english() -> None:
     runbook = _read("docs/en/ansible_ops_runbook.md")
     bootstrap_command = (
@@ -89,3 +100,14 @@ def test_ansible_ops_runbook_documents_upgrade_and_rollback_in_english() -> None
     assert "ats_runtime_rollback_image_tag=v1.0.0" in runbook
     assert rollback_command in runbook
     assert "Validate all runtime services are running after rollback" in runbook
+
+
+def test_ansible_ops_runbook_documents_first_level_troubleshooting_in_english() -> None:
+    runbook = _read("docs/en/ansible_ops_runbook.md")
+
+    assert "## First-Level Troubleshooting" in runbook
+    assert "Required runtime variable" in runbook
+    assert "Explicit runtime image tag is required." in runbook
+    assert "Deploy approval gate failed." in runbook
+    assert "## Escalation Boundaries to Development" in runbook
+    assert "escalate to development" in runbook

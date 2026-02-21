@@ -104,3 +104,40 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/rollback.yml \
 - services return to the stable version defined for rollback.
 - playbook post-rollback validation runs `Validate all runtime services are running after rollback`.
 - playbook completes without failures.
+
+## First-Level Troubleshooting
+
+1. Failure caused by missing mandatory variable during bootstrap:
+
+- symptom: playbook fails with a message containing `Required runtime variable`.
+- immediate action: review `ansible/host_vars/<host>.yml` and fill all keys under `ats_runtime_env_required`.
+- rerun the official command:
+
+```bash
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/bootstrap.yml
+```
+
+1. Failure caused by invalid tag (`latest`) in deploy/upgrade:
+
+- symptom: playbook fails with `Explicit runtime image tag is required.`.
+- immediate action: set an explicit versioned tag in `ats_runtime_image_tag` and rerun.
+
+1. Failure in the post-deploy approval gate:
+
+- symptom: error contains `Deploy approval gate failed.`.
+- immediate action: validate service status on host and fix runtime configuration before retrying.
+- rerun the corresponding playbook command (`deploy.yml`, `upgrade.yml`, or `rollback.yml`).
+
+## Escalation Boundaries to Development
+
+Escalate to development when:
+
+- error persists after inventory/variable correction and full playbook rerun.
+- failure indicates a potential automation bug (for example, inconsistent role behavior across idempotent runs).
+- post-deploy validation failure cannot be resolved by first-level operational adjustments.
+
+Include in the ticket when you escalate to development:
+
+- executed command and timestamp.
+- target host and used tag (`ats_runtime_image_tag` or `ats_runtime_rollback_image_tag`).
+- relevant Ansible error excerpt.

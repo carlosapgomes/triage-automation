@@ -36,7 +36,7 @@
 
 - [x] 6.1 Documentar instalacao inicial com pre-requisitos, inventario minimo e comandos oficiais.
 - [x] 6.2 Documentar fluxo de upgrade e rollback alinhado aos playbooks.
-- [ ] 6.3 Documentar troubleshooting de primeiro nivel e limites de escalonamento para desenvolvimento.
+- [x] 6.3 Documentar troubleshooting de primeiro nivel e limites de escalonamento para desenvolvimento.
 
 ## 7. Verificacao do slice e fechamento do change
 

@@ -104,3 +104,40 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/rollback.yml \
 - serviços retornam para a versão estável definida no rollback.
 - validação pós-rollback do playbook executa `Validate all runtime services are running after rollback`.
 - playbook finalizado sem falhas.
+
+## Troubleshooting de primeiro nível
+
+1. Falha por variável obrigatória ausente no bootstrap:
+
+- sintoma: playbook falha com mensagem contendo `Required runtime variable`.
+- ação imediata: revisar `ansible/host_vars/<host>.yml` e preencher todas as chaves de `ats_runtime_env_required`.
+- repetir comando oficial:
+
+```bash
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/bootstrap.yml
+```
+
+1. Falha por tag inválida (`latest`) em deploy/upgrade:
+
+- sintoma: playbook falha com `Explicit runtime image tag is required.`.
+- ação imediata: definir tag explícita versionada em `ats_runtime_image_tag` e executar novamente.
+
+1. Falha no gate pós-deploy:
+
+- sintoma: erro com `Deploy approval gate failed.`.
+- ação imediata: validar status dos serviços no host e corrigir configuração de runtime antes de nova execução.
+- repetir o comando do playbook correspondente (`deploy.yml`, `upgrade.yml` ou `rollback.yml`).
+
+## Limites de escalonamento para desenvolvimento
+
+Escalonar para desenvolvimento quando:
+
+- erro persistir após correção de inventário/variáveis e nova execução completa do playbook.
+- falha indicar possível bug de automação (ex.: role com comportamento inconsistente entre execuções idempotentes).
+- falha de validação pós-deploy não for resolvida com ajuste operacional de primeiro nível.
+
+Incluir no chamado para escalonar para desenvolvimento:
+
+- comando executado e horário.
+- host alvo e tag usada (`ats_runtime_image_tag` ou `ats_runtime_rollback_image_tag`).
+- trecho relevante do erro retornado pelo Ansible.
