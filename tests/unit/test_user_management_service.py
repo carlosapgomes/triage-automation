@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from triage_automation.application.ports.auth_event_repository_port import AuthEventCreateInput
 from triage_automation.application.ports.auth_token_repository_port import (
     AuthTokenCreateInput,
     AuthTokenRecord,
@@ -112,6 +113,15 @@ class FakePasswordHasher:
         return False
 
 
+class FakeAuthEventRepository:
+    def __init__(self) -> None:
+        self.events: list[AuthEventCreateInput] = []
+
+    async def append_event(self, payload: AuthEventCreateInput) -> int:
+        self.events.append(payload)
+        return len(self.events)
+
+
 class FakeAuthTokenRepository:
     def __init__(self) -> None:
         self.revoked_users: list[UUID] = []
@@ -143,8 +153,10 @@ async def test_list_users_returns_repository_listing() -> None:
     first = _make_user(email="a@example.org")
     second = _make_user(email="b@example.org")
     users = FakeUserRepository(users={first.user_id: first, second.user_id: second})
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=FakePasswordHasher(),
     )
@@ -158,18 +170,21 @@ async def test_list_users_returns_repository_listing() -> None:
 async def test_create_user_normalizes_email_and_hashes_password() -> None:
     users = FakeUserRepository(users={})
     password_hasher = FakePasswordHasher()
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=password_hasher,
     )
+    actor_user_id = uuid4()
     payload = UserCreateRequest(
         email=" New-Admin@Example.org ",
         password="  secret-pass  ",
         role=Role.ADMIN,
     )
 
-    created = await service.create_user(payload=payload)
+    created = await service.create_user(actor_user_id=actor_user_id, payload=payload)
 
     assert created.email == "new-admin@example.org"
     assert created.password_hash == "hashed::secret-pass"
@@ -178,20 +193,36 @@ async def test_create_user_normalizes_email_and_hashes_password() -> None:
     assert password_hasher.hash_calls == ["secret-pass"]
     assert users.create_payloads[0].email == "new-admin@example.org"
     assert users.create_payloads[0].password_hash == "hashed::secret-pass"
+    assert auth_events.events == [
+        AuthEventCreateInput(
+            user_id=actor_user_id,
+            event_type="user_created",
+            payload={
+                "target_user_id": str(created.user_id),
+                "target_email": "new-admin@example.org",
+                "target_role": "admin",
+                "previous_status": None,
+                "new_status": "active",
+            },
+        )
+    ]
 
 
 @pytest.mark.asyncio
 async def test_create_user_rejects_blank_email() -> None:
     users = FakeUserRepository(users={})
     password_hasher = FakePasswordHasher()
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=password_hasher,
     )
 
     with pytest.raises(InvalidUserEmailError):
         await service.create_user(
+            actor_user_id=uuid4(),
             payload=UserCreateRequest(
                 email="   ",
                 password="valid-password",
@@ -201,20 +232,24 @@ async def test_create_user_rejects_blank_email() -> None:
 
     assert users.create_payloads == []
     assert password_hasher.hash_calls == []
+    assert auth_events.events == []
 
 
 @pytest.mark.asyncio
 async def test_create_user_rejects_blank_password() -> None:
     users = FakeUserRepository(users={})
     password_hasher = FakePasswordHasher()
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=password_hasher,
     )
 
     with pytest.raises(InvalidUserPasswordError):
         await service.create_user(
+            actor_user_id=uuid4(),
             payload=UserCreateRequest(
                 email="reader@example.org",
                 password="   ",
@@ -224,6 +259,7 @@ async def test_create_user_rejects_blank_password() -> None:
 
     assert users.create_payloads == []
     assert password_hasher.hash_calls == []
+    assert auth_events.events == []
 
 
 @pytest.mark.asyncio
@@ -231,20 +267,36 @@ async def test_block_user_updates_status_and_revokes_tokens() -> None:
     target = _make_user(account_status=AccountStatus.ACTIVE)
     users = FakeUserRepository(users={target.user_id: target})
     auth_tokens = FakeAuthTokenRepository()
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=auth_tokens,
         password_hasher=FakePasswordHasher(),
     )
+    actor_user_id = uuid4()
 
     blocked = await service.block_user(
-        actor_user_id=uuid4(),
+        actor_user_id=actor_user_id,
         user_id=target.user_id,
     )
 
     assert blocked.account_status is AccountStatus.BLOCKED
     assert blocked.is_active is False
     assert auth_tokens.revoked_users == [target.user_id]
+    assert auth_events.events == [
+        AuthEventCreateInput(
+            user_id=actor_user_id,
+            event_type="user_blocked",
+            payload={
+                "target_user_id": str(target.user_id),
+                "target_email": target.email,
+                "target_role": target.role.value,
+                "previous_status": "active",
+                "new_status": "blocked",
+            },
+        )
+    ]
 
 
 @pytest.mark.asyncio
@@ -252,17 +304,36 @@ async def test_reactivate_user_updates_status_without_revocation() -> None:
     target = _make_user(account_status=AccountStatus.BLOCKED)
     users = FakeUserRepository(users={target.user_id: target})
     auth_tokens = FakeAuthTokenRepository()
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=auth_tokens,
         password_hasher=FakePasswordHasher(),
     )
+    actor_user_id = uuid4()
 
-    active = await service.reactivate_user(user_id=target.user_id)
+    active = await service.reactivate_user(
+        actor_user_id=actor_user_id,
+        user_id=target.user_id,
+    )
 
     assert active.account_status is AccountStatus.ACTIVE
     assert active.is_active is True
     assert auth_tokens.revoked_users == []
+    assert auth_events.events == [
+        AuthEventCreateInput(
+            user_id=actor_user_id,
+            event_type="user_reactivated",
+            payload={
+                "target_user_id": str(target.user_id),
+                "target_email": target.email,
+                "target_role": target.role.value,
+                "previous_status": "blocked",
+                "new_status": "active",
+            },
+        )
+    ]
 
 
 @pytest.mark.asyncio
@@ -270,27 +341,45 @@ async def test_remove_user_updates_status_and_revokes_tokens() -> None:
     target = _make_user(account_status=AccountStatus.ACTIVE)
     users = FakeUserRepository(users={target.user_id: target})
     auth_tokens = FakeAuthTokenRepository()
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=auth_tokens,
         password_hasher=FakePasswordHasher(),
     )
+    actor_user_id = uuid4()
 
     removed = await service.remove_user(
-        actor_user_id=uuid4(),
+        actor_user_id=actor_user_id,
         user_id=target.user_id,
     )
 
     assert removed.account_status is AccountStatus.REMOVED
     assert removed.is_active is False
     assert auth_tokens.revoked_users == [target.user_id]
+    assert auth_events.events == [
+        AuthEventCreateInput(
+            user_id=actor_user_id,
+            event_type="user_removed",
+            payload={
+                "target_user_id": str(target.user_id),
+                "target_email": target.email,
+                "target_role": target.role.value,
+                "previous_status": "active",
+                "new_status": "removed",
+            },
+        )
+    ]
 
 
 @pytest.mark.asyncio
 async def test_block_user_raises_user_not_found_for_unknown_user() -> None:
     users = FakeUserRepository(users={})
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=FakePasswordHasher(),
     )
@@ -300,6 +389,7 @@ async def test_block_user_raises_user_not_found_for_unknown_user() -> None:
             actor_user_id=uuid4(),
             user_id=uuid4(),
         )
+    assert auth_events.events == []
 
 
 @pytest.mark.asyncio
@@ -307,8 +397,10 @@ async def test_block_user_rejects_self_block_action() -> None:
     actor = _make_user(role=Role.ADMIN, account_status=AccountStatus.ACTIVE)
     other_admin = _make_user(role=Role.ADMIN, email="other-admin@example.org")
     users = FakeUserRepository(users={actor.user_id: actor, other_admin.user_id: other_admin})
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=FakePasswordHasher(),
     )
@@ -318,6 +410,7 @@ async def test_block_user_rejects_self_block_action() -> None:
             actor_user_id=actor.user_id,
             user_id=actor.user_id,
         )
+    assert auth_events.events == []
 
 
 @pytest.mark.asyncio
@@ -325,8 +418,10 @@ async def test_remove_user_rejects_self_remove_action() -> None:
     actor = _make_user(role=Role.ADMIN, account_status=AccountStatus.ACTIVE)
     other_admin = _make_user(role=Role.ADMIN, email="other-admin@example.org")
     users = FakeUserRepository(users={actor.user_id: actor, other_admin.user_id: other_admin})
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=FakePasswordHasher(),
     )
@@ -336,6 +431,7 @@ async def test_remove_user_rejects_self_remove_action() -> None:
             actor_user_id=actor.user_id,
             user_id=actor.user_id,
         )
+    assert auth_events.events == []
 
 
 @pytest.mark.asyncio
@@ -352,8 +448,10 @@ async def test_block_user_rejects_disabling_last_active_admin() -> None:
             blocked_admin.user_id: blocked_admin,
         }
     )
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=FakePasswordHasher(),
     )
@@ -363,6 +461,7 @@ async def test_block_user_rejects_disabling_last_active_admin() -> None:
             actor_user_id=uuid4(),
             user_id=last_admin.user_id,
         )
+    assert auth_events.events == []
 
 
 @pytest.mark.asyncio
@@ -379,8 +478,10 @@ async def test_remove_user_rejects_disabling_last_active_admin() -> None:
             blocked_admin.user_id: blocked_admin,
         }
     )
+    auth_events = FakeAuthEventRepository()
     service = UserManagementService(
         users=users,
+        auth_events=auth_events,
         auth_tokens=FakeAuthTokenRepository(),
         password_hasher=FakePasswordHasher(),
     )
@@ -390,3 +491,4 @@ async def test_remove_user_rejects_disabling_last_active_admin() -> None:
             actor_user_id=uuid4(),
             user_id=last_admin.user_id,
         )
+    assert auth_events.events == []

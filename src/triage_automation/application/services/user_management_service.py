@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
+from triage_automation.application.ports.auth_event_repository_port import (
+    AuthEventCreateInput,
+    AuthEventRepositoryPort,
+)
 from triage_automation.application.ports.auth_token_repository_port import AuthTokenRepositoryPort
 from triage_automation.application.ports.password_hasher_port import PasswordHasherPort
 from triage_automation.application.ports.user_repository_port import (
@@ -72,10 +76,12 @@ class UserManagementService:
         self,
         *,
         users: UserRepositoryPort,
+        auth_events: AuthEventRepositoryPort,
         auth_tokens: AuthTokenRepositoryPort,
         password_hasher: PasswordHasherPort,
     ) -> None:
         self._users = users
+        self._auth_events = auth_events
         self._auth_tokens = auth_tokens
         self._password_hasher = password_hasher
 
@@ -84,12 +90,12 @@ class UserManagementService:
 
         return await self._users.list_users()
 
-    async def create_user(self, *, payload: UserCreateRequest) -> UserRecord:
+    async def create_user(self, *, actor_user_id: UUID, payload: UserCreateRequest) -> UserRecord:
         """Create one user account after applying email/password normalization."""
 
         normalized_email = self._normalize_email(payload.email)
         normalized_password = self._normalize_password(payload.password)
-        return await self._users.create_user(
+        created = await self._users.create_user(
             UserCreateInput(
                 user_id=uuid4(),
                 email=normalized_email,
@@ -98,6 +104,14 @@ class UserManagementService:
                 account_status=AccountStatus.ACTIVE,
             )
         )
+        await self._append_user_event(
+            actor_user_id=actor_user_id,
+            event_type="user_created",
+            target=created,
+            previous_status=None,
+            new_status=created.account_status,
+        )
+        return created
 
     async def block_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to blocked state and revoke active sessions."""
@@ -113,17 +127,32 @@ class UserManagementService:
         if blocked is None:  # pragma: no cover - defensive; target already loaded.
             raise UserNotFoundError(user_id=user_id)
         await self._auth_tokens.revoke_active_tokens_for_user(user_id=user_id)
+        await self._append_user_event(
+            actor_user_id=actor_user_id,
+            event_type="user_blocked",
+            target=blocked,
+            previous_status=target.account_status,
+            new_status=blocked.account_status,
+        )
         return blocked
 
-    async def reactivate_user(self, *, user_id: UUID) -> UserRecord:
+    async def reactivate_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
         """Transition one user to active state."""
 
+        target = await self._require_existing_user(user_id=user_id)
         active = await self._users.set_account_status(
             user_id=user_id,
             account_status=AccountStatus.ACTIVE,
         )
         if active is None:
             raise UserNotFoundError(user_id=user_id)
+        await self._append_user_event(
+            actor_user_id=actor_user_id,
+            event_type="user_reactivated",
+            target=active,
+            previous_status=target.account_status,
+            new_status=active.account_status,
+        )
         return active
 
     async def remove_user(self, *, actor_user_id: UUID, user_id: UUID) -> UserRecord:
@@ -140,6 +169,13 @@ class UserManagementService:
         if removed is None:  # pragma: no cover - defensive; target already loaded.
             raise UserNotFoundError(user_id=user_id)
         await self._auth_tokens.revoke_active_tokens_for_user(user_id=user_id)
+        await self._append_user_event(
+            actor_user_id=actor_user_id,
+            event_type="user_removed",
+            target=removed,
+            previous_status=target.account_status,
+            new_status=removed.account_status,
+        )
         return removed
 
     async def _require_existing_user(self, *, user_id: UUID) -> UserRecord:
@@ -185,3 +221,30 @@ class UserManagementService:
             return normalize_user_password(password=password)
         except ValueError as exc:
             raise InvalidUserPasswordError() from exc
+
+    async def _append_user_event(
+        self,
+        *,
+        actor_user_id: UUID,
+        event_type: str,
+        target: UserRecord,
+        previous_status: AccountStatus | None,
+        new_status: AccountStatus,
+    ) -> None:
+        """Persist one user-management audit event with actor/target metadata."""
+
+        await self._auth_events.append_event(
+            AuthEventCreateInput(
+                user_id=actor_user_id,
+                event_type=event_type,
+                payload={
+                    "target_user_id": str(target.user_id),
+                    "target_email": target.email,
+                    "target_role": target.role.value,
+                    "previous_status": (
+                        previous_status.value if previous_status is not None else None
+                    ),
+                    "new_status": new_status.value,
+                },
+            )
+        )

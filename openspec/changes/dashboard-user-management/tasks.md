@@ -12,7 +12,7 @@
 - [x] 2.1 Implementar serviço de gestão de usuários com casos de uso: listar, criar, bloquear, reativar e remover.
 - [x] 2.2 Implementar validações de segurança: proibir auto-bloqueio/auto-remoção e impedir zero admins ativos.
 - [x] 2.3 Reutilizar normalização de email e política de senha existente na criação de contas.
-- [ ] 2.4 Registrar eventos de auditoria (`user_created`, `user_blocked`, `user_reactivated`, `user_removed`) com metadados de ator/alvo.
+- [x] 2.4 Registrar eventos de auditoria (`user_created`, `user_blocked`, `user_reactivated`, `user_removed`) com metadados de ator/alvo.
 - [ ] 2.5 Adicionar testes unitários do serviço cobrindo fluxos positivos, negações por autorização e regras de segurança.
 
 ## 3. Admin HTTP Surface And Shell Navigation
