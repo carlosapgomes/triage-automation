@@ -10,6 +10,11 @@ ats_service_home: "/home/{{ ats_service_user }}"
 ats_runtime_root: "{{ ats_service_home }}/augmented-triage-system"
 ats_runtime_compose_project_name: "augmented-triage-system"
 ats_runtime_env_file: "{{ ats_runtime_root }}/.env"
+ats_runtime_compose_file: "{{ ats_runtime_root }}/docker-compose.yml"
+ats_runtime_environment_file_mode: "0640"
+ats_runtime_compose_file_mode: "0644"
+ats_runtime_root_mode: "0750"
+ats_runtime_bot_api_publish_port: "8000:8000"
 
 # Public GHCR image coordinates.
 ats_runtime_image_registry: "ghcr.io"
@@ -75,3 +80,34 @@ ats_runtime_env_optional:
   BOOTSTRAP_ADMIN_EMAIL: ""
   BOOTSTRAP_ADMIN_PASSWORD: ""
   BOOTSTRAP_ADMIN_PASSWORD_FILE: ""
+
+# Deploy configuration.
+ats_runtime_deploy_services:
+  - bot-api
+  - bot-matrix
+  - worker
+ats_runtime_pull_policy: "missing"
+ats_runtime_up_flags: "--detach --no-recreate --no-build"
+ats_runtime_supported_service_commands:
+  bot_api:
+    - "uv"
+    - "run"
+    - "uvicorn"
+    - "apps.bot_api.main:create_app"
+    - "--factory"
+    - "--host"
+    - "0.0.0.0"
+    - "--port"
+    - "8000"
+  bot_matrix:
+    - "uv"
+    - "run"
+    - "python"
+    - "-m"
+    - "apps.bot_matrix.main"
+  worker:
+    - "uv"
+    - "run"
+    - "python"
+    - "-m"
+    - "apps.worker.main"
