@@ -7,7 +7,7 @@ services:
     env_file:
       - {{ ats_runtime_env_file }}
     ports:
-      - "5432:5432"
+      - "{{ ats_runtime_postgres_publish_port }}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
