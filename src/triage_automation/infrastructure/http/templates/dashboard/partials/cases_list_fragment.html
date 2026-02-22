@@ -35,7 +35,7 @@
                   <div class="small text-secondary">{{ item.case_id }}</div>
                 </td>
                 <td><code>{{ item.status.value }}</code></td>
-                <td>{{ item.latest_activity_at.isoformat() }}</td>
+                <td data-utc-timestamp="{{ item.latest_activity_at.isoformat() }}">{{ item.latest_activity_at.isoformat() }}</td>
               </tr>
             {% endfor %}
           </tbody>
