@@ -54,6 +54,8 @@ ats_runtime_services:
 
 # Mandatory runtime environment keys. Values must be overridden per environment.
 ats_runtime_env_required:
+  # DATABASE_URL must use the same credentials as POSTGRES_USER, POSTGRES_DB, and POSTGRES_PASSWORD.
+  # Format: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   DATABASE_URL: ""
   ROOM1_ID: ""
   ROOM2_ID: ""
