@@ -11,8 +11,8 @@ def test_ansible_base_layout_exists() -> None:
     expected_directories = (
         Path("ansible"),
         Path("ansible/inventory"),
-        Path("ansible/group_vars"),
-        Path("ansible/host_vars"),
+        Path("ansible/inventory/group_vars"),
+        Path("ansible/inventory/host_vars"),
         Path("ansible/playbooks"),
         Path("ansible/roles"),
         Path("ansible/templates"),

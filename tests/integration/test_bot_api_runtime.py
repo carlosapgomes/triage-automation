@@ -165,9 +165,13 @@ def test_runtime_app_serves_monitoring_and_prompt_admin_routes_in_same_process(
             token=admin_token,
         )
 
+    auth_service = bot_api_main.build_auth_service(async_url)
+    auth_token_repository = bot_api_main.build_auth_token_repository(async_url)
     app = bot_api_main.build_runtime_app(
         token_service=token_service,
         database_url=async_url,
+        auth_service=auth_service,
+        auth_token_repository=auth_token_repository,
     )
     auth_headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -200,9 +204,13 @@ def test_runtime_app_keeps_legacy_http_decision_route_absent(tmp_path: Path) -> 
             token=admin_token,
         )
 
+    auth_service = bot_api_main.build_auth_service(async_url)
+    auth_token_repository = bot_api_main.build_auth_token_repository(async_url)
     app = bot_api_main.build_runtime_app(
         token_service=token_service,
         database_url=async_url,
+        auth_service=auth_service,
+        auth_token_repository=auth_token_repository,
     )
 
     runtime_paths = {route.path for route in app.routes if isinstance(route, APIRoute)}

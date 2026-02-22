@@ -12,7 +12,7 @@ def _read(path: str) -> str:
 def test_ansible_group_vars_defines_runtime_deploy_defaults() -> None:
     """Ensure base remote deploy defaults are declared in group_vars."""
 
-    variables = _read("ansible/group_vars/all.yml")
+    variables = _read("ansible/inventory/group_vars/all.yml")
 
     required_tokens = (
         "ats_service_user:",
@@ -34,7 +34,7 @@ def test_ansible_group_vars_defines_runtime_deploy_defaults() -> None:
 def test_ansible_group_vars_declares_public_ghcr_baseline_and_required_env() -> None:
     """Ensure GHCR public baseline and mandatory runtime env keys are declared."""
 
-    variables = _read("ansible/group_vars/all.yml")
+    variables = _read("ansible/inventory/group_vars/all.yml")
 
     assert 'ats_runtime_image_registry: "ghcr.io"' in variables
     assert (

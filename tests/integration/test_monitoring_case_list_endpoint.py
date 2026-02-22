@@ -60,7 +60,7 @@ def _insert_token(
     user_id: UUID,
     token: str,
 ) -> None:
-    expires_at = datetime(2026, 2, 20, 0, 0, 0, tzinfo=UTC)
+    expires_at = datetime.now(tz=UTC) + timedelta(days=30)
     connection.execute(
         sa.text(
             "INSERT INTO auth_tokens (user_id, token_hash, expires_at, issued_at) "

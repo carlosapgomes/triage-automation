@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -10,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from alembic import command
 from apps.bot_api.main import create_app
+from triage_automation.config import settings as settings_module
 from triage_automation.config.settings import load_settings
 from triage_automation.infrastructure.security.password_hasher import BcryptPasswordHasher
 
@@ -66,8 +69,16 @@ def _insert_user(connection: sa.Connection, *, email: str, role: str = "reader")
 
 def _create_runtime_test_client() -> TestClient:
     load_settings.cache_clear()
-    app = create_app()
-    return TestClient(app)
+    # Mock load_settings to return controlled values, avoiding .env file interference
+    # Create a mock settings object with bootstrap values from env vars (not .env file)
+    mock_settings = load_settings()
+    mock_settings.bootstrap_admin_email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL")
+    mock_settings.bootstrap_admin_password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD")
+    mock_settings.bootstrap_admin_password_file = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD_FILE")
+
+    with patch.object(settings_module, "load_settings", return_value=mock_settings):
+        app = create_app()
+        return TestClient(app)
 
 
 @pytest.mark.asyncio
