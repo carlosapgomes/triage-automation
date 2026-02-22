@@ -70,13 +70,14 @@ def _insert_user(connection: sa.Connection, *, email: str, role: str = "reader")
 def _create_runtime_test_client() -> TestClient:
     load_settings.cache_clear()
     # Mock load_settings to return controlled values, avoiding .env file interference
-    # Create a mock settings object with bootstrap values from env vars (not .env file)
-    mock_settings = load_settings()
+    # Create a mock settings object ignoring .env file, with bootstrap values from env vars
+    mock_settings = settings_module.Settings(_env_file=None)
     mock_settings.bootstrap_admin_email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL")
     mock_settings.bootstrap_admin_password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD")
     mock_settings.bootstrap_admin_password_file = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD_FILE")
 
-    with patch.object(settings_module, "load_settings", return_value=mock_settings):
+    with patch("apps.bot_api.main.load_settings", return_value=mock_settings), \
+         patch.object(settings_module, "load_settings", return_value=mock_settings):
         app = create_app()
         return TestClient(app)
 
