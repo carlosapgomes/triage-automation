@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     env_file:
       - {{ ats_runtime_env_file }}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "{{ ats_runtime_postgres_publish_port }}"
     healthcheck:
@@ -45,3 +47,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+volumes:
+  postgres_data:

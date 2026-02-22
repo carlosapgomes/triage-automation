@@ -14,7 +14,7 @@ ats_runtime_compose_file: "{{ ats_runtime_root }}/docker-compose.yml"
 ats_runtime_environment_file_mode: "0640"
 ats_runtime_compose_file_mode: "0644"
 ats_runtime_root_mode: "0750"
-ats_runtime_bot_api_publish_port: "8000:8000"
+ats_runtime_bot_api_publish_port: "127.0.0.1:8000:8000"
 ats_runtime_postgres_publish_port: "127.0.0.1:5432:5432"
 
 # Public GHCR image coordinates.
