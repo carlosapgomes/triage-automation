@@ -80,9 +80,17 @@ ats_runtime_env_optional:
   BOOTSTRAP_ADMIN_EMAIL: ""
   BOOTSTRAP_ADMIN_PASSWORD: ""
   BOOTSTRAP_ADMIN_PASSWORD_FILE: ""
+  POSTGRES_DB: "triage"
+  POSTGRES_USER: "triage"
+  POSTGRES_PASSWORD: "change-me"
 
 # Deploy configuration.
 ats_runtime_deploy_services:
+  - postgres
+  - bot-api
+  - bot-matrix
+  - worker
+ats_post_deploy_expected_services:
   - bot-api
   - bot-matrix
   - worker
