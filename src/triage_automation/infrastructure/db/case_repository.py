@@ -671,6 +671,8 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
         case_statement = sa.select(
             cases.c.case_id,
             cases.c.status,
+            cases.c.structured_data_json,
+            cases.c.agency_record_number,
         ).where(cases.c.case_id == case_id)
         report_statement = (
             sa.select(
@@ -881,10 +883,13 @@ class SqlAlchemyCaseRepository(CaseRepositoryPort):
 
         sortable_events.sort(key=lambda item: (item[0], item[1], item[2]))
         timeline = [item[3] for item in sortable_events]
+        structured_data_json = cast(dict[str, Any] | None, case_row["structured_data_json"])
         return CaseMonitoringDetail(
             case_id=cast("Any", case_row["case_id"]),
             status=CaseStatus(cast(str, case_row["status"])),
             timeline=timeline,
+            patient_name=_extract_patient_name_from_structured_data(structured_data_json),
+            agency_record_number=cast(str | None, case_row["agency_record_number"]),
         )
 
     async def update_status(self, *, case_id: UUID, status: CaseStatus) -> None:

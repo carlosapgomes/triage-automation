@@ -742,10 +742,10 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
     assert "--hospital-primary" in response.text
     assert str(case_id) in response.text
     assert 'id="case-timeline"' in response.text
-    assert "pdf_report_extracted" in response.text
-    assert "bot_processing" in response.text
-    assert "LLM1" in response.text
-    assert "room2_doctor_reply" in response.text
+    assert "relatório pdf extraído" in response.text
+    assert "bot processando" in response.text
+    assert "extração estruturada" in response.text
+    assert "resposta do médico" in response.text
     assert "Dra. Joana" in response.text
     assert "badge text-bg-secondary" in response.text
     assert "badge text-bg-info" in response.text
@@ -756,9 +756,9 @@ async def test_dashboard_case_detail_page_renders_timeline_and_full_content_togg
     assert "document.addEventListener(\"click\"" in response.text
 
     html = response.text
-    assert html.index("pdf_report_extracted") < html.index("bot_processing")
-    assert html.index("bot_processing") < html.index("LLM1")
-    assert html.index("LLM1") < html.index("room2_doctor_reply")
+    assert html.index("relatório pdf extraído") < html.index("bot processando")
+    assert html.index("bot processando") < html.index("extração estruturada")
+    assert html.index("extração estruturada") < html.index("resposta do médico")
 
 
 @pytest.mark.asyncio
@@ -809,6 +809,7 @@ async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path
 async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_events(
     tmp_path: Path,
 ) -> None:
+    """Verifica se a visualização pura exibe checkpoints de reação traduzidos."""
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_reaction_events.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
@@ -861,8 +862,8 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
         )
 
     assert response.status_code == 200
-    assert "ROOM3_ACK_POSITIVE_EXPECTED" in response.text
-    assert "ROOM3_ACK_POSITIVE_RECEIVED" in response.text
+    assert "aguardando reação positiva do Agendamento" in response.text
+    assert "reação positiva recebida do Agendamento" in response.text
     assert "Enf. Maria" in response.text
     assert "!room3:example.org" in response.text
 
@@ -871,6 +872,7 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
 async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_reactions(
     tmp_path: Path,
 ) -> None:
+    """Verifica visualização padrão em etapas com decisão médica e reações traduzidas."""
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_thread_default.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
@@ -1017,12 +1019,68 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
 
     assert response.status_code == 200
     assert 'id="case-thread-view"' in response.text
-    assert "Visualizacao em Thread" in response.text
-    assert "Visualizacao Pura" in response.text
-    assert "Resposta medica: DECISAO = ACEITAR" in response.text
+    assert "Fluxo por Etapas" in response.text
+    assert "Histórico Completo" in response.text
+    assert "Resposta médica: DECISÃO = ACEITAR" in response.text
     assert "Autor: Dra. Joana" in response.text
-    assert "Resposta da agenda: POSITIVA" in response.text
+    assert "Resposta do Agendamento: POSITIVA" in response.text
     assert "Agendado para: 2026-02-20 14:30" in response.text
     assert "Autor: Enf. Maria" in response.text
     assert "Resultado final: AGENDAMENTO CONFIRMADO para 2026-02-20 14:30" in response.text
-    assert "Reacao ao ACK: 👍 por Carlos Gomes" in response.text
+    assert "Reação à confirmação: 👍 por Carlos Gomes" in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_shows_patient_name_and_record_number(
+    tmp_path: Path,
+) -> None:
+    """Verifica se a pagina de detalhes exibe nome do paciente e numero da ocorrencia."""
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_detail_patient_info.db")
+    token_service = OpaqueTokenService()
+    admin_id = uuid4()
+    admin_token = "admin-detail-patient-token"
+    case_id = uuid4()
+    now = datetime(2026, 2, 22, 12, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=admin_id, email="admin@example.org", role="admin")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=admin_id,
+            token=admin_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_DOCTOR",
+            updated_at=now,
+            agency_record_number="REC-2026-001",
+            structured_data_json={
+                "patient": {
+                    "name": "Maria da Silva",
+                    "age": 45,
+                },
+            },
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="Relatorio medico da paciente",
+            captured_at=now,
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "Maria da Silva" in response.text
+    assert "REC-2026-001" in response.text
+    assert "Ocorrência:" in response.text
+    # Verifica que o nome do paciente aparece no cabecalho (nao apenas o UUID)
+    assert "Detalhe do Caso" in response.text
+

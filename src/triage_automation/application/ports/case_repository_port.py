@@ -193,6 +193,8 @@ class CaseMonitoringDetail:
     case_id: UUID
     status: CaseStatus
     timeline: list[CaseMonitoringTimelineItem]
+    patient_name: str | None = None
+    agency_record_number: str | None = None
 
 
 class CaseRepositoryPort(Protocol):

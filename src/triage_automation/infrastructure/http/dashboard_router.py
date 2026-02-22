@@ -175,7 +175,7 @@ def build_dashboard_router(
                     "channel": item.channel,
                     "channel_badge_class": _channel_badge_class(item.channel),
                     "actor": item.actor or "system",
-                    "event_type": item.event_type,
+                    "event_type": _translate_event_type(item.event_type),
                     "event_badge_class": _event_badge_class(item.event_type),
                     "excerpt_text": excerpt_text,
                     "full_text": full_text if can_view_full_content else None,
@@ -200,6 +200,8 @@ def build_dashboard_router(
                 "view_mode": view_mode,
                 "timeline_rows": timeline_rows,
                 "thread_sections": thread_sections,
+                "patient_name": detail.patient_name,
+                "agency_record_number": detail.agency_record_number,
             },
         )
 
@@ -242,9 +244,9 @@ def _build_thread_sections(
 
     sections: list[dict[str, object]] = []
     for key, title in (
-        ("room1", "Sala 1 (ROOM1)"),
-        ("room2", "Sala 2 (ROOM2)"),
-        ("room3", "Sala 3 (ROOM3)"),
+        ("room1", "Recepção"),
+        ("room2", "Avaliação"),
+        ("room3", "Agendamento"),
     ):
         sections.append(
             {
@@ -278,7 +280,7 @@ def _build_thread_node(
         return (
             "room1",
             {
-                "title": "ACK processamento (bot)",
+                "title": "Confirmação de processamento",
                 "detail": None,
                 "actor": None,
                 "timestamp": timestamp,
@@ -289,7 +291,7 @@ def _build_thread_node(
         return (
             "room2",
             {
-                "title": f"Resposta medica: DECISAO = {decision}",
+                "title": f"Resposta médica: DECISÃO = {decision}",
                 "detail": None,
                 "actor": actor,
                 "timestamp": timestamp,
@@ -299,7 +301,7 @@ def _build_thread_node(
         return (
             "room2",
             {
-                "title": "ACK da decisao (room2_decision_ack) enviado pelo bot",
+                "title": "Confirmação da decisão enviada pelo bot",
                 "detail": None,
                 "actor": None,
                 "timestamp": timestamp,
@@ -330,7 +332,7 @@ def _build_thread_node(
         return (
             "room3",
             {
-                "title": "ACK do bot (bot_ack)",
+                "title": "Confirmação do agendamento enviada pelo bot",
                 "detail": None,
                 "actor": None,
                 "timestamp": timestamp,
@@ -350,7 +352,7 @@ def _build_thread_node(
         return (
             "room1",
             {
-                "title": "Mensagem final (bot)",
+                "title": "Confirmação da mensagem final",
                 "detail": _build_room1_final_result(item.content_text),
                 "actor": None,
                 "timestamp": timestamp,
@@ -386,7 +388,7 @@ def _build_room3_reply_title(content_text: str | None) -> str:
     """Build compact status title for Room-3 scheduler reply."""
 
     if content_text is None:
-        return "Resposta da agenda"
+        return "Resposta do Agendamento"
     normalized = content_text.lower()
     if (
         "status: confirmed" in normalized
@@ -394,15 +396,15 @@ def _build_room3_reply_title(content_text: str | None) -> str:
         or "positiv" in normalized
         or "confirmad" in normalized
     ):
-        return "Resposta da agenda: POSITIVA"
+        return "Resposta do Agendamento: POSITIVA"
     if (
         "status: denied" in normalized
         or "status=denied" in normalized
         or "negad" in normalized
         or "indefer" in normalized
     ):
-        return "Resposta da agenda: NEGATIVA"
-    return "Resposta da agenda"
+        return "Resposta do Agendamento: NEGATIVA"
+    return "Resposta do Agendamento"
 
 
 def _build_room1_final_result(content_text: str | None) -> str:
@@ -432,8 +434,13 @@ def _build_reaction_title(*, scope: str, item: CaseMonitoringTimelineItem) -> st
     payload = item.payload or {}
     reaction_key = payload.get("reaction_key")
     reaction = reaction_key if isinstance(reaction_key, str) and reaction_key else "👍"
-    actor = item.actor or "usuario"
-    return f"Reacao ao {scope}: {reaction} por {actor}"
+    actor = item.actor or "usuário"
+    # Traduz scopes técnicos para termos amigáveis
+    scope_label = {
+        "ACK": "confirmação",
+        "mensagem final": "mensagem final",
+    }.get(scope, scope)
+    return f"Reação à {scope_label}: {reaction} por {actor}"
 
 
 def _extract_schedule_datetime(content_text: str | None) -> str | None:
@@ -491,6 +498,36 @@ def _parse_case_status_filter(raw_status: str | None) -> CaseStatus | None:
         return CaseStatus(normalized)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"invalid status filter: {normalized}") from exc
+
+
+def _translate_event_type(event_type: str) -> str:
+    """Translate technical event type to user-friendly Portuguese label."""
+
+    translations = {
+        "room1_origin": "recepção",
+        "bot_processing": "bot processando",
+        "pdf_report_extracted": "relatório pdf extraído",
+        "LLM1": "extração estruturada",
+        "LLM2": "sugestão de decisão",
+        "room2_case_root": "avaliação",
+        "room2_case_summary": "resumo do caso",
+        "room2_case_instructions": "instruções ao médico",
+        "room2_case_template": "modelo de resposta da decisão",
+        "room2_doctor_reply": "resposta do médico",
+        "room2_decision_ack": "confirmação da decisão",
+        "ROOM2_ACK_POSITIVE_EXPECTED": "aguardando reação positiva do Médico",
+        "ROOM2_ACK_POSITIVE_RECEIVED": "reação positiva recebida do Médico",
+        "room3_request": "solicitação de agendamento",
+        "room3_template": "modelo de resposta do agendamento",
+        "room3_reply": "resposta do agendamento",
+        "bot_ack": "confirmação do agendamento",
+        "ROOM3_ACK_POSITIVE_EXPECTED": "aguardando reação positiva do Agendamento",
+        "ROOM3_ACK_POSITIVE_RECEIVED": "reação positiva recebida do Agendamento",
+        "ROOM1_FINAL_POSITIVE_EXPECTED": "aguardando reação positiva da Recepção",
+        "room1_final": "mensagem final à Recepção",
+        "ROOM1_FINAL_POSITIVE_RECEIVED": "reação positiva recebida da Recepção",
+    }
+    return translations.get(event_type, event_type)
 
 
 def _source_badge_class(source: str) -> str:
