@@ -49,7 +49,7 @@
                         {% if item.actor %}
                           <p class="mb-1 small">Autor: {{ item.actor }}</p>
                         {% endif %}
-                        <small class="text-secondary">{{ item.timestamp }}</small>
+                        <small class="text-secondary" data-utc-timestamp="{{ item.timestamp }}">{{ item.timestamp }}</small>
                       </li>
                     {% endfor %}
                   </ul>
@@ -74,7 +74,7 @@
                   <span class="badge {{ row.source_badge_class }}">{{ row.source }}</span>
                   <span class="badge {{ row.channel_badge_class }}">{{ row.channel }}</span>
                   <span class="badge {{ row.event_badge_class }}">{{ row.event_type }}</span>
-                  <small class="text-secondary">{{ row.timestamp }}</small>
+                  <small class="text-secondary" data-utc-timestamp="{{ row.timestamp }}">{{ row.timestamp }}</small>
                 </div>
                 <p class="mb-1"><strong>Ator:</strong> {{ row.actor }}</p>
                 {% if row.excerpt_text %}
