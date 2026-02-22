@@ -8,3 +8,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# Ansible inventory may contain secrets and environment-specific config
+ansible/inventory/host_vars/
+ansible/inventory/hosts.yml
