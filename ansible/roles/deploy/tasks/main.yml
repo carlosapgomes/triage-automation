@@ -32,6 +32,38 @@
     XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
   changed_when: false
 
+- name: Ensure postgres is started for migrations
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    up -d postgres
+  register: ats_deploy_postgres_up_result
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
+  changed_when: >-
+    'Created' in ats_deploy_postgres_up_result.stdout
+    or 'Started' in ats_deploy_postgres_up_result.stdout
+    or 'Recreated' in ats_deploy_postgres_up_result.stdout
+
+- name: Execute database migrations
+  become: true
+  become_user: "{{ ats_service_user }}"
+  ansible.builtin.command: >-
+    docker compose
+    --project-name {{ ats_runtime_compose_project_name }}
+    --file {{ ats_runtime_compose_file }}
+    run --rm bot-api uv run alembic upgrade head
+  args:
+    chdir: "{{ ats_runtime_root }}"
+  environment:
+    XDG_RUNTIME_DIR: "{{ ats_deploy_xdg_runtime_dir }}"
+  changed_when: true
+
 - name: Start runtime services in detached mode
   become: true
   become_user: "{{ ats_service_user }}"
