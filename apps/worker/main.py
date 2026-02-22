@@ -331,6 +331,7 @@ def build_runtime_llm_clients(
                 temperature=settings.openai_temperature,
                 response_schema_name="llm1_response",
                 response_schema=Llm1Response.model_json_schema(),
+                timeout_seconds=settings.openai_timeout_seconds,
             )
         if runtime_llm2_client is None:
             runtime_llm2_client = OpenAiChatCompletionsClient(
@@ -339,6 +340,7 @@ def build_runtime_llm_clients(
                 temperature=settings.openai_temperature,
                 response_schema_name="llm2_response",
                 response_schema=Llm2Response.model_json_schema(),
+                timeout_seconds=settings.openai_timeout_seconds,
             )
     else:
         if runtime_llm1_client is None:

@@ -58,6 +58,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="OPENAI_TEMPERATURE",
     )
+    openai_timeout_seconds: NonNegativeFloat = Field(
+        default=60.0,
+        validation_alias="OPENAI_TIMEOUT_SECONDS",
+    )
     bootstrap_admin_email: NonEmptyStr | None = Field(
         default=None,
         validation_alias="BOOTSTRAP_ADMIN_EMAIL",
