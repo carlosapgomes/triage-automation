@@ -40,6 +40,7 @@ Variáveis opcionais para modo provider:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
+- `OPENAI_TIMEOUT_SECONDS` (padrão: 60; aumente para PDFs grandes)
 
 Variáveis opcionais para bootstrap do primeiro admin:
 

@@ -40,6 +40,7 @@ Provider mode optional variables:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
+- `OPENAI_TIMEOUT_SECONDS` (default: 60; increase for large PDFs)
 
 Optional first-admin bootstrap variables:
 
