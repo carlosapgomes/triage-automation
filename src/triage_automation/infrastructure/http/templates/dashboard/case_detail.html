@@ -17,13 +17,13 @@
               href="/dashboard/cases/{{ case_id }}?view=thread"
               class="btn {% if view_mode == 'thread' %}btn-primary{% else %}btn-outline-primary{% endif %}"
             >
-              Visualizacao em Thread
+              Fluxo por Etapas
             </a>
             <a
               href="/dashboard/cases/{{ case_id }}?view=pure"
               class="btn {% if view_mode == 'pure' %}btn-primary{% else %}btn-outline-primary{% endif %}"
             >
-              Visualizacao Pura
+              Histórico Completo
             </a>
           </div>
           <span class="badge text-bg-dark">{{ status }}</span>
@@ -35,7 +35,7 @@
   {% if view_mode == "thread" %}
     <section id="case-thread-view" class="card shadow-sm">
       <div class="card-body">
-        <h3 class="h6 mb-3">Thread do Caso</h3>
+        <h3 class="h6 mb-3">Etapas</h3>
         <div class="row g-3">
               {% for section in thread_sections %}
                 <div class="col-12 col-xl-4">

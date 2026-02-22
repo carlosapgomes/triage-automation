@@ -1017,8 +1017,8 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
 
     assert response.status_code == 200
     assert 'id="case-thread-view"' in response.text
-    assert "Visualizacao em Thread" in response.text
-    assert "Visualizacao Pura" in response.text
+    assert "Fluxo por Etapas" in response.text
+    assert "Histórico Completo" in response.text
     assert "Resposta médica: DECISÃO = ACEITAR" in response.text
     assert "Autor: Dra. Joana" in response.text
     assert "Resposta do Agendamento: POSITIVA" in response.text
