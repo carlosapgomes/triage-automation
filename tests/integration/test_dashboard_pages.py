@@ -872,6 +872,7 @@ async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_e
 async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_reactions(
     tmp_path: Path,
 ) -> None:
+    """Verifica visualização padrão em etapas com decisão médica e reações traduzidas."""
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_thread_default.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
