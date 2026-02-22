@@ -809,6 +809,7 @@ async def test_dashboard_case_detail_page_shows_excerpt_only_for_reader(tmp_path
 async def test_dashboard_case_detail_page_renders_reaction_checkpoint_timeline_events(
     tmp_path: Path,
 ) -> None:
+    """Verifica se a visualização pura exibe checkpoints de reação traduzidos."""
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_reaction_events.db")
     token_service = OpaqueTokenService()
     reader_id = uuid4()
