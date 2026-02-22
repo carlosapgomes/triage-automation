@@ -1019,13 +1019,13 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
     assert 'id="case-thread-view"' in response.text
     assert "Visualizacao em Thread" in response.text
     assert "Visualizacao Pura" in response.text
-    assert "Resposta medica: DECISAO = ACEITAR" in response.text
+    assert "Resposta médica: DECISÃO = ACEITAR" in response.text
     assert "Autor: Dra. Joana" in response.text
-    assert "Resposta da agenda: POSITIVA" in response.text
+    assert "Resposta do Agendamento: POSITIVA" in response.text
     assert "Agendado para: 2026-02-20 14:30" in response.text
     assert "Autor: Enf. Maria" in response.text
     assert "Resultado final: AGENDAMENTO CONFIRMADO para 2026-02-20 14:30" in response.text
-    assert "Reacao ao ACK: 👍 por Carlos Gomes" in response.text
+    assert "Reação à confirmação: 👍 por Carlos Gomes" in response.text
 
 
 @pytest.mark.asyncio

@@ -244,9 +244,9 @@ def _build_thread_sections(
 
     sections: list[dict[str, object]] = []
     for key, title in (
-        ("room1", "Sala 1 (ROOM1)"),
-        ("room2", "Sala 2 (ROOM2)"),
-        ("room3", "Sala 3 (ROOM3)"),
+        ("room1", "Recepção"),
+        ("room2", "Avaliação"),
+        ("room3", "Agendamento"),
     ):
         sections.append(
             {
@@ -280,7 +280,7 @@ def _build_thread_node(
         return (
             "room1",
             {
-                "title": "ACK processamento (bot)",
+                "title": "Confirmação de processamento",
                 "detail": None,
                 "actor": None,
                 "timestamp": timestamp,
@@ -291,7 +291,7 @@ def _build_thread_node(
         return (
             "room2",
             {
-                "title": f"Resposta medica: DECISAO = {decision}",
+                "title": f"Resposta médica: DECISÃO = {decision}",
                 "detail": None,
                 "actor": actor,
                 "timestamp": timestamp,
@@ -301,7 +301,7 @@ def _build_thread_node(
         return (
             "room2",
             {
-                "title": "ACK da decisao (room2_decision_ack) enviado pelo bot",
+                "title": "Confirmação da decisão enviada pelo bot",
                 "detail": None,
                 "actor": None,
                 "timestamp": timestamp,
@@ -332,7 +332,7 @@ def _build_thread_node(
         return (
             "room3",
             {
-                "title": "ACK do bot (bot_ack)",
+                "title": "Confirmação do agendamento enviada pelo bot",
                 "detail": None,
                 "actor": None,
                 "timestamp": timestamp,
@@ -352,7 +352,7 @@ def _build_thread_node(
         return (
             "room1",
             {
-                "title": "Mensagem final (bot)",
+                "title": "Confirmação da mensagem final",
                 "detail": _build_room1_final_result(item.content_text),
                 "actor": None,
                 "timestamp": timestamp,
@@ -388,7 +388,7 @@ def _build_room3_reply_title(content_text: str | None) -> str:
     """Build compact status title for Room-3 scheduler reply."""
 
     if content_text is None:
-        return "Resposta da agenda"
+        return "Resposta do Agendamento"
     normalized = content_text.lower()
     if (
         "status: confirmed" in normalized
@@ -396,15 +396,15 @@ def _build_room3_reply_title(content_text: str | None) -> str:
         or "positiv" in normalized
         or "confirmad" in normalized
     ):
-        return "Resposta da agenda: POSITIVA"
+        return "Resposta do Agendamento: POSITIVA"
     if (
         "status: denied" in normalized
         or "status=denied" in normalized
         or "negad" in normalized
         or "indefer" in normalized
     ):
-        return "Resposta da agenda: NEGATIVA"
-    return "Resposta da agenda"
+        return "Resposta do Agendamento: NEGATIVA"
+    return "Resposta do Agendamento"
 
 
 def _build_room1_final_result(content_text: str | None) -> str:
@@ -434,8 +434,13 @@ def _build_reaction_title(*, scope: str, item: CaseMonitoringTimelineItem) -> st
     payload = item.payload or {}
     reaction_key = payload.get("reaction_key")
     reaction = reaction_key if isinstance(reaction_key, str) and reaction_key else "👍"
-    actor = item.actor or "usuario"
-    return f"Reacao ao {scope}: {reaction} por {actor}"
+    actor = item.actor or "usuário"
+    # Traduz scopes técnicos para termos amigáveis
+    scope_label = {
+        "ACK": "confirmação",
+        "mensagem final": "mensagem final",
+    }.get(scope, scope)
+    return f"Reação à {scope_label}: {reaction} por {actor}"
 
 
 def _extract_schedule_datetime(content_text: str | None) -> str | None:
