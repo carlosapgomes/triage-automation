@@ -672,6 +672,7 @@ async def test_dashboard_list_and_detail_reuse_shared_shell_layout(tmp_path: Pat
 async def test_dashboard_case_detail_page_renders_timeline_and_full_content_toggle_for_admin(
     tmp_path: Path,
 ) -> None:
+    """Verifica se a página de detalhes renderiza histórico e toggle de conteúdo para admin."""
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail.db")
     token_service = OpaqueTokenService()
     admin_id = uuid4()
@@ -1034,7 +1035,7 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
 async def test_dashboard_case_detail_shows_patient_name_and_record_number(
     tmp_path: Path,
 ) -> None:
-    """Verifica se a pagina de detalhes exibe nome do paciente e numero da ocorrencia."""
+    """Verifica se a página de detalhes exibe nome do paciente e número da ocorrência."""
     sync_url, async_url = _upgrade_head(tmp_path, "dashboard_detail_patient_info.db")
     token_service = OpaqueTokenService()
     admin_id = uuid4()
