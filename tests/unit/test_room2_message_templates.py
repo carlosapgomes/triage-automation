@@ -28,7 +28,7 @@ def test_build_room2_case_pdf_message_includes_compact_context_and_attachment_hi
 
     assert f"caso: {case_id}" in body
     assert "12345" in body
-    assert "PDF original do relatorio" in body
+    assert "PDF original do relatório" in body
 
 
 def test_build_room2_case_pdf_formatted_html_includes_preview_context() -> None:
@@ -40,10 +40,10 @@ def test_build_room2_case_pdf_formatted_html_includes_preview_context() -> None:
         extracted_text="Linha 1\nLinha 2",
     )
 
-    assert "<h1>Solicitacao de triagem - contexto original</h1>" in body
+    assert "<h1>Solicitação de triagem - contexto original</h1>" in body
     assert f"<p>caso: {case_id}</p>" in body
     assert "<p>registro: 12345</p>" in body
-    assert "PDF original do relatorio" in body
+    assert "PDF original do relatório" in body
 
 
 def test_build_room2_case_pdf_attachment_filename_is_deterministic() -> None:
@@ -69,10 +69,10 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
 
     assert f"caso: {case_id}" in body
     assert "Resumo LLM1" in body
-    assert "# Resumo tecnico da triagem" in body
-    assert "## Resumo clinico:" in body
-    assert "## Dados extraidos:" in body
-    assert "## Recomendacao do sistema:" in body
+    assert "# Resumo técnico da triagem" in body
+    assert "## Resumo clínico:" in body
+    assert "## Dados extraídos:" in body
+    assert "## Recomendação do sistema:" in body
     assert "- prechecagem_politica: laboratorio_aprovado=sim;" in body
     assert "é pediátrico?=sim" in body
     assert "- eda: asa.classe=II; ecg.sinal de alerta=desconhecido" in body
@@ -81,8 +81,8 @@ def test_build_room2_case_summary_message_includes_structured_payloads() -> None
     assert "sugestao" in body.lower()
     assert "aceitar" in body
     assert "accept" not in body
-    assert "Dados extraidos" in body
-    assert "Recomendacao" in body
+    assert "Dados extraídos" in body
+    assert "Recomendação" in body
     assert "```json" not in body
 
 
@@ -91,10 +91,10 @@ def test_build_room2_case_decision_instructions_message_has_strict_template() ->
 
     body = build_room2_case_decision_instructions_message(case_id=case_id)
 
-    assert "copie a proxima mensagem" in body.lower()
+    assert "copie a próxima mensagem" in body.lower()
     assert "responda como resposta a ela" in body.lower()
-    assert "decisao:aceitar" in body
-    assert "valores validos" in body.lower()
+    assert "decisão:aceitar" in body
+    assert "valores válidos" in body.lower()
     assert "caso esperado" in body
     assert f"caso esperado: {case_id}" in body
 
@@ -104,11 +104,11 @@ def test_build_room2_case_decision_instructions_formatted_html_has_guidance() ->
 
     body = build_room2_case_decision_instructions_formatted_html(case_id=case_id)
 
-    assert "<h1>Instrucao de decisao medica</h1>" in body
+    assert "<h1>Instrução de decisão médica</h1>" in body
     assert "<ol>" in body
-    assert "Copie a <strong>PROXIMA mensagem</strong>" in body
+    assert "Copie a <strong>PRÓXIMA mensagem</strong>" in body
     assert f"caso esperado: {case_id}" in body
-    assert "decisao:aceitar" in body
+    assert "decisão:aceitar" in body
 
 
 def test_build_room2_case_decision_template_message_is_copy_paste_ready() -> None:
@@ -149,15 +149,15 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
         suggested_action={"suggestion": "accept", "support_recommendation": "none"},
     )
 
-    assert "<h1>Resumo tecnico da triagem</h1>" in body
+    assert "<h1>Resumo técnico da triagem</h1>" in body
     assert f"<p>caso: {case_id}</p>" in body
-    assert "<h2>Resumo clinico:</h2>" in body
+    assert "<h2>Resumo clínico:</h2>" in body
     assert "<p>Resumo LLM1</p>" in body
-    assert "<h2>Dados extraidos:</h2>" in body
+    assert "<h2>Dados extraídos:</h2>" in body
     assert "<li>prechecagem_politica: laboratorio_aprovado=sim;" in body
     assert "é pediátrico?=sim" in body
     assert "<li>eda: ecg.sinal de alerta=desconhecido</li>" in body
-    assert "<h2>Recomendacao do sistema:</h2>" in body
+    assert "<h2>Recomendação do sistema:</h2>" in body
     assert "<li>sugestao: aceitar</li>" in body
 
 
@@ -172,7 +172,7 @@ def test_build_room2_case_summary_message_removes_redundant_metadata() -> None:
             "agency_record_number": "12345",
             "patient": {"name": "JOSE"},
         },
-        summary_text="Resumo clinico",
+        summary_text="Resumo clínico",
         suggested_action={
             "case_id": str(case_id),
             "language": "pt-BR",
@@ -217,5 +217,5 @@ def test_build_room2_decision_error_message_has_actionable_guidance() -> None:
     assert f"caso: {case_id}" in body
     assert "codigo_erro: invalid_template" in body
     assert "acao:" in body
-    assert "Modelo obrigatorio" in body
+    assert "Modelo obrigatório" in body
     assert "decisao: aceitar|negar" in body

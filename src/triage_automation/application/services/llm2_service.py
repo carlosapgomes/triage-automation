@@ -314,11 +314,11 @@ def _render_user_prompt(
         f"{template}\n\n"
         f"case_id: {case_id}\n"
         f"agency_record_number: {agency_record_number}\n\n"
-        f"Dados extraidos (JSON LLM1):\n{llm1_json}\n\n"
-        f"Decisao anterior (se houver):\n{prior_case}\n\n"
+        f"Dados extraídos (JSON LLM1):\n{llm1_json}\n\n"
+        f"Decisão anterior (se houver):\n{prior_case}\n\n"
         "Retorne JSON schema_version 1.1 com policy_alignment e confidence.\n"
-        "Todos os campos narrativos devem estar em portugues brasileiro (pt-BR).\n"
-        "Nao use palavras em ingles nos campos narrativos."
+        "Todos os campos narrativos devem estar em português brasileiro (pt-BR).\n"
+        "Não use palavras em inglês nos campos narrativos."
     )
 
 

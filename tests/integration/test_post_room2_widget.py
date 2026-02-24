@@ -269,9 +269,9 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert summary_parent == root_event_id
     assert f"caso: {current_case.case_id}" in summary_body
     assert "Resumo LLM1" in summary_body
-    assert "# Resumo tecnico da triagem" in summary_body
-    assert "## Dados extraidos:" in summary_body
-    assert "## Recomendacao do sistema:" in summary_body
+    assert "# Resumo técnico da triagem" in summary_body
+    assert "## Dados extraídos:" in summary_body
+    assert "## Recomendação do sistema:" in summary_body
     assert "sugestao" in summary_body.lower()
     assert "negar" in summary_body
     assert "deny" not in summary_body
@@ -283,8 +283,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "ecg.laudo_presente=sim" in summary_body
     assert "```json" not in summary_body
     assert summary_formatted_body is not None
-    assert "<h1>Resumo tecnico da triagem</h1>" in summary_formatted_body
-    assert "<h2>Dados extraidos:</h2>" in summary_formatted_body
+    assert "<h1>Resumo técnico da triagem</h1>" in summary_formatted_body
+    assert "<h2>Dados extraídos:</h2>" in summary_formatted_body
     assert "<li>prechecagem_politica:" in summary_formatted_body
 
     (
@@ -296,11 +296,11 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     ) = matrix_poster.reply_calls[1]
     assert instructions_room_id == "!room2:example.org"
     assert instructions_parent == root_event_id
-    assert "copie a proxima mensagem" in instructions_body.lower()
+    assert "copie a próxima mensagem" in instructions_body.lower()
     assert "responda como resposta a ela" in instructions_body.lower()
-    assert "decisao:aceitar" in instructions_body
+    assert "decisão:aceitar" in instructions_body
     assert instructions_formatted_body is not None
-    assert "<h1>Instrucao de decisao medica</h1>" in instructions_formatted_body
+    assert "<h1>Instrução de decisão médica</h1>" in instructions_formatted_body
     assert "<ol>" in instructions_formatted_body
 
     (

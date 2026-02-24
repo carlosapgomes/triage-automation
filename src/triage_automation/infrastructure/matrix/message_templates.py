@@ -77,10 +77,10 @@ def build_room2_widget_message(
 
     payload_json = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
     return (
-        "Solicitacao de triagem\n"
+        "Solicitação de triagem\n"
         f"caso: {case_id}\n"
         f"registro: {agency_record_number}\n\n"
-        f"Abra o widget de decisao: {widget_launch_url}\n\n"
+        f"Abra o widget de decisão: {widget_launch_url}\n\n"
         "Payload do widget:\n"
         f"```json\n{payload_json}\n```"
     )
@@ -96,10 +96,10 @@ def build_room2_case_pdf_message(
     _ = extracted_text
 
     return (
-        "# Solicitacao de triagem - contexto original\n\n"
+        "# Solicitação de triagem - contexto original\n\n"
         f"caso: {case_id}\n"
         f"registro: {agency_record_number}\n\n"
-        "O PDF original do relatorio foi anexado como resposta a esta mensagem."
+        "O PDF original do relatório foi anexado como resposta a esta mensagem."
     )
 
 
@@ -113,10 +113,10 @@ def build_room2_case_pdf_formatted_html(
     _ = extracted_text
 
     return (
-        "<h1>Solicitacao de triagem - contexto original</h1>"
+        "<h1>Solicitação de triagem - contexto original</h1>"
         f"<p>caso: {escape(str(case_id))}</p>"
         f"<p>registro: {escape(agency_record_number)}</p>"
-        "<p>O PDF original do relatorio foi anexado como resposta a esta mensagem.</p>"
+        "<p>O PDF original do relatório foi anexado como resposta a esta mensagem.</p>"
     )
 
 
@@ -146,13 +146,13 @@ def build_room2_case_summary_message(
     structured_block = "\n".join(structured_lines)
     suggestion_block = "\n".join(suggestion_lines)
     return (
-        "# Resumo tecnico da triagem\n\n"
+        "# Resumo técnico da triagem\n\n"
         f"caso: {case_id}\n\n"
-        "## Resumo clinico:\n\n"
+        "## Resumo clínico:\n\n"
         f"{summary_text}\n\n"
-        "## Dados extraidos:\n\n"
+        "## Dados extraídos:\n\n"
         f"{structured_block}\n\n"
-        "## Recomendacao do sistema:\n\n"
+        "## Recomendação do sistema:\n\n"
         f"{suggestion_block}"
     )
 
@@ -179,13 +179,13 @@ def build_room2_case_summary_formatted_html(
     structured_html = _format_markdown_lines_html(structured_lines)
     suggestion_html = _format_markdown_lines_html(suggestion_lines)
     return (
-        "<h1>Resumo tecnico da triagem</h1>"
+        "<h1>Resumo técnico da triagem</h1>"
         f"<p>caso: {escape(str(case_id))}</p>"
-        "<h2>Resumo clinico:</h2>"
+        "<h2>Resumo clínico:</h2>"
         f"{summary_html}"
-        "<h2>Dados extraidos:</h2>"
+        "<h2>Dados extraídos:</h2>"
         f"{structured_html}"
-        "<h2>Recomendacao do sistema:</h2>"
+        "<h2>Recomendação do sistema:</h2>"
         f"{suggestion_html}"
     )
 
@@ -384,15 +384,15 @@ def build_room2_case_decision_instructions_message(*, case_id: UUID) -> str:
     """Build Room-2 guidance message that points doctors to the copy template."""
 
     return (
-        "# Instrucao de decisao medica\n\n"
-        "1. Copie a PROXIMA mensagem (modelo puro).\n"
+        "# Instrução de decisão médica\n\n"
+        "1. Copie a PRÓXIMA mensagem (modelo puro).\n"
         "2. Responda como resposta a ela, preenchendo os campos.\n"
         "3. Mantenha exatamente uma linha por campo.\n\n"
         "Regras:\n"
-        "- Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)\n"
-        "- decisao=negar exige suporte=nenhum\n"
-        "- valores validos: decisao=aceitar|negar; suporte=nenhum|anestesista|anestesista_uti\n"
-        "- Nao adicione linhas fora do modelo\n"
+        "- Pode usar com ou sem espaço após ':' (ex.: decisão:aceitar)\n"
+        "- decisão=negar exige suporte=nenhum\n"
+        "- valores válidos: decisão=aceitar|negar; suporte=nenhum|anestesista|anestesista_uti\n"
+        "- Não adicione linhas fora do modelo\n"
         f"- caso esperado: {case_id}"
     )
 
@@ -401,19 +401,19 @@ def build_room2_case_decision_instructions_formatted_html(*, case_id: UUID) -> s
     """Build Room-2 guidance HTML payload that points doctors to template message."""
 
     return (
-        "<h1>Instrucao de decisao medica</h1>"
+        "<h1>Instrução de decisão médica</h1>"
         "<ol>"
-        "<li>Copie a <strong>PROXIMA mensagem</strong> (modelo puro).</li>"
+        "<li>Copie a <strong>PRÓXIMA mensagem</strong> (modelo puro).</li>"
         "<li>Responda como resposta a ela, preenchendo os campos.</li>"
         "<li>Mantenha exatamente uma linha por campo.</li>"
         "</ol>"
         "<h2>Regras:</h2>"
         "<ul>"
-        "<li>Pode usar com ou sem espaco apos ':' (ex.: decisao:aceitar)</li>"
-        "<li>decisao=negar exige suporte=nenhum</li>"
-        "<li>valores validos: decisao=aceitar|negar; "
+        "<li>Pode usar com ou sem espaço após ':' (ex.: decisão:aceitar)</li>"
+        "<li>decisão=negar exige suporte=nenhum</li>"
+        "<li>valores válidos: decisão=aceitar|negar; "
         "suporte=nenhum|anestesista|anestesista_uti</li>"
-        "<li>Nao adicione linhas fora do modelo</li>"
+        "<li>Não adicione linhas fora do modelo</li>"
         f"<li>caso esperado: {escape(str(case_id))}</li>"
         "</ul>"
     )
@@ -481,7 +481,7 @@ def build_room2_decision_error_message(*, case_id: UUID, error_code: str) -> str
         f"caso: {case_id}\n"
         f"codigo_erro: {error_code}\n"
         f"acao: {guidance}\n\n"
-        "Modelo obrigatorio:\n"
+        "Modelo obrigatório:\n"
         "decisao: aceitar|negar\n"
         "suporte: nenhum|anestesista|anestesista_uti\n"
         "motivo: <texto livre ou vazio>\n"
@@ -495,7 +495,7 @@ def _room2_decision_error_guidance(*, error_code: str) -> str:
     if error_code == "authorization_failed":
         return "Apenas membros autorizados da Room-2 podem decidir; verifique acesso."
     if error_code == "state_conflict":
-        return "Caso nao esta aguardando decisao medica; nao reenviar decisao duplicada."
+        return "Caso não está aguardando decisão médica; não reenvie decisão duplicada."
     return "Revise o modelo e tente novamente."
 
 
