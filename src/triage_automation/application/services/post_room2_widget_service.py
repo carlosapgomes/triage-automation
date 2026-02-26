@@ -199,7 +199,10 @@ class PostRoom2WidgetService:
             )
         )
 
-        root_filename = build_room2_case_pdf_attachment_filename(case_id=case.case_id)
+        root_filename = build_room2_case_pdf_attachment_filename(
+            case_id=case.case_id,
+            agency_record_number=case.agency_record_number,
+        )
         root_event_id = await self._matrix_poster.send_file_from_mxc(
             room_id=self._room2_id,
             filename=root_filename,

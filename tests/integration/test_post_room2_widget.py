@@ -254,7 +254,7 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
         matrix_poster.send_file_calls[0]
     )
     assert root_room_id == "!room2:example.org"
-    assert root_filename == f"caso-{current_case.case_id}-relatorio-original.pdf"
+    assert root_filename == f"ocorrencia-12345-caso-{current_case.case_id}-relatorio-original.pdf"
     assert root_mxc_url == "mxc://example.org/current"
     assert root_mimetype == "application/pdf"
 

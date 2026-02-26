@@ -53,9 +53,29 @@ def test_build_room2_case_pdf_formatted_html_includes_preview_context() -> None:
 def test_build_room2_case_pdf_attachment_filename_is_deterministic() -> None:
     case_id = UUID("11111111-1111-1111-1111-111111111111")
 
-    filename = build_room2_case_pdf_attachment_filename(case_id=case_id)
+    filename = build_room2_case_pdf_attachment_filename(
+        case_id=case_id,
+        agency_record_number="4777300",
+    )
 
-    assert filename == "caso-11111111-1111-1111-1111-111111111111-relatorio-original.pdf"
+    assert (
+        filename
+        == "ocorrencia-4777300-caso-11111111-1111-1111-1111-111111111111-relatorio-original.pdf"
+    )
+
+
+def test_build_room2_case_pdf_attachment_filename_uses_fallback_when_record_missing() -> None:
+    case_id = UUID("11111111-1111-1111-1111-111111111111")
+
+    filename = build_room2_case_pdf_attachment_filename(
+        case_id=case_id,
+        agency_record_number=" ",
+    )
+
+    assert (
+        filename
+        == "ocorrencia-indisponivel-caso-11111111-1111-1111-1111-111111111111-relatorio-original.pdf"
+    )
 
 
 def test_build_room2_case_summary_message_includes_structured_payloads() -> None:

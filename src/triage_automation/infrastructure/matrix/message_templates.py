@@ -210,10 +210,15 @@ def build_room2_case_pdf_formatted_html(
     )
 
 
-def build_room2_case_pdf_attachment_filename(*, case_id: UUID) -> str:
+def build_room2_case_pdf_attachment_filename(
+    *,
+    case_id: UUID,
+    agency_record_number: str | None = None,
+) -> str:
     """Build deterministic Room-2 original report PDF attachment filename."""
 
-    return f"caso-{case_id}-relatorio-original.pdf"
+    record_slug = _normalize_record_number_for_filename(agency_record_number)
+    return f"ocorrencia-{record_slug}-caso-{case_id}-relatorio-original.pdf"
 
 
 def build_room2_case_summary_message(
@@ -928,3 +933,21 @@ def _build_room3_details_block(
         f"idade: {_format_room3_context_value(patient_age)}\n"
         f"exame solicitado: {_format_room3_context_value(requested_exam)}"
     )
+
+
+def _normalize_record_number_for_filename(value: str | None) -> str:
+    normalized = (value or "").strip()
+    if not normalized:
+        return "indisponivel"
+    slug_chars: list[str] = []
+    for char in normalized:
+        if char.isalnum():
+            slug_chars.append(char.lower())
+            continue
+        slug_chars.append("-")
+    slug = "".join(slug_chars).strip("-")
+    if not slug:
+        return "indisponivel"
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    return slug
