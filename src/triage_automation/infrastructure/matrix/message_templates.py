@@ -37,6 +37,19 @@ INFORMATIONAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
     "build_room1_final_failure_message",
 )
 
+
+def build_human_identification_block(
+    *,
+    agency_record_number: str | None,
+    patient_name: str | None,
+) -> str:
+    """Build standardized human-readable identification lines for case messages."""
+
+    record_value = _normalize_human_identification_value(agency_record_number)
+    patient_value = _normalize_human_identification_value(patient_name)
+    return f"no. ocorrência: {record_value}\npaciente: {patient_value}"
+
+
 _PT_BR_KEY_MAP: dict[str, str] = {
     "agency_record_number": "numero_registro",
     "age": "idade",
@@ -94,6 +107,13 @@ _PT_BR_KEY_MAP: dict[str, str] = {
     "summary": "resumo_estruturado",
     "urgency": "urgencia",
 }
+
+
+def _normalize_human_identification_value(value: str | None) -> str:
+    normalized = (value or "").strip()
+    if not normalized:
+        return "não detectado"
+    return normalized
 
 
 def build_room2_widget_message(
