@@ -7,6 +7,36 @@ from datetime import datetime
 from html import escape
 from uuid import UUID
 
+# Case-id visibility contract across Room-1/2/3 builders:
+# - structural: parser-bound templates must preserve `caso: <uuid>` line.
+# - informational: UUID is not parser-critical and can be de-emphasized in UX copy.
+STRUCTURAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
+    "build_room2_case_decision_template_message",
+    "build_room2_case_decision_template_formatted_html",
+    "build_room2_decision_error_message",
+    "build_room3_reply_template_message",
+    "build_room3_invalid_format_reprompt",
+)
+
+INFORMATIONAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
+    "build_room2_widget_message",
+    "build_room2_case_pdf_message",
+    "build_room2_case_pdf_formatted_html",
+    "build_room2_case_pdf_attachment_filename",
+    "build_room2_case_summary_message",
+    "build_room2_case_summary_formatted_html",
+    "build_room2_case_decision_instructions_message",
+    "build_room2_case_decision_instructions_formatted_html",
+    "build_room2_ack_message",
+    "build_room2_decision_ack_message",
+    "build_room3_request_message",
+    "build_room3_ack_message",
+    "build_room1_final_accepted_message",
+    "build_room1_final_denied_triage_message",
+    "build_room1_final_denied_appointment_message",
+    "build_room1_final_failure_message",
+)
+
 _PT_BR_KEY_MAP: dict[str, str] = {
     "agency_record_number": "numero_registro",
     "age": "idade",
