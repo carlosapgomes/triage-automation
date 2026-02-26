@@ -25,6 +25,7 @@ from triage_automation.application.ports.prior_case_query_port import (
     PriorCaseContext,
     PriorCaseQueryPort,
 )
+from triage_automation.application.services.patient_context import extract_patient_name_age
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_case_decision_instructions_formatted_html,
@@ -166,6 +167,7 @@ class PostRoom2WidgetService:
         assert structured_data_json is not None
         assert summary_text is not None
         assert suggested_action_json is not None
+        patient_name, _ = extract_patient_name_age(structured_data_json)
 
         prior_context = await self._prior_case_queries.lookup_recent_context(
             case_id=case_id,
@@ -244,6 +246,7 @@ class PostRoom2WidgetService:
                 payload={
                     "case_id": str(case.case_id),
                     "record_number": case.agency_record_number,
+                    "patient_name": patient_name,
                     "filename": root_filename,
                     "pdf_mxc_url": case.pdf_mxc_url,
                 },

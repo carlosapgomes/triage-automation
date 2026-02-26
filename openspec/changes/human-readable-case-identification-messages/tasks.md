@@ -4,7 +4,7 @@
 
 - [x] 1.1 Mapear e classificar templates Room-1/2/3 em `estrutural` (UUID obrigatório) vs `informativo` (UUID não obrigatório) e documentar a classificação em comentários/testes de contrato.
 - [x] 1.2 Padronizar helper reutilizável para bloco textual de identificação humana (`no. ocorrência` e `paciente`) com fallback `não detectado`.
-- [ ] 1.3 Garantir que o fluxo de Room-2 obtenha `patient_name` de forma consistente a partir de `structured_data_json`, alinhado com o helper já usado em Room-1/3.
+- [x] 1.3 Garantir que o fluxo de Room-2 obtenha `patient_name` de forma consistente a partir de `structured_data_json`, alinhado com o helper já usado em Room-1/3.
 
 ## 2. Atualização de templates e filename por sala
 
