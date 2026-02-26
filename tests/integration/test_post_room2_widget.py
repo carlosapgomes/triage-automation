@@ -404,6 +404,8 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
         "to_status": "WAIT_DOCTOR",
     }
     parsed_widget_payload = (
-        widget_post_payload if isinstance(widget_post_payload, dict) else json.loads(widget_post_payload)
+        widget_post_payload
+        if isinstance(widget_post_payload, dict)
+        else json.loads(widget_post_payload)
     )
     assert parsed_widget_payload["patient_name"] == "Paciente"

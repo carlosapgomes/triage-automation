@@ -74,7 +74,10 @@ def test_build_room2_case_pdf_attachment_filename_uses_fallback_when_record_miss
 
     assert (
         filename
-        == "ocorrencia-indisponivel-caso-11111111-1111-1111-1111-111111111111-relatorio-original.pdf"
+        == (
+            "ocorrencia-indisponivel-caso-11111111-1111-1111-1111-111111111111-"
+            "relatorio-original.pdf"
+        )
     )
 
 
