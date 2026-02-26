@@ -904,12 +904,18 @@ def _build_case_context_block(
     patient_age: str | None,
     requested_exam: str | None,
 ) -> str:
+    _ = case_id
+    identification_block = build_human_identification_block(
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
+    )
+    details_block = _build_room3_details_block(
+        patient_age=patient_age,
+        requested_exam=requested_exam,
+    )
     return (
-        f"caso: {case_id}\n"
-        f"registro: {_format_room3_context_value(agency_record_number)}\n"
-        f"paciente: {_format_room3_context_value(patient_name)}\n"
-        f"idade: {_format_room3_context_value(patient_age)}\n"
-        f"exame solicitado: {_format_room3_context_value(requested_exam)}"
+        f"{identification_block}\n"
+        f"{details_block}"
     )
 
 

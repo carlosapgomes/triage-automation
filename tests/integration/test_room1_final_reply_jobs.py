@@ -205,8 +205,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         "$origin-final-deny-triage",
         (
             "❌ negado (triagem)\n"
-            f"caso: {denied_triage_id}\n"
-            "registro: 777001\n"
+            "no. ocorrência: 777001\n"
             "paciente: PACIENTE TRIAGEM\n"
             "idade: 51\n"
             "exame solicitado: EDA\n"
@@ -219,8 +218,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         "$origin-final-appt-ok",
         (
             "✅ aceito\n"
-            f"caso: {appt_confirmed_id}\n"
-            "registro: 777002\n"
+            "no. ocorrência: 777002\n"
             "paciente: PACIENTE APTO\n"
             "idade: 62\n"
             "exame solicitado: EDA\n"
@@ -235,8 +233,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         "$origin-final-appt-deny",
         (
             "❌ negado (agendamento)\n"
-            f"caso: {appt_denied_id}\n"
-            "registro: 777003\n"
+            "no. ocorrência: 777003\n"
             "paciente: PACIENTE SEM AGENDA\n"
             "idade: 44\n"
             "exame solicitado: EDA\n"
@@ -249,8 +246,7 @@ async def test_final_replies_match_templates_and_reply_to_origin(tmp_path: Path)
         "$origin-final-failed",
         (
             "⚠️ falha no processamento\n"
-            f"caso: {failed_id}\n"
-            "registro: 777004\n"
+            "no. ocorrência: 777004\n"
             "paciente: PACIENTE FALHA\n"
             "idade: 73\n"
             "exame solicitado: EDA\n"
