@@ -388,14 +388,51 @@ def _build_room2_support_lines(suggested_action: dict[str, object]) -> list[str]
 def _build_room2_objective_reason_lines(suggested_action: dict[str, object]) -> list[str]:
     """Return concise objective reason section lines."""
 
+    decision = suggested_action.get("suggestion")
+    support_recommendation = suggested_action.get("support_recommendation")
+    decision_label = (
+        _format_scalar(decision)
+        if isinstance(decision, str)
+        else "não informado"
+    )
+    support_label = (
+        _format_scalar(support_recommendation)
+        if isinstance(support_recommendation, str)
+        else "não informado"
+    )
+
+    reason = _extract_room2_short_reason(suggested_action)
+    lines = [f"- Decisão {decision_label} com suporte {support_label}."]
+    if reason:
+        lines.append(f"- {_truncate_room2_reason_line(reason)}")
+    return lines[:2]
+
+
+def _extract_room2_short_reason(suggested_action: dict[str, object]) -> str | None:
+    """Extract preferred short rationale text from reconciled suggestion payload."""
+
     rationale = suggested_action.get("rationale")
-    if isinstance(rationale, str) and rationale.strip():
-        return [f"- {rationale.strip()}"]
+    if isinstance(rationale, str):
+        normalized = rationale.strip()
+        if normalized:
+            return normalized
+        return None
     if isinstance(rationale, dict):
         short_reason = rationale.get("short_reason")
-        if isinstance(short_reason, str) and short_reason.strip():
-            return [f"- {short_reason.strip()}"]
-    return ["- Não informado."]
+        if isinstance(short_reason, str):
+            normalized = short_reason.strip()
+            if normalized:
+                return normalized
+    return None
+
+
+def _truncate_room2_reason_line(reason: str, limit: int = 180) -> str:
+    """Return normalized one-line reason text capped for concise objective display."""
+
+    normalized = " ".join(reason.split())
+    if len(normalized) <= limit:
+        return normalized
+    return f"{normalized[: limit - 1].rstrip()}…"
 
 
 def _build_room2_conduct_lines(suggested_action: dict[str, object]) -> list[str]:

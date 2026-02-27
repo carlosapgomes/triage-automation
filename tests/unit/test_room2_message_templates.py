@@ -393,6 +393,64 @@ def test_room2_summary_decision_and_support_come_only_from_suggested_action_html
     assert "aceitar" not in decision_chunk + support_chunk
 
 
+def test_room2_summary_objective_reason_is_short_and_coherent_markdown() -> None:
+    case_id = UUID("12121212-1212-1212-1212-121212121212")
+    long_reason = (
+        "Paciente com múltiplas comorbidades e necessidade de revisão laboratorial detalhada "
+        "antes do procedimento endoscópico para reduzir risco perioperatório em cenário de "
+        "instabilidade clínica potencial."
+    )
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "deny",
+            "support_recommendation": "anesthesist_icu",
+            "rationale": {"short_reason": long_reason},
+        },
+    )
+
+    reason_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Motivo objetivo:\n\n",
+        next_section="\n\n## Conduta sugerida:",
+    )
+    reason_text = "\n".join(reason_lines)
+
+    assert 1 <= len(reason_lines) <= 2
+    assert "negar" in reason_text
+    assert "anestesista_uti" in reason_text
+
+
+def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
+    case_id = UUID("34343434-3434-3434-3434-343434343434")
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "accept",
+            "support_recommendation": "anesthesist",
+            "rationale": {"short_reason": "Apto com suporte especializado."},
+        },
+    )
+
+    reason_chunk = _extract_html_section_chunk(
+        body=body,
+        section="<h2>Motivo objetivo:</h2>",
+        next_section="<h2>Conduta sugerida:</h2>",
+    )
+
+    assert 1 <= reason_chunk.count("<li>") <= 2
+    assert "aceitar" in reason_chunk
+    assert "anestesista" in reason_chunk
+
+
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
     case_id = UUID("44444444-4444-4444-4444-444444444444")
 
