@@ -8,6 +8,7 @@ REQUIRED_ENV = {
     "ROOM1_ID": "!room1:example.org",
     "ROOM2_ID": "!room2:example.org",
     "ROOM3_ID": "!room3:example.org",
+    "ROOM4_ID": "!room4:example.org",
     "MATRIX_HOMESERVER_URL": "https://matrix.example.org",
     "MATRIX_BOT_USER_ID": "@triage-bot:example.org",
     "MATRIX_ACCESS_TOKEN": "matrix-access-token",
@@ -70,8 +71,39 @@ def test_room_ids_and_urls_are_non_empty(monkeypatch: pytest.MonkeyPatch) -> Non
     assert settings.room1_id
     assert settings.room2_id
     assert settings.room3_id
+    assert settings.room4_id
     assert str(settings.matrix_homeserver_url)
     assert str(settings.webhook_public_url)
+
+
+def test_room4_env_var_missing_raises_validation_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.delenv("ROOM4_ID", raising=False)
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
+def test_supervisor_summary_timezone_defaults_to_america_bahia(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+
+    settings = Settings(_env_file=None)
+
+    assert settings.supervisor_summary_timezone == "America/Bahia"
+
+
+def test_supervisor_summary_timezone_invalid_value_raises_validation_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_required_env(monkeypatch)
+    monkeypatch.setenv("SUPERVISOR_SUMMARY_TIMEZONE", "Mars/Olympus")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
 
 
 def test_matrix_auth_env_var_missing_raises_validation_error(
