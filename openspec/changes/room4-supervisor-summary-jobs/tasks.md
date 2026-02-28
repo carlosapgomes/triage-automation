@@ -27,7 +27,7 @@
 ## 5. Consolidação das métricas obrigatórias do resumo
 
 - [x] 5.1 Escrever testes de consulta/serviço para `pacientes recebidos`, `relatórios processados` e `casos avaliados` dentro da janela.
-- [ ] 5.2 Escrever testes para semântica de desfecho final: `aceitos` por confirmação de agendamento e `recusados` por negação médica ou negativa de agendamento.
+- [x] 5.2 Escrever testes para semântica de desfecho final: `aceitos` por confirmação de agendamento e `recusados` por negação médica ou negativa de agendamento.
 - [ ] 5.3 Implementar consultas SQLAlchemy e composição final de métricas com timestamps da janela e timezone de referência no texto.
 
 ## 6. Qualidade, documentação operacional e fechamento do change

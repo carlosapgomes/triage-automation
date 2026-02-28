@@ -129,3 +129,124 @@ async def test_metrics_query_counts_patients_reports_and_evaluated_in_window(
     assert metrics.patients_received == 1
     assert metrics.reports_processed == 2
     assert metrics.cases_evaluated == 1
+
+
+@pytest.mark.asyncio
+async def test_metrics_query_counts_final_outcomes_for_accepted_and_refused(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "supervisor_summary_metrics_outcomes.db")
+    session_factory = create_session_factory(async_url)
+    case_repository = SqlAlchemyCaseRepository(session_factory)
+    queries = SqlAlchemySupervisorSummaryMetricsQueries(session_factory)
+
+    accepted_case_id = uuid4()
+    doctor_denied_case_id = uuid4()
+    appt_denied_case_id = uuid4()
+    accepted_outside_case_id = uuid4()
+    denied_outside_case_id = uuid4()
+    doctor_accepted_in_window_case_id = uuid4()
+
+    for case_id in (
+        accepted_case_id,
+        doctor_denied_case_id,
+        appt_denied_case_id,
+        accepted_outside_case_id,
+        denied_outside_case_id,
+        doctor_accepted_in_window_case_id,
+    ):
+        await case_repository.create_case(
+            CaseCreateInput(
+                case_id=case_id,
+                status=CaseStatus.WAIT_DOCTOR,
+                room1_origin_room_id="!room1:example.org",
+                room1_origin_event_id=f"$origin-{case_id}",
+                room1_sender_user_id="@human:example.org",
+            )
+        )
+
+    window_start = datetime(2026, 2, 16, 10, 0, tzinfo=UTC)
+    window_end = datetime(2026, 2, 16, 22, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, appointment_status = :appointment_status, "
+                "appointment_decided_at = :appointment_decided_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.APPT_CONFIRMED.value,
+                "appointment_status": "confirmed",
+                "appointment_decided_at": datetime(2026, 2, 16, 11, 0, tzinfo=UTC),
+                "case_id": accepted_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
+                "doctor_decided_at = :doctor_decided_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.DOCTOR_DENIED.value,
+                "doctor_decision": "deny",
+                "doctor_decided_at": datetime(2026, 2, 16, 12, 0, tzinfo=UTC),
+                "case_id": doctor_denied_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, appointment_status = :appointment_status, "
+                "appointment_decided_at = :appointment_decided_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.APPT_DENIED.value,
+                "appointment_status": "denied",
+                "appointment_decided_at": datetime(2026, 2, 16, 13, 0, tzinfo=UTC),
+                "case_id": appt_denied_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, appointment_status = :appointment_status, "
+                "appointment_decided_at = :appointment_decided_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.APPT_CONFIRMED.value,
+                "appointment_status": "confirmed",
+                "appointment_decided_at": datetime(2026, 2, 16, 22, 1, tzinfo=UTC),
+                "case_id": accepted_outside_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
+                "doctor_decided_at = :doctor_decided_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.DOCTOR_DENIED.value,
+                "doctor_decision": "deny",
+                "doctor_decided_at": datetime(2026, 2, 16, 9, 59, tzinfo=UTC),
+                "case_id": denied_outside_case_id.hex,
+            },
+        )
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET status = :status, doctor_decision = :doctor_decision, "
+                "doctor_decided_at = :doctor_decided_at WHERE case_id = :case_id"
+            ),
+            {
+                "status": CaseStatus.DOCTOR_ACCEPTED.value,
+                "doctor_decision": "accept",
+                "doctor_decided_at": datetime(2026, 2, 16, 14, 0, tzinfo=UTC),
+                "case_id": doctor_accepted_in_window_case_id.hex,
+            },
+        )
+
+    metrics = await queries.aggregate_metrics(
+        window_start=window_start,
+        window_end=window_end,
+    )
+
+    assert metrics.accepted == 1
+    assert metrics.refused == 2
