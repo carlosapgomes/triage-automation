@@ -136,6 +136,8 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "## Suporte recomendado:" in body
     assert "## Motivo objetivo:" in body
     assert "## Conduta sugerida:" in body
+    assert "## Dados extraídos:" not in body
+    assert "## Recomendação do sistema:" not in body
     section_order = [
         "## Resumo clínico:",
         "## Achados críticos:",
@@ -260,6 +262,8 @@ def test_build_room2_case_summary_formatted_html_includes_sections() -> None:
     assert "<h2>Suporte recomendado:</h2>" in body
     assert "<h2>Motivo objetivo:</h2>" in body
     assert "<h2>Conduta sugerida:</h2>" in body
+    assert "<h2>Dados extraídos:</h2>" not in body
+    assert "<h2>Recomendação do sistema:</h2>" not in body
     section_order = [
         "<h2>Resumo clínico:</h2>",
         "<h2>Achados críticos:</h2>",
