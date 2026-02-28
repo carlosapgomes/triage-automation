@@ -20,7 +20,7 @@
 
 ## 4. Execução no worker e postagem na Room-4
 
-- [ ] 4.1 Adicionar testes para o novo handler `post_room4_summary` no mapa de handlers do worker, incluindo integração com retry existente.
+- [x] 4.1 Adicionar testes para o novo handler `post_room4_summary` no mapa de handlers do worker, incluindo integração com retry existente.
 - [ ] 4.2 Implementar serviço de aplicação que monta o resumo, consulta métricas e publica mensagem no Matrix Room-4.
 - [ ] 4.3 Implementar proteção de idempotência no caminho de publicação para não enviar segunda mensagem quando a janela já tiver dispatch bem-sucedido.
 

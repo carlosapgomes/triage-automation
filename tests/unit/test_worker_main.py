@@ -162,6 +162,10 @@ async def _noop_handler(job: JobRecord) -> None:
     _ = job
 
 
+async def _failing_handler(_: JobRecord) -> None:
+    raise RuntimeError("summary send failed")
+
+
 def test_build_worker_handlers_contains_required_runtime_job_types() -> None:
     handlers = build_worker_handlers(
         process_pdf_case_handler=_noop_handler,
@@ -224,6 +228,28 @@ async def test_post_room4_summary_job_type_is_routable() -> None:
     assert claimed_count == 1
     assert queue.mark_done_calls == [77]
     assert queue.schedule_retry_calls == []
+
+
+@pytest.mark.asyncio
+async def test_post_room4_summary_handler_failure_uses_existing_retry_pipeline() -> None:
+    queue = _QueueForKnownType(_make_job(job_type="post_room4_summary", job_id=78))
+    handlers = build_worker_handlers(
+        process_pdf_case_handler=_noop_handler,
+        post_room2_widget_handler=_noop_handler,
+        post_room3_request_handler=_noop_handler,
+        post_room4_summary_handler=_failing_handler,
+        post_room1_final_handler=_noop_handler,
+        execute_cleanup_handler=_noop_handler,
+    )
+    runtime = WorkerRuntime(queue=queue, handlers=handlers)
+
+    claimed_count = await runtime.run_once()
+
+    assert claimed_count == 1
+    assert queue.mark_done_calls == []
+    assert queue.schedule_retry_calls == [
+        (78, "Handler error for post_room4_summary: summary send failed")
+    ]
 
 
 def _runtime_settings(*, mode: str, openai_key: str | None) -> Settings:
