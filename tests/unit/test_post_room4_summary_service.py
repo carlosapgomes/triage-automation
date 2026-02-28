@@ -124,6 +124,10 @@ async def test_post_room4_summary_service_renders_metrics_and_posts_to_room4() -
     assert matrix.calls[0][0] == "!room4:example.org"
     body = matrix.calls[0][1]
     assert "Resumo de Supervisão" in body
+    assert "Janela (America/Bahia): 16/02/2026 07:00 → 16/02/2026 19:00" in body
+    assert (
+        "Janela UTC: 2026-02-16T10:00:00+00:00 → 2026-02-16T22:00:00+00:00" in body
+    )
     assert "Pacientes recebidos: 12" in body
     assert "Relatórios processados: 10" in body
     assert "Casos avaliados: 9" in body

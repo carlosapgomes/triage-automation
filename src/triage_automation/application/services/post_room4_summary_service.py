@@ -154,6 +154,7 @@ def render_room4_summary_message(
         [
             "📊 Resumo de Supervisão",
             f"Janela ({timezone_name}): {start_local:%d/%m/%Y %H:%M} → {end_local:%d/%m/%Y %H:%M}",
+            f"Janela UTC: {window_start.isoformat()} → {window_end.isoformat()}",
             "",
             f"- Pacientes recebidos: {metrics.patients_received}",
             f"- Relatórios processados: {metrics.reports_processed}",
