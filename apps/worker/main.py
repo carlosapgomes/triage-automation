@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -26,6 +27,9 @@ from triage_automation.application.services.post_room2_widget_service import (
 from triage_automation.application.services.post_room3_request_service import (
     PostRoom3RequestService,
 )
+from triage_automation.application.services.post_room4_summary_service import (
+    PostRoom4SummaryService,
+)
 from triage_automation.application.services.process_pdf_case_service import ProcessPdfCaseService
 from triage_automation.application.services.prompt_template_service import PromptTemplateService
 from triage_automation.application.services.recovery_service import (
@@ -46,6 +50,9 @@ from triage_automation.infrastructure.db.reaction_checkpoint_repository import (
     SqlAlchemyReactionCheckpointRepository,
 )
 from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.db.supervisor_summary_metrics_queries import (
+    SqlAlchemySupervisorSummaryMetricsQueries,
+)
 from triage_automation.infrastructure.db.worker_bootstrap import reconcile_running_jobs
 from triage_automation.infrastructure.llm.deterministic_client import DeterministicLlmClient
 from triage_automation.infrastructure.llm.llm_client import LlmClientPort
@@ -118,6 +125,7 @@ class WorkerRuntimeServices:
     process_pdf_case_service: ProcessPdfCaseService
     post_room2_widget_service: PostRoom2WidgetService
     post_room3_request_service: PostRoom3RequestService
+    post_room4_summary_service: PostRoom4SummaryService
     post_room1_final_service: PostRoom1FinalService
     execute_cleanup_service: ExecuteCleanupService
 
@@ -201,6 +209,12 @@ def build_runtime_services(
         message_repository=message_repository,
         matrix_poster=matrix_client,
     )
+    post_room4_summary_service = PostRoom4SummaryService(
+        room4_id=settings.room4_id,
+        timezone_name=settings.supervisor_summary_timezone,
+        metrics_queries=SqlAlchemySupervisorSummaryMetricsQueries(session_factory),
+        matrix_poster=matrix_client,
+    )
     post_room1_final_service = PostRoom1FinalService(
         case_repository=case_repository,
         audit_repository=audit_repository,
@@ -222,6 +236,7 @@ def build_runtime_services(
         process_pdf_case_service=process_pdf_case_service,
         post_room2_widget_service=post_room2_widget_service,
         post_room3_request_service=post_room3_request_service,
+        post_room4_summary_service=post_room4_summary_service,
         post_room1_final_service=post_room1_final_service,
         execute_cleanup_service=execute_cleanup_service,
     )
@@ -247,12 +262,15 @@ def build_runtime_job_handlers(*, services: WorkerRuntimeServices) -> dict[str, 
         await services.post_room3_request_service.post_request(case_id=case_id)
 
     async def handle_post_room4_summary(job: JobRecord) -> None:
-        """Handle Room-4 summary jobs via placeholder wiring until service lands."""
-
-        logger.info(
-            "post_room4_summary_handler_invoked job_id=%s payload_keys=%s",
-            job.job_id,
-            sorted(job.payload.keys()),
+        window_start = _require_summary_window_datetime(job=job, field_name="window_start")
+        window_end = _require_summary_window_datetime(job=job, field_name="window_end")
+        room_id = _optional_non_empty_payload_string(job=job, field_name="room_id")
+        timezone_name = _optional_non_empty_payload_string(job=job, field_name="timezone")
+        await services.post_room4_summary_service.post_summary(
+            window_start=window_start,
+            window_end=window_end,
+            room_id=room_id,
+            timezone_name=timezone_name,
         )
 
     async def handle_post_room1_final(job: JobRecord) -> None:
@@ -374,6 +392,33 @@ def _require_pdf_mxc_url(job: JobRecord) -> str:
     if isinstance(value, str) and value.strip():
         return value
     raise ValueError("process_pdf_case job missing payload.pdf_mxc_url")
+
+
+def _require_summary_window_datetime(*, job: JobRecord, field_name: str) -> datetime:
+    value = job.payload.get(field_name)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"post_room4_summary job missing payload.{field_name}")
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError(
+            f"post_room4_summary job payload.{field_name} must be ISO-8601 datetime"
+        ) from error
+    if parsed.tzinfo is None:
+        raise ValueError(
+            f"post_room4_summary job payload.{field_name} must include timezone"
+        )
+    return parsed
+
+
+def _optional_non_empty_payload_string(*, job: JobRecord, field_name: str) -> str | None:
+    value = job.payload.get(field_name)
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    return normalized
 
 
 async def run_worker_startup(

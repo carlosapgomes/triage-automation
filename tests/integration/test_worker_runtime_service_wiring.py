@@ -459,6 +459,10 @@ async def test_runtime_worker_handlers_execute_all_supported_job_types(
     assert all(str(row["status"]) == "done" for row in rows)
     assert str(summary_row["status"]) == "done"
     assert matrix_client.send_calls
+    assert any(
+        room_id == settings.room4_id and "Resumo de Supervisão" in body
+        for room_id, body in matrix_client.send_calls
+    )
     assert matrix_client.reply_calls
     assert matrix_client.redaction_calls
 
