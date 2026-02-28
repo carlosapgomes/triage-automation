@@ -411,6 +411,16 @@ async def test_runtime_worker_handlers_execute_all_supported_job_types(
             },
         )
     )
+    duplicate_summary_job = await queue_repo.enqueue(
+        JobEnqueueInput(
+            case_id=None,
+            job_type="post_room4_summary",
+            payload={
+                "window_start": "2026-02-15T19:00:00+00:00",
+                "window_end": "2026-02-16T07:00:00+00:00",
+            },
+        )
+    )
     target_job_ids = {
         process_job.job_id,
         room2_job.job_id,
@@ -421,6 +431,7 @@ async def test_runtime_worker_handlers_execute_all_supported_job_types(
         failed_job.job_id,
         cleanup_job.job_id,
         summary_job.job_id,
+        duplicate_summary_job.job_id,
     }
 
     runtime = build_worker_runtime(
@@ -455,14 +466,21 @@ async def test_runtime_worker_handlers_execute_all_supported_job_types(
             sa.text("SELECT status FROM jobs WHERE job_id = :job_id"),
             {"job_id": summary_job.job_id},
         ).mappings().one()
+        duplicate_summary_row = connection.execute(
+            sa.text("SELECT status FROM jobs WHERE job_id = :job_id"),
+            {"job_id": duplicate_summary_job.job_id},
+        ).mappings().one()
 
     assert all(str(row["status"]) == "done" for row in rows)
     assert str(summary_row["status"]) == "done"
+    assert str(duplicate_summary_row["status"]) == "done"
     assert matrix_client.send_calls
-    assert any(
-        room_id == settings.room4_id and "Resumo de Supervisão" in body
+    room4_summary_messages = [
+        (room_id, body)
         for room_id, body in matrix_client.send_calls
-    )
+        if room_id == settings.room4_id and "Resumo de Supervisão" in body
+    ]
+    assert len(room4_summary_messages) == 1
     assert matrix_client.reply_calls
     assert matrix_client.redaction_calls
 

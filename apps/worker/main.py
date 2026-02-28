@@ -50,6 +50,9 @@ from triage_automation.infrastructure.db.reaction_checkpoint_repository import (
     SqlAlchemyReactionCheckpointRepository,
 )
 from triage_automation.infrastructure.db.session import create_session_factory
+from triage_automation.infrastructure.db.supervisor_summary_dispatch_repository import (
+    SqlAlchemySupervisorSummaryDispatchRepository,
+)
 from triage_automation.infrastructure.db.supervisor_summary_metrics_queries import (
     SqlAlchemySupervisorSummaryMetricsQueries,
 )
@@ -213,6 +216,7 @@ def build_runtime_services(
         room4_id=settings.room4_id,
         timezone_name=settings.supervisor_summary_timezone,
         metrics_queries=SqlAlchemySupervisorSummaryMetricsQueries(session_factory),
+        dispatch_repository=SqlAlchemySupervisorSummaryDispatchRepository(session_factory),
         matrix_poster=matrix_client,
     )
     post_room1_final_service = PostRoom1FinalService(
@@ -266,7 +270,7 @@ def build_runtime_job_handlers(*, services: WorkerRuntimeServices) -> dict[str, 
         window_end = _require_summary_window_datetime(job=job, field_name="window_end")
         room_id = _optional_non_empty_payload_string(job=job, field_name="room_id")
         timezone_name = _optional_non_empty_payload_string(job=job, field_name="timezone")
-        await services.post_room4_summary_service.post_summary(
+        await services.post_room4_summary_service.post_summary_if_not_sent(
             window_start=window_start,
             window_end=window_end,
             room_id=room_id,

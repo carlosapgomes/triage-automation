@@ -7,6 +7,11 @@ from datetime import datetime
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
+from triage_automation.application.ports.supervisor_summary_dispatch_repository_port import (
+    SupervisorSummaryDispatchRepositoryPort,
+    SupervisorSummaryDispatchSentInput,
+    SupervisorSummaryWindowKey,
+)
 from triage_automation.application.ports.supervisor_summary_metrics_query_port import (
     SupervisorSummaryMetrics,
     SupervisorSummaryMetricsQueryPort,
@@ -43,12 +48,68 @@ class PostRoom4SummaryService:
         room4_id: str,
         timezone_name: str,
         metrics_queries: SupervisorSummaryMetricsQueryPort,
+        dispatch_repository: SupervisorSummaryDispatchRepositoryPort,
         matrix_poster: Room4SummaryMatrixPosterPort,
     ) -> None:
         self._room4_id = room4_id
         self._timezone_name = timezone_name
         self._metrics_queries = metrics_queries
+        self._dispatch_repository = dispatch_repository
         self._matrix_poster = matrix_poster
+
+    async def post_summary_if_not_sent(
+        self,
+        *,
+        window_start: datetime,
+        window_end: datetime,
+        room_id: str | None = None,
+        timezone_name: str | None = None,
+    ) -> str | None:
+        """Post Room-4 summary once per room/window identity, skipping duplicates."""
+
+        target_room_id = room_id or self._room4_id
+        dispatch = await self._dispatch_repository.get_by_window(
+            room_id=target_room_id,
+            window_start=window_start,
+            window_end=window_end,
+        )
+        if dispatch is not None and dispatch.status == "sent":
+            return None
+        if dispatch is None:
+            claimed = await self._dispatch_repository.claim_window(
+                SupervisorSummaryWindowKey(
+                    room_id=target_room_id,
+                    window_start=window_start,
+                    window_end=window_end,
+                )
+            )
+            if not claimed:
+                latest = await self._dispatch_repository.get_by_window(
+                    room_id=target_room_id,
+                    window_start=window_start,
+                    window_end=window_end,
+                )
+                if latest is not None and latest.status == "sent":
+                    return None
+
+        event_id = await self.post_summary(
+            window_start=window_start,
+            window_end=window_end,
+            room_id=target_room_id,
+            timezone_name=timezone_name,
+        )
+        marked = await self._dispatch_repository.mark_sent(
+            SupervisorSummaryDispatchSentInput(
+                room_id=target_room_id,
+                window_start=window_start,
+                window_end=window_end,
+                matrix_event_id=event_id,
+                sent_at=window_end,
+            )
+        )
+        if not marked:
+            return None
+        return event_id
 
     async def post_summary(
         self,
