@@ -24,5 +24,9 @@
 ## 4. Encerramento do slice
 
 - [x] 4.1 Atualizar este checklist marcando itens concluídos conforme implementação.
-- [ ] 4.2 Registrar observações de desvio/limitação no próprio `tasks.md`, caso ocorram.
+- [x] 4.2 Registrar observações de desvio/limitação no próprio `tasks.md`, caso ocorram.
 - [ ] 4.3 Commitar e publicar alterações do slice com mensagem alinhada ao escopo da change.
+
+## Observações de desvio/limitação
+
+- Nenhum desvio ou limitação adicional identificado durante a implementação desta change.
