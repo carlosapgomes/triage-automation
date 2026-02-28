@@ -17,7 +17,7 @@
 ## 3. Testes e validação
 
 - [x] 3.1 Atualizar testes unitários de templates Room-2 para validar presença dos sete blocos obrigatórios e ausência do bloco extenso anterior.
-- [ ] 3.2 Adicionar testes para coerência entre decisão/suporte/motivo e para regra de prioridade emergente.
+- [x] 3.2 Adicionar testes para coerência entre decisão/suporte/motivo e para regra de prioridade emergente.
 - [ ] 3.3 Atualizar testes de integração de postagem Room-2 para o novo contrato textual da mensagem `room2_case_summary`.
 - [ ] 3.4 Executar verificações obrigatórias do slice: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` (artefatos OpenSpec alterados).
 

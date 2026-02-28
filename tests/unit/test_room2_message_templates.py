@@ -542,6 +542,25 @@ def test_room2_summary_does_not_include_emergent_priority_phrase_without_instabi
     assert all("PRIORIDADE EMERGENTE" not in line for line in conduct_lines)
 
 
+def test_room2_summary_emergent_priority_phrase_html() -> None:
+    case_id = UUID("79797979-7979-7979-7979-797979797979")
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={
+            "eda": {"indication_category": "bleeding"},
+            "policy_precheck": {"notes": "Instabilidade hemodinâmica com hipotensão."},
+        },
+        summary_text="Paciente com hematêmese e PAS 82 em sala vermelha.",
+        suggested_action={"suggestion": "accept", "support_recommendation": "anesthesist_icu"},
+    )
+
+    start = body.index("<h2>Conduta sugerida:</h2>") + len("<h2>Conduta sugerida:</h2>")
+    conduct_chunk = body[start:]
+    assert "PRIORIDADE EMERGENTE" in conduct_chunk
+
+
 def test_room2_summary_conduct_targets_three_bullets_by_default() -> None:
     case_id = UUID("90909090-9090-9090-9090-909090909090")
     body = build_room2_case_summary_message(
@@ -608,6 +627,31 @@ def test_room2_summary_objective_reason_is_short_and_coherent_html() -> None:
     assert 1 <= reason_chunk.count("<li>") <= 2
     assert "aceitar" in reason_chunk
     assert "anestesista" in reason_chunk
+
+
+def test_room2_summary_objective_reason_coherence_with_conflicting_short_reason() -> None:
+    case_id = UUID("62626262-6262-6262-6262-626262626262")
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="JOSE",
+        structured_data={},
+        summary_text="Resumo clínico base",
+        suggested_action={
+            "suggestion": "deny",
+            "support_recommendation": "anesthesist",
+            "rationale": {"short_reason": "Aceitar sem suporte por estabilidade."},
+        },
+    )
+
+    reason_lines = _extract_markdown_section_lines(
+        body=body,
+        section="## Motivo objetivo:\n\n",
+        next_section="\n\n## Conduta sugerida:",
+    )
+
+    assert "negar" in reason_lines[0]
+    assert "anestesista" in reason_lines[0]
 
 
 def test_build_room2_decision_ack_message_has_deterministic_success_fields() -> None:
