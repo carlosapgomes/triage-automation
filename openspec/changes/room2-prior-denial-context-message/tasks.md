@@ -18,6 +18,6 @@
 ## 3. Auditoria, regressão e validação final
 
 - [x] 3.1 Ajustar/validar evento de auditoria `PRIOR_CASE_LOOKUP_COMPLETED` para refletir `recent_denial_found`, caso selecionado e contagem da janela.
-- [ ] 3.2 Executar testes alvo (`uv run pytest tests/unit/test_prior_case_lookup.py tests/integration/test_post_room2_widget.py -q`) e corrigir regressões.
+- [x] 3.2 Executar testes alvo (`uv run pytest tests/unit/test_prior_case_lookup.py tests/integration/test_post_room2_widget.py -q`) e corrigir regressões.
 - [ ] 3.3 Executar `uv run ruff check` e `uv run mypy src apps` nos paths alterados.
 - [ ] 3.4 Executar `markdownlint-cli2 "openspec/changes/room2-prior-denial-context-message/**/*.md"` e registrar observações de rollout/rollback no próprio tasks.md quando necessário.
