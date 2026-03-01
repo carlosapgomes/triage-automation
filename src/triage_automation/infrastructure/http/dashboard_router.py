@@ -28,6 +28,10 @@ from triage_automation.application.services.case_monitoring_service import (
 )
 from triage_automation.domain.auth.roles import Role
 from triage_automation.domain.case_status import CaseStatus
+from triage_automation.domain.doctor_decision_parser import (
+    DoctorDecisionParseError,
+    parse_doctor_decision_reply,
+)
 from triage_automation.infrastructure.http.auth_guard import (
     SESSION_COOKIE_NAME,
     InvalidAuthTokenError,
@@ -381,10 +385,15 @@ def _extract_room2_decision(content_text: str | None) -> str:
 
     if content_text is None:
         return "INDEFINIDA"
-    normalized = content_text.lower()
-    if "aceitar" in normalized or "accept" in normalized:
+
+    try:
+        parsed = parse_doctor_decision_reply(body=content_text)
+    except DoctorDecisionParseError:
+        return "INDEFINIDA"
+
+    if parsed.decision == "accept":
         return "ACEITAR"
-    if "negar" in normalized or "deny" in normalized:
+    if parsed.decision == "deny":
         return "NEGAR"
     return "INDEFINIDA"
 

@@ -920,7 +920,12 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
             sender="@doctor:example.org",
             sender_display_name="Dra. Joana",
             message_type="room2_doctor_reply",
-            message_text="decisao: aceitar\nsuporte: nenhum\nmotivo: ok",
+            message_text=(
+                "decisao: aceitar\n"
+                "suporte: nenhum\n"
+                "motivo: ok\n"
+                f"caso: {case_id}"
+            ),
             captured_at=base + timedelta(minutes=5),
         )
         _insert_matrix_transcript(
@@ -1029,6 +1034,76 @@ async def test_dashboard_case_detail_defaults_to_thread_view_with_decision_and_r
     assert "Autor: Enf. Maria" in response.text
     assert "Resultado final: AGENDAMENTO CONFIRMADO para 2026-02-20 14:30" in response.text
     assert "Reação à confirmação: 👍 por Carlos Gomes" in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_case_detail_thread_uses_canonical_parser_for_quoted_mobile_reply(
+    tmp_path: Path,
+) -> None:
+    """Exibe decisão final correta quando reply inclui citação de template anterior."""
+    sync_url, async_url = _upgrade_head(tmp_path, "dashboard_page_detail_thread_mobile_quote.db")
+    token_service = OpaqueTokenService()
+    reader_id = uuid4()
+    reader_token = "reader-dashboard-thread-mobile-quote"
+    case_id = uuid4()
+    base = datetime(2026, 2, 23, 9, 0, 0, tzinfo=UTC)
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        _insert_user(connection, user_id=reader_id, email="reader@example.org", role="reader")
+        _insert_token(
+            connection,
+            token_service=token_service,
+            user_id=reader_id,
+            token=reader_token,
+        )
+        _insert_case(
+            connection,
+            case_id=case_id,
+            status="WAIT_APPT",
+            updated_at=base + timedelta(minutes=10),
+        )
+        _insert_report_transcript(
+            connection,
+            case_id=case_id,
+            extracted_text="texto limpo sem watermark",
+            captured_at=base,
+        )
+        _insert_matrix_transcript(
+            connection,
+            case_id=case_id,
+            room_id="!room2:example.org",
+            event_id="$evt-room2-reply-mobile",
+            sender="@doctor:example.org",
+            sender_display_name="Dra. Joana",
+            message_type="room2_doctor_reply",
+            message_text=(
+                "> <@triagem:chatsaude.online> no. ocorrência: 4791843\n"
+                "> paciente: ADEMILTON BISPO DE JESUS\n"
+                "> decisao: aceitar\n"
+                "> suporte: nenhum\n"
+                "> motivo: (opcional)\n"
+                f"> caso: {case_id}\n"
+                "\n"
+                "no. ocorrência: 4791843\n"
+                "paciente: ADEMILTON BISPO DE JESUS\n"
+                "decisao: negar\n"
+                "suporte: nenhum\n"
+                "motivo: faltam exames ecg\n"
+                f"caso: {case_id}"
+            ),
+            captured_at=base + timedelta(minutes=2),
+        )
+
+    with _build_client(async_url, token_service=token_service) as client:
+        response = client.get(
+            f"/dashboard/cases/{case_id}",
+            headers={"Authorization": f"Bearer {reader_token}"},
+        )
+
+    assert response.status_code == 200
+    assert "Resposta médica: DECISÃO = NEGAR" in response.text
+    assert "Resposta médica: DECISÃO = ACEITAR" not in response.text
 
 
 @pytest.mark.asyncio
