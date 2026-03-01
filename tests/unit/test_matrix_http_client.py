@@ -468,3 +468,65 @@ async def test_is_user_joined_returns_false_when_membership_event_not_found() ->
     )
 
     assert result is False
+
+
+@pytest.mark.asyncio
+async def test_join_room_calls_join_endpoint_for_invited_room() -> None:
+    transport = _QueuedTransport(
+        responses=[
+            MatrixHttpResponse(
+                status_code=200,
+                body_bytes=b'{"room_id":"!room:example.org"}',
+            )
+        ]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    await client.join_room(room_id="!room:example.org")
+
+    assert len(transport.calls) == 1
+    call = transport.calls[0]
+    assert call["method"] == "POST"
+    assert (
+        str(call["url"])
+        == "https://matrix.example.org/_matrix/client/v3/rooms/%21room%3Aexample.org/join"
+    )
+
+
+@pytest.mark.asyncio
+async def test_join_room_raises_normalized_error_on_non_success_status() -> None:
+    transport = _QueuedTransport(
+        responses=[MatrixHttpResponse(status_code=403, body_bytes=b'{"error":"forbidden"}')]
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    with pytest.raises(MatrixAdapterError) as exc_info:
+        await client.join_room(room_id="!room:example.org")
+
+    assert "join_room failed with status 403" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_join_room_raises_normalized_error_on_transport_failure() -> None:
+    transport = _QueuedTransport(
+        responses=[],
+        error=RuntimeError("connection reset"),
+    )
+    client = MatrixHttpClient(
+        homeserver_url="https://matrix.example.org",
+        access_token="access-token",
+        transport=transport,
+    )
+
+    with pytest.raises(MatrixAdapterError) as exc_info:
+        await client.join_room(room_id="!room:example.org")
+
+    assert "join_room transport failure" in str(exc_info.value)
