@@ -14,7 +14,7 @@
 
 - [x] 3.1 Escrever testes unitários de roteamento para garantir autojoin apenas para `ROOM1_ID..ROOM4_ID`, ignore de salas não permitidas e ausência de mutação de fluxo clínico.
 - [x] 3.2 Implementar integração do autoaceite no loop de polling do `bot-matrix`, derivando allowlist de `Settings` e mantendo processamento resiliente.
-- [ ] 3.3 Adicionar logs operacionais: `INFO` para autojoin bem-sucedido e `WARNING` para falha com `room_id` e motivo.
+- [x] 3.3 Adicionar logs operacionais: `INFO` para autojoin bem-sucedido e `WARNING` para falha com `room_id` e motivo.
 
 ## 4. Robustez de retry e cenários de reentrada
 

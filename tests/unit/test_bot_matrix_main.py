@@ -74,6 +74,36 @@ class _InviteSyncClient:
         return "$send"
 
 
+class _InviteFailingSyncClient:
+    def __init__(self, *, stop_event: asyncio.Event) -> None:
+        self._stop_event = stop_event
+
+    async def sync(self, *, since: str | None, timeout_ms: int) -> dict[str, object]:
+        _ = since, timeout_ms
+        self._stop_event.set()
+        return {
+            "next_batch": "s4",
+            "rooms": {
+                "join": {},
+                "invite": {
+                    "!room4:example.org": {"invite_state": {"events": []}},
+                },
+            },
+        }
+
+    async def join_room(self, *, room_id: str) -> None:
+        _ = room_id
+        raise RuntimeError("forbidden")
+
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        _ = room_id, event_id, body
+        return "$reply"
+
+    async def send_text(self, *, room_id: str, body: str) -> str:
+        _ = room_id, body
+        return "$send"
+
+
 @dataclass
 class _CallSpy:
     calls: int = 0
@@ -140,6 +170,7 @@ async def test_room1_listener_retries_after_transport_failure(
 
 @pytest.mark.asyncio
 async def test_room1_listener_autojoin_targets_only_configured_rooms_without_clinical_mutation(
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     stop_event = asyncio.Event()
     matrix_client = _InviteSyncClient(stop_event=stop_event)
@@ -149,25 +180,26 @@ async def test_room1_listener_autojoin_targets_only_configured_rooms_without_cli
     message_repository = _CallSpy()
     room3_reply_service = _CallSpy()
 
-    await asyncio.wait_for(
-        run_room1_intake_listener(
-            matrix_client=matrix_client,
-            message_repository=message_repository,
-            intake_service=intake_service,
-            reaction_service=reaction_service,
-            room2_reply_service=room2_reply_service,
-            room3_reply_service=room3_reply_service,
-            room1_id="!room1:example.org",
-            room2_id="!room2:example.org",
-            room3_id="!room3:example.org",
-            room4_id="!room4:example.org",
-            bot_user_id="@bot:example.org",
-            sync_timeout_ms=30_000,
-            poll_interval_seconds=0.0,
-            stop_event=stop_event,
-        ),
-        timeout=1.0,
-    )
+    with caplog.at_level(logging.INFO):
+        await asyncio.wait_for(
+            run_room1_intake_listener(
+                matrix_client=matrix_client,
+                message_repository=message_repository,
+                intake_service=intake_service,
+                reaction_service=reaction_service,
+                room2_reply_service=room2_reply_service,
+                room3_reply_service=room3_reply_service,
+                room1_id="!room1:example.org",
+                room2_id="!room2:example.org",
+                room3_id="!room3:example.org",
+                room4_id="!room4:example.org",
+                bot_user_id="@bot:example.org",
+                sync_timeout_ms=30_000,
+                poll_interval_seconds=0.0,
+                stop_event=stop_event,
+            ),
+            timeout=1.0,
+        )
 
     assert matrix_client.join_calls == [
         "!room1:example.org",
@@ -175,11 +207,45 @@ async def test_room1_listener_autojoin_targets_only_configured_rooms_without_cli
         "!room3:example.org",
         "!room4:example.org",
     ]
+    assert "bot_matrix_invite_autojoin_succeeded room_id=!room1:example.org" in caplog.text
+    assert "bot_matrix_invite_autojoin_succeeded room_id=!room4:example.org" in caplog.text
     assert intake_service.calls == 0
     assert reaction_service.calls == 0
     assert room2_reply_service.calls == 0
     assert message_repository.calls == 0
     assert room3_reply_service.calls == 0
+
+
+@pytest.mark.asyncio
+async def test_room1_listener_logs_warning_when_invite_autojoin_fails(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    stop_event = asyncio.Event()
+    matrix_client = _InviteFailingSyncClient(stop_event=stop_event)
+
+    with caplog.at_level(logging.INFO):
+        await asyncio.wait_for(
+            run_room1_intake_listener(
+                matrix_client=matrix_client,
+                message_repository=object(),
+                intake_service=object(),
+                reaction_service=object(),
+                room2_reply_service=object(),
+                room3_reply_service=object(),
+                room1_id="!room1:example.org",
+                room2_id="!room2:example.org",
+                room3_id="!room3:example.org",
+                room4_id="!room4:example.org",
+                bot_user_id="@bot:example.org",
+                sync_timeout_ms=30_000,
+                poll_interval_seconds=0.0,
+                stop_event=stop_event,
+            ),
+            timeout=1.0,
+        )
+
+    assert "bot_matrix_invite_autojoin_failed room_id=!room4:example.org" in caplog.text
+    assert "reason=forbidden" in caplog.text
 
 
 def test_build_runtime_matrix_client_uses_sync_timeout_buffer() -> None:

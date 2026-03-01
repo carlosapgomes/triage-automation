@@ -628,8 +628,17 @@ async def _auto_accept_configured_invites_from_sync(
             continue
         try:
             await joiner.join_room(room_id=invited_room_id)
-        except Exception:  # pragma: no cover - resilience path; detailed logs in follow-up slice
+        except Exception as exc:  # pragma: no cover - resilience path
+            logger.warning(
+                "bot_matrix_invite_autojoin_failed room_id=%s reason=%s",
+                invited_room_id,
+                exc,
+            )
             continue
+        logger.info(
+            "bot_matrix_invite_autojoin_succeeded room_id=%s",
+            invited_room_id,
+        )
 
 
 async def _route_room1_intake_from_sync(
