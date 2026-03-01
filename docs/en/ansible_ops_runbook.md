@@ -90,6 +90,22 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy.yml \
 - runtime artifacts rendered under `{{ ats_runtime_root }}` on the remote host.
 - playbook completes without failures.
 
+## Image pull policy in deploy/upgrade
+
+Current runtime default policy:
+
+- `ats_runtime_pull_policy: "always"`
+
+Operational implications:
+
+- deploy/upgrade always attempts to pull the target-tag image from the registry;
+- behavior does not depend on deleting the local target-tag image before `pull`.
+
+Image cleanup note:
+
+- pre-removal of the target image runs only in `missing` mode (best effort);
+- under the baseline (`always`), that conditional removal remains inactive.
+
 ## Official Upgrade Flow
 
 1. Set the new target tag (do not use `latest`):

@@ -90,6 +90,22 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy.yml \
 - configuração de runtime renderizada em `{{ ats_runtime_root }}` no host remoto.
 - playbook finalizado sem falhas.
 
+## Política de pull de imagem no deploy/upgrade
+
+Política padrão atual do runtime:
+
+- `ats_runtime_pull_policy: "always"`
+
+Implicações operacionais:
+
+- o deploy/upgrade sempre tenta baixar a imagem da tag alvo no registry;
+- o comportamento não depende de remover imagem local da tag antes do `pull`.
+
+Observação sobre limpeza de imagem:
+
+- a remoção prévia da imagem alvo é executada apenas em modo `missing` (best-effort);
+- no baseline (`always`), essa remoção condicional fica inativa.
+
 ## Fluxo oficial de upgrade
 
 1. Defina a nova tag alvo (não usar `latest`):
