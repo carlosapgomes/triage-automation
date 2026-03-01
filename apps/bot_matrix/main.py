@@ -53,6 +53,7 @@ from triage_automation.infrastructure.matrix.room2_reply_parser import (
 from triage_automation.infrastructure.matrix.room3_reply_parser import parse_room3_reply_event
 from triage_automation.infrastructure.matrix.sync_events import (
     extract_next_batch_token,
+    iter_invited_room_ids,
     iter_joined_room_timeline_events,
 )
 
@@ -92,6 +93,13 @@ class MatrixRoom1ListenerClientPort(Protocol):
 
     async def send_text(self, *, room_id: str, body: str) -> str:
         """Post text to Matrix and return created event id."""
+
+
+class MatrixRoomInviteJoinerPort(Protocol):
+    """Matrix operations required to auto-accept room invites."""
+
+    async def join_room(self, *, room_id: str) -> None:
+        """Join invited room in Matrix runtime."""
 
 
 @dataclass(frozen=True)
@@ -372,6 +380,7 @@ async def poll_room1_reactions_and_room3_once(
     room1_id: str,
     room2_id: str,
     room3_id: str,
+    room4_id: str,
     bot_user_id: str,
     since_token: str | None,
     sync_timeout_ms: int,
@@ -388,6 +397,11 @@ async def poll_room1_reactions_and_room3_once(
         display_name_cache=runtime_display_name_cache,
     )
     next_since = extract_next_batch_token(sync_payload, fallback=since_token)
+    await _auto_accept_configured_invites_from_sync(
+        sync_payload=sync_payload,
+        matrix_client=matrix_client,
+        allowed_room_ids={room1_id, room2_id, room3_id, room4_id},
+    )
     intake_count = await _route_room1_intake_from_sync(
         sync_payload=sync_payload,
         intake_service=intake_service,
@@ -434,6 +448,7 @@ async def run_room1_intake_listener(
     room1_id: str,
     room2_id: str,
     room3_id: str,
+    room4_id: str,
     bot_user_id: str,
     sync_timeout_ms: int,
     poll_interval_seconds: float,
@@ -445,11 +460,12 @@ async def run_room1_intake_listener(
     logger.info(
         (
             "bot_matrix_listener_started room1_id=%s room2_id=%s room3_id=%s "
-            "sync_timeout_ms=%s poll_interval_seconds=%s"
+            "room4_id=%s sync_timeout_ms=%s poll_interval_seconds=%s"
         ),
         room1_id,
         room2_id,
         room3_id,
+        room4_id,
         sync_timeout_ms,
         poll_interval_seconds,
     )
@@ -468,6 +484,7 @@ async def run_room1_intake_listener(
                     room1_id=room1_id,
                     room2_id=room2_id,
                     room3_id=room3_id,
+                    room4_id=room4_id,
                     bot_user_id=bot_user_id,
                     since_token=since_token,
                     sync_timeout_ms=sync_timeout_ms,
@@ -514,6 +531,7 @@ async def _run_bot_matrix() -> None:
         room1_id=runtime.settings.room1_id,
         room2_id=runtime.settings.room2_id,
         room3_id=runtime.settings.room3_id,
+        room4_id=runtime.settings.room4_id,
         bot_user_id=runtime.settings.matrix_bot_user_id,
         sync_timeout_ms=runtime.settings.matrix_sync_timeout_ms,
         poll_interval_seconds=runtime.settings.matrix_poll_interval_seconds,
@@ -591,6 +609,27 @@ def build_room3_reply_service(
         matrix_poster=matrix_client,
         reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
     )
+
+
+async def _auto_accept_configured_invites_from_sync(
+    *,
+    sync_payload: dict[str, object],
+    matrix_client: MatrixRoom1ListenerClientPort,
+    allowed_room_ids: set[str],
+) -> None:
+    """Auto-join invited rooms that are explicitly allowed by runtime settings."""
+
+    if not hasattr(matrix_client, "join_room"):
+        return
+
+    joiner = cast(MatrixRoomInviteJoinerPort, matrix_client)
+    for invited_room_id in iter_invited_room_ids(sync_payload):
+        if invited_room_id not in allowed_room_ids:
+            continue
+        try:
+            await joiner.join_room(room_id=invited_room_id)
+        except Exception:  # pragma: no cover - resilience path; detailed logs in follow-up slice
+            continue
 
 
 async def _route_room1_intake_from_sync(

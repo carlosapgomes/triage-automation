@@ -35,6 +35,10 @@ class _FlakySyncClient:
         _ = room_id, event_id, body
         return "$reply"
 
+    async def send_text(self, *, room_id: str, body: str) -> str:
+        _ = room_id, body
+        return "$send"
+
 
 class _InviteSyncClient:
     def __init__(self, *, stop_event: asyncio.Event) -> None:
@@ -64,6 +68,10 @@ class _InviteSyncClient:
     async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
         _ = room_id, event_id, body
         return "$reply"
+
+    async def send_text(self, *, room_id: str, body: str) -> str:
+        _ = room_id, body
+        return "$send"
 
 
 @dataclass
@@ -116,6 +124,7 @@ async def test_room1_listener_retries_after_transport_failure(
                 room1_id="!room1:example.org",
                 room2_id="!room2:example.org",
                 room3_id="!room3:example.org",
+                room4_id="!room4:example.org",
                 bot_user_id="@bot:example.org",
                 sync_timeout_ms=30_000,
                 poll_interval_seconds=0.0,
@@ -178,6 +187,7 @@ def test_build_runtime_matrix_client_uses_sync_timeout_buffer() -> None:
         room1_id="!room1:example.org",
         room2_id="!room2:example.org",
         room3_id="!room3:example.org",
+        room4_id="!room4:example.org",
         matrix_homeserver_url="https://matrix.example.org",
         matrix_bot_user_id="@bot:example.org",
         matrix_access_token="token",
