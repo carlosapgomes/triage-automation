@@ -256,6 +256,8 @@ class PostRoom2WidgetService:
             )
         )
 
+        recent_denial_context = _build_recent_denial_context(prior_context=prior_context)
+
         summary_body = build_room2_case_summary_message(
             case_id=case.case_id,
             agency_record_number=case.agency_record_number,
@@ -263,6 +265,7 @@ class PostRoom2WidgetService:
             structured_data=structured_data_json,
             summary_text=summary_text,
             suggested_action=suggested_action_json,
+            recent_denial_context=recent_denial_context,
         )
         summary_formatted_body = build_room2_case_summary_formatted_html(
             case_id=case.case_id,
@@ -271,6 +274,7 @@ class PostRoom2WidgetService:
             structured_data=structured_data_json,
             summary_text=summary_text,
             suggested_action=suggested_action_json,
+            recent_denial_context=recent_denial_context,
         )
         summary_event_id = await self._matrix_poster.reply_text(
             room_id=self._room2_id,
@@ -535,6 +539,27 @@ def _build_widget_payload(
             payload["prior_denial_count_7d"] = prior_context.prior_denial_count_7d
 
     return payload
+
+
+def _build_recent_denial_context(
+    *,
+    prior_context: PriorCaseContext,
+) -> dict[str, object] | None:
+    """Build summary-ready recent denial context from prior lookup result."""
+
+    prior_case = prior_context.prior_case
+    if prior_case is None:
+        return None
+
+    recent_denial_context: dict[str, object] = {
+        "prior_case_id": str(prior_case.prior_case_id),
+        "decided_at": prior_case.decided_at,
+        "decision": prior_case.decision,
+        "reason": prior_case.reason,
+    }
+    if prior_context.prior_denial_count_7d is not None:
+        recent_denial_context["prior_denial_count_7d"] = prior_context.prior_denial_count_7d
+    return recent_denial_context
 
 
 def _build_widget_launch_url(*, widget_public_base_url: str, case_id: UUID) -> str:

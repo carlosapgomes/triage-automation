@@ -230,10 +230,11 @@ def build_room2_case_summary_message(
     structured_data: dict[str, object],
     summary_text: str,
     suggested_action: dict[str, object],
+    recent_denial_context: dict[str, object] | None = None,
 ) -> str:
     """Build Room-2 message II body using markdown-like section headings."""
 
-    _ = case_id
+    _ = case_id, recent_denial_context
     summary_lines = _build_room2_clinical_summary_lines(summary_text)
     summary_block = "\n".join(summary_lines)
     findings_block = "\n".join(_build_room2_critical_findings_lines(structured_data))
@@ -280,10 +281,11 @@ def build_room2_case_summary_formatted_html(
     structured_data: dict[str, object],
     summary_text: str,
     suggested_action: dict[str, object],
+    recent_denial_context: dict[str, object] | None = None,
 ) -> str:
     """Build Room-2 message II HTML payload for Matrix formatted_body rendering."""
 
-    _ = case_id
+    _ = case_id, recent_denial_context
     summary_html = _format_room2_clinical_summary_html(summary_text)
     findings_html = _format_markdown_lines_html(
         _build_room2_critical_findings_lines(structured_data)
