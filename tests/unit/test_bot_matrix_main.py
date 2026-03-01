@@ -104,6 +104,42 @@ class _InviteFailingSyncClient:
         return "$send"
 
 
+class _InviteRetrySyncClient:
+    def __init__(self, *, stop_event: asyncio.Event) -> None:
+        self._stop_event = stop_event
+        self.sync_calls = 0
+        self.join_calls = 0
+
+    async def sync(self, *, since: str | None, timeout_ms: int) -> dict[str, object]:
+        _ = since, timeout_ms
+        self.sync_calls += 1
+        if self.sync_calls >= 2:
+            self._stop_event.set()
+        return {
+            "next_batch": f"s-retry-{self.sync_calls}",
+            "rooms": {
+                "join": {},
+                "invite": {
+                    "!room4:example.org": {"invite_state": {"events": []}},
+                },
+            },
+        }
+
+    async def join_room(self, *, room_id: str) -> None:
+        _ = room_id
+        self.join_calls += 1
+        if self.join_calls == 1:
+            raise RuntimeError("temporary join failure")
+
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        _ = room_id, event_id, body
+        return "$reply"
+
+    async def send_text(self, *, room_id: str, body: str) -> str:
+        _ = room_id, body
+        return "$send"
+
+
 @dataclass
 class _CallSpy:
     calls: int = 0
@@ -246,6 +282,43 @@ async def test_room1_listener_logs_warning_when_invite_autojoin_fails(
 
     assert "bot_matrix_invite_autojoin_failed room_id=!room4:example.org" in caplog.text
     assert "reason=forbidden" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_room1_listener_retries_invite_autojoin_on_subsequent_poll(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    stop_event = asyncio.Event()
+    matrix_client = _InviteRetrySyncClient(stop_event=stop_event)
+
+    with caplog.at_level(logging.INFO):
+        await asyncio.wait_for(
+            run_room1_intake_listener(
+                matrix_client=matrix_client,
+                message_repository=object(),
+                intake_service=object(),
+                reaction_service=object(),
+                room2_reply_service=object(),
+                room3_reply_service=object(),
+                room1_id="!room1:example.org",
+                room2_id="!room2:example.org",
+                room3_id="!room3:example.org",
+                room4_id="!room4:example.org",
+                bot_user_id="@bot:example.org",
+                sync_timeout_ms=30_000,
+                poll_interval_seconds=0.0,
+                stop_event=stop_event,
+            ),
+            timeout=1.0,
+        )
+
+    assert matrix_client.sync_calls == 2
+    assert matrix_client.join_calls == 2
+    assert (
+        "bot_matrix_invite_autojoin_failed room_id=!room4:example.org reason=temporary join failure"
+        in caplog.text
+    )
+    assert "bot_matrix_invite_autojoin_succeeded room_id=!room4:example.org" in caplog.text
 
 
 def test_build_runtime_matrix_client_uses_sync_timeout_buffer() -> None:
