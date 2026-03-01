@@ -149,7 +149,7 @@ def build_prior_case_context(
             prior_case_id=top_candidate.case_id,
             decided_at=top_decided_at,
             decision=top_decision,
-            reason=top_reason,
+            reason=_normalize_denial_reason(top_reason),
         ),
         prior_denial_count_7d=len(scoped),
     )
@@ -181,6 +181,18 @@ def _select_denial_details(
 
     denial_events.sort(key=lambda item: item[0], reverse=True)
     return denial_events[0]
+
+
+def _normalize_denial_reason(reason: str | None) -> str:
+    """Return deterministic reason text for selected recent denial context."""
+
+    if reason is None:
+        return "não informado"
+
+    normalized = reason.strip()
+    if not normalized:
+        return "não informado"
+    return normalized
 
 
 def _ensure_utc(value: datetime) -> datetime:
