@@ -234,7 +234,7 @@ def build_room2_case_summary_message(
 ) -> str:
     """Build Room-2 message II body using markdown-like section headings."""
 
-    _ = case_id, recent_denial_context
+    _ = case_id
     summary_lines = _build_room2_clinical_summary_lines(summary_text)
     summary_block = "\n".join(summary_lines)
     findings_block = "\n".join(_build_room2_critical_findings_lines(structured_data))
@@ -249,11 +249,13 @@ def build_room2_case_summary_message(
             summary_text=summary_text,
         )
     )
+    recent_denial_block = _build_room2_recent_denial_markdown_block(recent_denial_context)
     identification_block = build_human_identification_block(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
     )
-    return (
+
+    message = (
         "# Resumo técnico da triagem\n\n"
         f"{identification_block}\n\n"
         "## Resumo clínico:\n\n"
@@ -271,6 +273,9 @@ def build_room2_case_summary_message(
         "## Conduta sugerida:\n\n"
         f"{conduct_block}"
     )
+    if recent_denial_block is not None:
+        message = f"{message}\n\n{recent_denial_block}"
+    return message
 
 
 def build_room2_case_summary_formatted_html(
@@ -285,7 +290,7 @@ def build_room2_case_summary_formatted_html(
 ) -> str:
     """Build Room-2 message II HTML payload for Matrix formatted_body rendering."""
 
-    _ = case_id, recent_denial_context
+    _ = case_id
     summary_html = _format_room2_clinical_summary_html(summary_text)
     findings_html = _format_markdown_lines_html(
         _build_room2_critical_findings_lines(structured_data)
@@ -303,11 +308,13 @@ def build_room2_case_summary_formatted_html(
             summary_text=summary_text,
         )
     )
+    recent_denial_html = _build_room2_recent_denial_html_block(recent_denial_context)
     identification_html = _build_human_identification_html(
         agency_record_number=agency_record_number,
         patient_name=patient_name,
     )
-    return (
+
+    formatted = (
         "<h1>Resumo técnico da triagem</h1>"
         f"{identification_html}"
         "<h2>Resumo clínico:</h2>"
@@ -325,6 +332,92 @@ def build_room2_case_summary_formatted_html(
         "<h2>Conduta sugerida:</h2>"
         f"{conduct_html}"
     )
+    if recent_denial_html is not None:
+        formatted = f"{formatted}<h2>Histórico de negativa recente:</h2>{recent_denial_html}"
+    return formatted
+
+
+def _build_room2_recent_denial_markdown_block(
+    recent_denial_context: dict[str, object] | None,
+) -> str | None:
+    """Return optional markdown section for recent denial context in Room-2 summary."""
+
+    if recent_denial_context is None:
+        return None
+
+    lines = _build_room2_recent_denial_lines(recent_denial_context)
+    block_body = "\n".join(lines)
+    return "## Histórico de negativa recente:\n\n" f"{block_body}"
+
+
+def _build_room2_recent_denial_html_block(
+    recent_denial_context: dict[str, object] | None,
+) -> str | None:
+    """Return optional HTML section body for recent denial context in Room-2 summary."""
+
+    if recent_denial_context is None:
+        return None
+
+    lines = _build_room2_recent_denial_lines(recent_denial_context)
+    return _format_markdown_lines_html(lines)
+
+
+def _build_room2_recent_denial_lines(
+    recent_denial_context: dict[str, object],
+) -> list[str]:
+    """Return deterministic lines describing latest recent denial context."""
+
+    decision = recent_denial_context.get("decision")
+    reason = recent_denial_context.get("reason")
+    decided_at_value = recent_denial_context.get("decided_at")
+
+    decision_label = _format_room2_recent_denial_decision(decision)
+    reason_label = _format_room2_recent_denial_reason(reason)
+    decided_at_label = _format_room2_recent_denial_decided_at(decided_at_value)
+
+    lines = [
+        f"- Tipo da negativa mais recente: {decision_label}.",
+        f"- Motivo da negativa mais recente: {reason_label}",
+        f"- Data/hora da negativa mais recente: {decided_at_label}",
+    ]
+
+    counter = recent_denial_context.get("prior_denial_count_7d")
+    if isinstance(counter, int):
+        lines.append(f"- Total de negativas nos últimos 7 dias: {counter}")
+
+    return lines
+
+
+def _format_room2_recent_denial_decision(value: object) -> str:
+    """Map internal prior decision enum to concise Room-2 display label."""
+
+    if value == "deny_triage":
+        return "negado na triagem"
+    if value == "deny_appointment":
+        return "negado no agendamento"
+    return "negado"
+
+
+def _format_room2_recent_denial_reason(value: object) -> str:
+    """Normalize recent denial reason display with deterministic fallback."""
+
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized:
+            return normalized
+    return "não informado"
+
+
+def _format_room2_recent_denial_decided_at(value: object) -> str:
+    """Format recent denial timestamp for Room-2 summary block."""
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized:
+            return normalized
+    return "não informado"
 
 
 def _build_room2_clinical_summary_lines(summary_text: str) -> list[str]:
