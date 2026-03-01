@@ -278,6 +278,10 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
     assert "## Suporte recomendado:" in summary_body
     assert "## Motivo objetivo:" in summary_body
     assert "## Conduta sugerida:" in summary_body
+    assert "## Histórico de negativa recente:" in summary_body
+    assert "- Tipo da negativa mais recente: negado na triagem." in summary_body
+    assert "- Motivo da negativa mais recente: prior denial" in summary_body
+    assert "- Data/hora da negativa mais recente:" in summary_body
     assert "## Dados extraídos:" not in summary_body
     assert "## Recomendação do sistema:" not in summary_body
     assert "Resumo LLM1" in summary_body
