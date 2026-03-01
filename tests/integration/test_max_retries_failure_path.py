@@ -57,6 +57,7 @@ def _runtime_settings(*, database_url: str) -> Settings:
         room1_id="!room1:example.org",
         room2_id="!room2:example.org",
         room3_id="!room3:example.org",
+        room4_id="!room4:example.org",
         matrix_homeserver_url="https://matrix.example.org",
         matrix_bot_user_id="@bot:example.org",
         matrix_access_token="matrix-token",
