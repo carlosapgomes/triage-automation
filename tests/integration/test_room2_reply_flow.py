@@ -76,11 +76,15 @@ async def _setup_wait_doctor_case(
     async_url: str,
     *,
     origin_event_id: str,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
 ) -> tuple[UUID, str]:
     return await _setup_case_with_status(
         async_url,
         origin_event_id=origin_event_id,
         status=CaseStatus.WAIT_DOCTOR,
+        agency_record_number=agency_record_number,
+        patient_name=patient_name,
     )
 
 
@@ -89,6 +93,8 @@ async def _setup_case_with_status(
     *,
     origin_event_id: str,
     status: CaseStatus,
+    agency_record_number: str | None = None,
+    patient_name: str | None = None,
 ) -> tuple[UUID, str]:
     session_factory = create_session_factory(async_url)
     case_repo = SqlAlchemyCaseRepository(session_factory)
@@ -103,6 +109,21 @@ async def _setup_case_with_status(
             room1_sender_user_id="@human:example.org",
         )
     )
+
+    if agency_record_number is not None:
+        await case_repo.store_pdf_extraction(
+            case_id=case.case_id,
+            pdf_mxc_url="mxc://example.org/source.pdf",
+            extracted_text="texto extraido de teste",
+            agency_record_number=agency_record_number,
+        )
+
+    if patient_name is not None:
+        await case_repo.store_llm1_artifacts(
+            case_id=case.case_id,
+            structured_data_json={"patient": {"name": patient_name, "age": 49}},
+            summary_text="Resumo de teste",
+        )
 
     room2_root_event_id = "$room2-root"
     await message_repo.add_message(
@@ -315,6 +336,93 @@ async def test_runtime_listener_routes_room2_decision_reply_to_existing_decision
     assert reaction_checkpoints[0]["target_event_id"] == "$room2-ack-1"
     assert reaction_checkpoints[0]["outcome"] == "PENDING"
     assert reaction_checkpoints[0]["reaction_event_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_runtime_listener_includes_human_identification_in_room2_ack_when_available(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(
+        tmp_path,
+        "room2_reply_listener_ack_human_identification.db",
+    )
+    case_id, root_event_id = await _setup_wait_doctor_case(
+        async_url,
+        origin_event_id="$origin-room2-listener-ack-identification",
+        agency_record_number="4775652",
+        patient_name="MARIA DA SILVA",
+    )
+    body = (
+        "decisao: aceitar\n"
+        "suporte: nenhum\n"
+        "motivo: (opcional)\n"
+        f"caso: {case_id}"
+    )
+    sync_client = FakeMatrixRuntimeClient(
+        _sync_payload(
+            next_batch="s-room2-ack-identification",
+            room_id="!room2:example.org",
+            events=[
+                _room2_reply_event(
+                    event_id="$doctor-room2-reply-ack-identification-1",
+                    sender="@doctor:example.org",
+                    body=body,
+                    reply_to_event_id=root_event_id,
+                )
+            ],
+        )
+    )
+
+    session_factory = create_session_factory(async_url)
+    message_repository = SqlAlchemyMessageRepository(session_factory)
+    decision_service = HandleDoctorDecisionService(
+        case_repository=SqlAlchemyCaseRepository(session_factory),
+        audit_repository=SqlAlchemyAuditRepository(session_factory),
+        job_queue=SqlAlchemyJobQueueRepository(session_factory),
+        message_repository=message_repository,
+        matrix_poster=sync_client,
+        room2_id="!room2:example.org",
+        reaction_checkpoint_repository=SqlAlchemyReactionCheckpointRepository(session_factory),
+    )
+    room2_reply_service = Room2ReplyService(
+        room2_id="!room2:example.org",
+        decision_service=decision_service,
+        membership_authorizer=sync_client,
+    )
+
+    next_since, routed_count = await poll_room2_reply_events_once(
+        matrix_client=sync_client,
+        room2_reply_service=room2_reply_service,
+        message_repository=message_repository,
+        room2_id="!room2:example.org",
+        bot_user_id="@bot:example.org",
+        since_token=None,
+        sync_timeout_ms=5_000,
+    )
+
+    assert next_since == "s-room2-ack-identification"
+    assert routed_count == 1
+    assert len(sync_client.reply_calls) == 1
+    ack_body = sync_client.reply_calls[0][2]
+    assert "no. ocorrência: 4775652" in ack_body
+    assert "paciente: MARIA DA SILVA" in ack_body
+    assert "no. ocorrência: não detectado" not in ack_body
+    assert "paciente: não detectado" not in ack_body
+
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        transcript_rows = connection.execute(
+            sa.text(
+                "SELECT message_type, message_text "
+                "FROM case_matrix_message_transcripts "
+                "WHERE case_id = :case_id AND message_type = 'room2_decision_ack'"
+            ),
+            {"case_id": case_id.hex},
+        ).mappings().all()
+
+    assert len(transcript_rows) == 1
+    assert transcript_rows[0]["message_type"] == "room2_decision_ack"
+    assert transcript_rows[0]["message_text"] == ack_body
 
 
 @pytest.mark.asyncio

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol
+from typing import Any, Protocol
 
 from triage_automation.application.dto.webhook_models import TriageDecisionWebhookPayload
 from triage_automation.application.ports.audit_repository_port import (
@@ -26,6 +26,7 @@ from triage_automation.application.ports.reaction_checkpoint_repository_port imp
     ReactionCheckpointCreateInput,
     ReactionCheckpointRepositoryPort,
 )
+from triage_automation.application.services.patient_context import extract_patient_name_age
 from triage_automation.domain.case_status import CaseStatus
 from triage_automation.infrastructure.matrix.message_templates import (
     build_room2_decision_ack_message,
@@ -185,11 +186,21 @@ class HandleDoctorDecisionService:
             )
         )
 
-        await self._post_room2_decision_ack(payload=payload)
+        await self._post_room2_decision_ack(
+            payload=payload,
+            agency_record_number=snapshot.agency_record_number,
+            structured_data_json=snapshot.structured_data_json,
+        )
 
         return HandleDoctorDecisionResult(outcome=HandleDoctorDecisionOutcome.APPLIED)
 
-    async def _post_room2_decision_ack(self, *, payload: TriageDecisionWebhookPayload) -> None:
+    async def _post_room2_decision_ack(
+        self,
+        *,
+        payload: TriageDecisionWebhookPayload,
+        agency_record_number: str | None,
+        structured_data_json: dict[str, Any] | None,
+    ) -> None:
         """Post and persist Room-2 decision acknowledgment target when configured."""
 
         if (
@@ -199,11 +210,14 @@ class HandleDoctorDecisionService:
         ):
             return
 
+        patient_name, _ = extract_patient_name_age(structured_data_json)
         body = build_room2_decision_ack_message(
             case_id=payload.case_id,
             decision=payload.decision,
             support_flag=payload.support_flag,
             reason=payload.reason,
+            agency_record_number=agency_record_number,
+            patient_name=patient_name,
         )
         related_event_id = payload.widget_event_id
         try:

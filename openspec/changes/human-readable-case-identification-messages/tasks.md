@@ -24,3 +24,5 @@
 
 - Verificação de markdown foi executada com sucesso: `markdownlint-cli2 "openspec/changes/human-readable-case-identification-messages/tasks.md"` retornou `0 error(s)`.
 - Slice 2.5 validado com `uv run pytest` (alvos unitários + integração), `uv run ruff check`, `uv run mypy` e `markdownlint-cli2` sem erros.
+- Follow-up operacional (2026-03-01): corrigido `HandleDoctorDecisionService` para propagar `agency_record_number` e `patient_name` (extraído de `structured_data_json`) no `build_room2_decision_ack_message`, eliminando fallback indevido `não detectado` no ACK final da Sala 2 quando os dados já existem no caso.
+- Cobertura adicionada em integração: `test_runtime_listener_includes_human_identification_in_room2_ack_when_available` em `tests/integration/test_room2_reply_flow.py`.
