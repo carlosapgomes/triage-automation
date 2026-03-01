@@ -214,3 +214,101 @@ def test_lookup_uses_nao_informado_fallback_for_missing_denial_reason() -> None:
 
     assert context.prior_case is not None
     assert context.prior_case.reason == "não informado"
+
+
+def test_lookup_returns_no_prior_context_when_window_has_no_denials() -> None:
+    now = datetime(2026, 2, 15, 12, 0, tzinfo=UTC)
+    current_case_id = uuid4()
+
+    candidates = [
+        PriorCaseCandidate(
+            case_id=uuid4(),
+            created_at=now - timedelta(days=1),
+            status="DOCTOR_ACCEPTED",
+            doctor_decision="accept",
+            doctor_decided_at=now - timedelta(hours=3),
+            doctor_reason="aceito",
+            appointment_status="confirmed",
+            appointment_decided_at=now - timedelta(hours=2),
+            appointment_reason=None,
+        )
+    ]
+
+    context = build_prior_case_context(
+        candidates=candidates,
+        current_case_id=current_case_id,
+        now=now,
+    )
+
+    assert context.prior_case is None
+    assert context.prior_denial_count_7d is None
+
+
+def test_lookup_counts_multiple_denials_including_triage_and_appointment() -> None:
+    now = datetime(2026, 2, 15, 12, 0, tzinfo=UTC)
+    current_case_id = uuid4()
+
+    candidates = [
+        PriorCaseCandidate(
+            case_id=uuid4(),
+            created_at=now - timedelta(days=3),
+            status="DOCTOR_DENIED",
+            doctor_decision="deny",
+            doctor_decided_at=now - timedelta(days=2),
+            doctor_reason="triagem",
+            appointment_status=None,
+            appointment_decided_at=None,
+            appointment_reason=None,
+        ),
+        PriorCaseCandidate(
+            case_id=uuid4(),
+            created_at=now - timedelta(days=2),
+            status="R3_DENIED",
+            doctor_decision=None,
+            doctor_decided_at=None,
+            doctor_reason=None,
+            appointment_status="denied",
+            appointment_decided_at=now - timedelta(days=1),
+            appointment_reason="agenda",
+        ),
+    ]
+
+    context = build_prior_case_context(
+        candidates=candidates,
+        current_case_id=current_case_id,
+        now=now,
+    )
+
+    assert context.prior_case is not None
+    assert context.prior_denial_count_7d == 2
+
+
+def test_lookup_counts_both_denial_classes_when_same_case_has_both() -> None:
+    now = datetime(2026, 2, 15, 12, 0, tzinfo=UTC)
+    current_case_id = uuid4()
+    compound_case_id = uuid4()
+
+    candidates = [
+        PriorCaseCandidate(
+            case_id=compound_case_id,
+            created_at=now - timedelta(days=4),
+            status="R3_DENIED",
+            doctor_decision="deny",
+            doctor_decided_at=now - timedelta(days=2),
+            doctor_reason="negado triagem",
+            appointment_status="denied",
+            appointment_decided_at=now - timedelta(days=1),
+            appointment_reason="negado agendamento",
+        )
+    ]
+
+    context = build_prior_case_context(
+        candidates=candidates,
+        current_case_id=current_case_id,
+        now=now,
+    )
+
+    assert context.prior_case is not None
+    assert context.prior_case.prior_case_id == compound_case_id
+    assert context.prior_case.decision == "deny_appointment"
+    assert context.prior_denial_count_7d == 2

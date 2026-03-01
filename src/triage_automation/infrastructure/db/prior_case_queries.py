@@ -123,42 +123,37 @@ def build_prior_case_context(
 
     window_start = now - timedelta(days=7)
 
-    scoped: list[tuple[PriorCaseCandidate, datetime, PriorCaseDecision, str | None]] = []
+    denial_events_in_window: list[tuple[UUID, datetime, PriorCaseDecision, str | None]] = []
     for candidate in candidates:
         if candidate.case_id == current_case_id:
             continue
 
-        denial_details = _select_denial_details(candidate)
-        if denial_details is None:
-            continue
+        for decided_at, decision, reason in _collect_denial_events(candidate):
+            if decided_at < window_start or decided_at > now:
+                continue
+            denial_events_in_window.append((candidate.case_id, decided_at, decision, reason))
 
-        decided_at, decision, reason = denial_details
-        if decided_at < window_start or decided_at > now:
-            continue
-
-        scoped.append((candidate, decided_at, decision, reason))
-
-    if not scoped:
+    if not denial_events_in_window:
         return PriorCaseContext(prior_case=None, prior_denial_count_7d=None)
 
-    scoped.sort(key=lambda item: item[1], reverse=True)
-    top_candidate, top_decided_at, top_decision, top_reason = scoped[0]
+    denial_events_in_window.sort(key=lambda item: item[1], reverse=True)
+    top_case_id, top_decided_at, top_decision, top_reason = denial_events_in_window[0]
 
     return PriorCaseContext(
         prior_case=PriorCaseSummary(
-            prior_case_id=top_candidate.case_id,
+            prior_case_id=top_case_id,
             decided_at=top_decided_at,
             decision=top_decision,
             reason=_normalize_denial_reason(top_reason),
         ),
-        prior_denial_count_7d=len(scoped),
+        prior_denial_count_7d=len(denial_events_in_window),
     )
 
 
-def _select_denial_details(
+def _collect_denial_events(
     candidate: PriorCaseCandidate,
-) -> tuple[datetime, PriorCaseDecision, str | None] | None:
-    """Return the latest denial event details for a candidate case row."""
+) -> list[tuple[datetime, PriorCaseDecision, str | None]]:
+    """Return all denial events available in a candidate case row."""
 
     denial_events: list[tuple[datetime, PriorCaseDecision, str | None]] = []
 
@@ -176,11 +171,7 @@ def _select_denial_details(
             )
         )
 
-    if not denial_events:
-        return None
-
-    denial_events.sort(key=lambda item: item[0], reverse=True)
-    return denial_events[0]
+    return denial_events
 
 
 def _normalize_denial_reason(reason: str | None) -> str:
