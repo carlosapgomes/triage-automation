@@ -25,4 +25,37 @@
 
 - [x] 5.1 Atualizar documentação operacional (`docs/` e `docs/en/`) com comportamento de autoaceite de convites para salas configuradas.
 - [x] 5.2 Executar validações do slice: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
-- [ ] 5.3 Atualizar checklist do change com evidências de verificação e notas de rollout/rollback.
+- [x] 5.3 Atualizar checklist do change com evidências de verificação e notas de rollout/rollback.
+
+## Evidências de verificação e notas de rollout/rollback
+
+### Evidências de verificação
+
+- Parser de convites no sync:
+  - `uv run pytest tests/unit/test_sync_events.py -q`
+- Adapter Matrix HTTP para join:
+  - `uv run pytest tests/unit/test_matrix_http_client.py -q`
+- Runtime bot-matrix (allowlist, logs, retry e reaceite):
+  - `uv run pytest tests/unit/test_bot_matrix_main.py -q`
+- Validação consolidada do change:
+  - `uv run pytest tests/unit/test_sync_events.py tests/unit/test_matrix_http_client.py tests/unit/test_bot_matrix_main.py -q` → `27 passed`
+  - `uv run ruff check apps/bot_matrix/main.py src/triage_automation/infrastructure/matrix/http_client.py src/triage_automation/infrastructure/matrix/sync_events.py tests/unit/test_bot_matrix_main.py tests/unit/test_matrix_http_client.py tests/unit/test_sync_events.py` → sem erros
+  - `uv run mypy -m apps.bot_matrix.main` e `uv run mypy src/triage_automation/infrastructure/matrix/http_client.py src/triage_automation/infrastructure/matrix/sync_events.py` → sem erros
+  - `markdownlint-cli2` em `proposal.md`, `design.md`, `spec.md` e `tasks.md` do change → sem erros
+
+### Notas de rollout
+
+- Pré-requisitos:
+  - `bot-matrix` em execução
+  - `MATRIX_ACCESS_TOKEN` válido com permissão para ingressar nas salas convidadas
+  - `ROOM1_ID`, `ROOM2_ID`, `ROOM3_ID` e `ROOM4_ID` corretamente configurados no ambiente
+- Comportamento esperado após deploy:
+  - convites para salas configuradas: autojoin com log `INFO`
+  - convites fora da allowlist: ignorados
+  - falha de join para sala configurada: log `WARNING` com `room_id` e motivo, com nova tentativa em polls seguintes
+
+### Notas de rollback
+
+- Reverter para versão anterior do `bot-matrix` para desativar autoaceite.
+- Mitigação operacional imediata em rollback:
+  - aceitar convites manualmente (UI Matrix ou chamada API com token do bot) para salas oficiais.
