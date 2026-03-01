@@ -34,4 +34,34 @@
 
 - [x] 6.1 Atualizar documentação operacional necessária para agendamento do scheduler (07:00/19:00 em `America/Bahia`) e sincronizar espelho `docs/en/` se houver alteração em `docs/`.
 - [x] 6.2 Executar validações do slice: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
-- [ ] 6.3 Atualizar checklist final do OpenSpec com evidências de verificação e observações de rollout/rollback.
+- [x] 6.3 Atualizar checklist final do OpenSpec com evidências de verificação e observações de rollout/rollback.
+
+## Evidências de verificação e observações de rollout/rollback
+
+### Evidências de verificação
+
+- Validação consolidada do change (slice 6.2):
+  - `uv run pytest tests/unit/test_settings.py tests/unit/test_supervisor_summary_scheduler_window.py tests/unit/test_supervisor_summary_scheduler_main.py tests/unit/test_post_room4_summary_service.py tests/unit/test_worker_main.py tests/integration/test_admin_bootstrap_startup.py tests/integration/test_migration_supervisor_summary_dispatches.py tests/integration/test_supervisor_summary_dispatch_repository.py tests/integration/test_supervisor_summary_scheduler_runtime.py tests/integration/test_supervisor_summary_metrics_queries.py tests/integration/test_worker_runtime_service_wiring.py::test_runtime_worker_handlers_execute_all_supported_job_types -q` → `37 passed`
+  - `uv run ruff check` nos paths alterados do fluxo de resumo Room-4 → sem erros
+  - `uv run mypy -m apps.worker.main -m apps.scheduler.main` e `uv run mypy src apps` → sem erros
+  - `markdownlint-cli2` em `proposal.md`, `design.md`, `spec.md` e `tasks.md` do change → sem erros
+- Coberturas críticas implementadas ao longo dos slices:
+  - idempotência de publicação Room-4 por janela (reexecução sem segunda mensagem)
+  - cálculo de janela determinístico 07:00/19:00 em `America/Bahia`
+  - semântica de métricas finais (`accepted` por `appointment_status=confirmed`; `refused` por `doctor_decision=deny` + `appointment_status=denied`)
+
+### Observações de rollout
+
+- Pré-requisitos:
+  - aplicar migração `0014_supervisor_summary_dispatches`
+  - configurar `ROOM4_ID`, `SUPERVISOR_SUMMARY_TIMEZONE=America/Bahia`, `SUPERVISOR_SUMMARY_MORNING_HOUR=7`, `SUPERVISOR_SUMMARY_EVENING_HOUR=19`
+  - manter `worker` em execução
+- Operação:
+  - agendar execução do scheduler one-shot (`python -m apps.scheduler.main`) às 07:00 e 19:00 em `America/Bahia`
+  - monitorar logs do scheduler/worker e registros em `supervisor_summary_dispatches`
+
+### Observações de rollback
+
+- Desativar o agendamento externo do scheduler (cron/orquestrador) para interromper novos enfileiramentos.
+- Manter o restante do runtime ativo; sem scheduler não há novos jobs de resumo periódicos.
+- A tabela de dispatch pode ser mantida para trilha histórica sem impacto no fluxo clínico principal.
