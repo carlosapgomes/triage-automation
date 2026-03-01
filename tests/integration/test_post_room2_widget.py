@@ -383,6 +383,14 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
             ),
             {"case_id": current_case.case_id.hex},
         ).scalar_one()
+        prior_lookup_payload = connection.execute(
+            sa.text(
+                "SELECT payload FROM case_events "
+                "WHERE case_id = :case_id AND event_type = 'PRIOR_CASE_LOOKUP_COMPLETED' "
+                "ORDER BY id DESC LIMIT 1"
+            ),
+            {"case_id": current_case.case_id.hex},
+        ).scalar_one()
         root_case_id = connection.execute(
             sa.text(
                 "SELECT case_id FROM case_messages "
@@ -439,6 +447,16 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
         else json.loads(widget_post_payload)
     )
     assert parsed_widget_payload["patient_name"] == "Paciente"
+
+    parsed_prior_lookup_payload = (
+        prior_lookup_payload
+        if isinstance(prior_lookup_payload, dict)
+        else json.loads(prior_lookup_payload)
+    )
+    assert parsed_prior_lookup_payload["agency_record_number"] == "12345"
+    assert parsed_prior_lookup_payload["recent_denial_found"] is True
+    assert parsed_prior_lookup_payload["recent_denial_case_id"] == str(prior_case.case_id)
+    assert parsed_prior_lookup_payload["prior_denial_count_7d"] == 1
 
 
 @pytest.mark.asyncio

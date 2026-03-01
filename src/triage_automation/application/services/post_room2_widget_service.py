@@ -174,10 +174,19 @@ class PostRoom2WidgetService:
             agency_record_number=case.agency_record_number,
             now=datetime.now(tz=UTC),
         )
+        recent_denial_found = prior_context.prior_case is not None
+        recent_denial_case_id = (
+            str(prior_context.prior_case.prior_case_id)
+            if prior_context.prior_case is not None
+            else None
+        )
         logger.info(
-            "room2_widget_prior_lookup case_id=%s prior_case_found=%s prior_denial_count_7d=%s",
+            (
+                "room2_widget_prior_lookup case_id=%s recent_denial_found=%s "
+                "prior_denial_count_7d=%s"
+            ),
             case_id,
-            prior_context.prior_case is not None,
+            recent_denial_found,
             prior_context.prior_denial_count_7d,
         )
 
@@ -188,13 +197,12 @@ class PostRoom2WidgetService:
                 event_type="PRIOR_CASE_LOOKUP_COMPLETED",
                 payload={
                     "agency_record_number": case.agency_record_number,
-                    "prior_case_found": prior_context.prior_case is not None,
-                    "prior_case_id": (
-                        str(prior_context.prior_case.prior_case_id)
-                        if prior_context.prior_case is not None
-                        else None
-                    ),
+                    "recent_denial_found": recent_denial_found,
+                    "recent_denial_case_id": recent_denial_case_id,
                     "prior_denial_count_7d": prior_context.prior_denial_count_7d,
+                    # Compatibilidade transitória para consumidores legados.
+                    "prior_case_found": recent_denial_found,
+                    "prior_case_id": recent_denial_case_id,
                 },
             )
         )
