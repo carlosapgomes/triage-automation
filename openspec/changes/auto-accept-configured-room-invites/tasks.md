@@ -19,7 +19,7 @@
 ## 4. Robustez de retry e cenários de reentrada
 
 - [x] 4.1 Adicionar testes para retry automático em polls subsequentes quando join falhar e convite permanecer pendente.
-- [ ] 4.2 Adicionar teste para reaceite após leave/kick seguido de novo convite em sala permitida.
+- [x] 4.2 Adicionar teste para reaceite após leave/kick seguido de novo convite em sala permitida.
 
 ## 5. Documentação operacional e validação final
 
