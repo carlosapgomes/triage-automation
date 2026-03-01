@@ -87,6 +87,37 @@ Para modo provider, defina:
 - `OPENAI_MODEL_LLM1`
 - `OPENAI_MODEL_LLM2`
 
+## Agendamento do resumo periódico da Room-4
+
+O scheduler de resumo da Room-4 é um processo *one-shot*.
+Cada execução calcula a janela anterior de 12h no timezone `America/Bahia`
+e enfileira no máximo um job `post_room4_summary`.
+
+Pré-condições operacionais:
+
+- `worker` em execução (consome o job enfileirado)
+- variáveis de ambiente configuradas: `ROOM4_ID`, `SUPERVISOR_SUMMARY_TIMEZONE`, `SUPERVISOR_SUMMARY_MORNING_HOUR`, `SUPERVISOR_SUMMARY_EVENING_HOUR`
+- migrações aplicadas (`uv run alembic upgrade head`)
+
+Execução manual (validação pontual):
+
+```bash
+uv run python -m apps.scheduler.main
+```
+
+Comportamento esperado:
+
+- em 07:00 (`America/Bahia`): agenda janela `[19:00 dia anterior, 07:00 dia atual)`
+- em 19:00 (`America/Bahia`): agenda janela `[07:00 dia atual, 19:00 dia atual)`
+- reexecução da mesma janela não duplica postagem na Room-4 (idempotência por janela)
+
+Exemplo de cron Linux (produção):
+
+```cron
+CRON_TZ=America/Bahia
+0 7,19 * * * cd /srv/triage-automation && /usr/local/bin/uv run python -m apps.scheduler.main >> /var/log/ats-room4-scheduler.log 2>&1
+```
+
 ## Paridade UV e Compose
 
 Use os mesmos comandos de entrypoint definidos em `docker-compose.yml`:

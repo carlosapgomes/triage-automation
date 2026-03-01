@@ -32,6 +32,6 @@
 
 ## 6. Qualidade, documentação operacional e fechamento do change
 
-- [ ] 6.1 Atualizar documentação operacional necessária para agendamento do scheduler (07:00/19:00 em `America/Bahia`) e sincronizar espelho `docs/en/` se houver alteração em `docs/`.
+- [x] 6.1 Atualizar documentação operacional necessária para agendamento do scheduler (07:00/19:00 em `America/Bahia`) e sincronizar espelho `docs/en/` se houver alteração em `docs/`.
 - [ ] 6.2 Executar validações do slice: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
 - [ ] 6.3 Atualizar checklist final do OpenSpec com evidências de verificação e observações de rollout/rollback.
