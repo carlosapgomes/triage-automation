@@ -118,6 +118,26 @@ CRON_TZ=America/Bahia
 0 7,19 * * * cd /srv/triage-automation && /usr/local/bin/uv run python -m apps.scheduler.main >> /var/log/ats-room4-scheduler.log 2>&1
 ```
 
+## Matrix invite auto-accept for configured rooms
+
+`bot-matrix` automatically accepts invites received for rooms configured in
+`ROOM1_ID`, `ROOM2_ID`, `ROOM3_ID`, and `ROOM4_ID`.
+
+Expected operational behavior:
+
+- invites to configured rooms: automatic join in runtime
+- invites to rooms outside the allowlist: ignored
+- join failure for configured room: `WARNING` log with `room_id` and reason, with retry on subsequent polls while the invite remains
+- successful join: `INFO` log with `room_id`
+
+Prerequisites:
+
+- `apps.bot_matrix.main` is running
+- `MATRIX_ACCESS_TOKEN` has permission to join the invited room
+- room IDs in `.env` are correct (to avoid auto-joining an unintended room due to misconfiguration)
+
+Note: with this behavior enabled, manual bot-user login is not required just to accept invites for official configured rooms.
+
 ## UV and Compose Parity
 
 Use the same entrypoint commands from `docker-compose.yml`:

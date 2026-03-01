@@ -118,6 +118,26 @@ CRON_TZ=America/Bahia
 0 7,19 * * * cd /srv/triage-automation && /usr/local/bin/uv run python -m apps.scheduler.main >> /var/log/ats-room4-scheduler.log 2>&1
 ```
 
+## Autoaceite de convites Matrix para salas configuradas
+
+O `bot-matrix` aceita automaticamente convites recebidos para as salas
+configuradas em `ROOM1_ID`, `ROOM2_ID`, `ROOM3_ID` e `ROOM4_ID`.
+
+Comportamento operacional esperado:
+
+- convites para salas configuradas: autoaceite (join) no runtime
+- convites para salas fora da allowlist: ignorados
+- falha de join em sala configurada: log `WARNING` com `room_id` e motivo, com nova tentativa nos polls seguintes enquanto o convite permanecer
+- sucesso de join: log `INFO` com `room_id`
+
+Pré-condições:
+
+- `apps.bot_matrix.main` em execução
+- `MATRIX_ACCESS_TOKEN` com permissão para ingressar na sala convidada
+- IDs de sala corretos no `.env` (evitar autoentrada em sala indevida por erro de configuração)
+
+Observação: com esse comportamento ativo, não é necessário login manual do usuário bot apenas para aceitar convite das salas oficiais.
+
 ## Paridade UV e Compose
 
 Use os mesmos comandos de entrypoint definidos em `docker-compose.yml`:
