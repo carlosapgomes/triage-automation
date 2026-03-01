@@ -47,6 +47,7 @@ def test_deploy_role_declares_rootless_service_startup_tasks() -> None:
     assert worker_guard in tasks
     assert "docker compose" in tasks
     assert pull_token in tasks
+    assert "when: ats_runtime_pull_policy | lower == 'missing'" in tasks
     assert "up {{ ats_runtime_up_flags }} {{ ats_runtime_deploy_services | join(' ') }}" in tasks
     assert "register: ats_deploy_up_result" in tasks
     assert "changed_when:" in tasks

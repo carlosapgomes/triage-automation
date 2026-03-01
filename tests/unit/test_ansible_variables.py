@@ -41,6 +41,7 @@ def test_ansible_group_vars_declares_public_ghcr_baseline_and_required_env() -> 
         'ats_runtime_image_repository: "carlosapgomes/augmented-triage-system"'
         in variables
     )
+    assert 'ats_runtime_pull_policy: "always"' in variables
 
     required_env_keys = (
         "DATABASE_URL",

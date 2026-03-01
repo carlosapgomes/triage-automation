@@ -18,7 +18,7 @@
       Configured runtime commands diverge from supported startup composition.
       Align `ats_runtime_services` with declared supported commands before deploy.
 
-- name: Remove existing image for current tag to force fresh pull
+- name: Best-effort remove target image when pull policy is missing
   become: true
   become_user: "{{ ats_service_user }}"
   ansible.builtin.command: >-
@@ -30,6 +30,7 @@
   register: ats_deploy_remove_image_result
   changed_when: "'Deleted' in ats_deploy_remove_image_result.stdout"
   failed_when: false
+  when: ats_runtime_pull_policy | lower == 'missing'
 
 - name: Pull runtime images for configured services
   become: true
