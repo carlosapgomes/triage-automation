@@ -439,3 +439,94 @@ async def test_post_room2_widget_includes_prior_and_moves_to_wait_doctor(tmp_pat
         else json.loads(widget_post_payload)
     )
     assert parsed_widget_payload["patient_name"] == "Paciente"
+
+
+@pytest.mark.asyncio
+async def test_post_room2_widget_omits_prior_denial_block_without_recent_denial(
+    tmp_path: Path,
+) -> None:
+    sync_url, async_url = _upgrade_head(tmp_path, "post_room2_widget_no_recent_denial.db")
+    session_factory = create_session_factory(async_url)
+
+    case_repo = SqlAlchemyCaseRepository(session_factory)
+    audit_repo = SqlAlchemyAuditRepository(session_factory)
+    message_repo = SqlAlchemyMessageRepository(session_factory)
+    prior_queries = SqlAlchemyPriorCaseQueries(session_factory)
+    matrix_poster = FakeMatrixPoster()
+
+    prior_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.DOCTOR_ACCEPTED,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-prior-accepted",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=prior_case.case_id,
+        pdf_mxc_url="mxc://example.org/prior-accepted",
+        extracted_text="prior accepted text",
+        agency_record_number="12345",
+    )
+
+    now = datetime.now(tz=UTC)
+    engine = sa.create_engine(sync_url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "UPDATE cases SET created_at = :created_at, doctor_decision = 'accept', "
+                "doctor_reason = 'aceito', doctor_decided_at = :decided_at "
+                "WHERE case_id = :case_id"
+            ),
+            {
+                "created_at": now - timedelta(days=1),
+                "decided_at": now - timedelta(days=1),
+                "case_id": prior_case.case_id.hex,
+            },
+        )
+
+    current_case = await case_repo.create_case(
+        CaseCreateInput(
+            case_id=uuid4(),
+            status=CaseStatus.LLM_SUGGEST,
+            room1_origin_room_id="!room1:example.org",
+            room1_origin_event_id="$origin-current-no-denial",
+            room1_sender_user_id="@human:example.org",
+        )
+    )
+    await case_repo.store_pdf_extraction(
+        case_id=current_case.case_id,
+        pdf_mxc_url="mxc://example.org/current-no-denial",
+        extracted_text="current text",
+        agency_record_number="12345",
+    )
+    await case_repo.store_llm1_artifacts(
+        case_id=current_case.case_id,
+        structured_data_json=_structured_data("12345"),
+        summary_text="Resumo LLM1",
+    )
+    await case_repo.store_llm2_artifacts(
+        case_id=current_case.case_id,
+        suggested_action_json=_suggested_action(current_case.case_id, "12345"),
+    )
+
+    service = PostRoom2WidgetService(
+        room2_id="!room2:example.org",
+        widget_public_base_url="https://bot-api.example.org",
+        case_repository=case_repo,
+        audit_repository=audit_repo,
+        message_repository=message_repo,
+        prior_case_queries=prior_queries,
+        matrix_poster=matrix_poster,
+    )
+
+    await service.post_widget(case_id=current_case.case_id)
+
+    summary_body = matrix_poster.reply_calls[0][2]
+    summary_formatted_body = matrix_poster.reply_calls[0][4]
+    assert "## Histórico de negativa recente:" not in summary_body
+    assert "Tipo da negativa mais recente" not in summary_body
+    assert "Motivo da negativa mais recente" not in summary_body
+    assert summary_formatted_body is not None
+    assert "<h2>Histórico de negativa recente:</h2>" not in summary_formatted_body
