@@ -62,3 +62,22 @@ def iter_joined_room_timeline_events(sync_payload: Mapping[str, Any]) -> list[Ma
                 )
 
     return extracted
+
+
+def iter_invited_room_ids(sync_payload: Mapping[str, Any]) -> list[str]:
+    """Extract invited room ids from Matrix `/sync` payload in deterministic order."""
+
+    rooms = sync_payload.get("rooms")
+    if not isinstance(rooms, Mapping):
+        return []
+
+    invited_rooms = rooms.get("invite")
+    if not isinstance(invited_rooms, Mapping):
+        return []
+
+    extracted: list[str] = []
+    for room_id, room_body in invited_rooms.items():
+        if not isinstance(room_id, str) or not isinstance(room_body, Mapping):
+            continue
+        extracted.append(room_id)
+    return extracted
