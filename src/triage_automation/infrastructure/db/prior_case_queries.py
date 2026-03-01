@@ -52,6 +52,21 @@ class SqlAlchemyPriorCaseQueries(PriorCaseQueryPort):
         reference_now = now or datetime.now(tz=UTC)
         window_start = reference_now - timedelta(days=7)
 
+        denial_window_filter = sa.or_(
+            sa.and_(
+                cases.c.doctor_decision == "deny",
+                cases.c.doctor_decided_at.is_not(None),
+                cases.c.doctor_decided_at >= window_start,
+                cases.c.doctor_decided_at <= reference_now,
+            ),
+            sa.and_(
+                cases.c.appointment_status == "denied",
+                cases.c.appointment_decided_at.is_not(None),
+                cases.c.appointment_decided_at >= window_start,
+                cases.c.appointment_decided_at <= reference_now,
+            ),
+        )
+
         statement = sa.select(
             cases.c.case_id,
             cases.c.created_at,
@@ -64,9 +79,8 @@ class SqlAlchemyPriorCaseQueries(PriorCaseQueryPort):
             cases.c.appointment_reason,
         ).where(
             cases.c.agency_record_number == agency_record_number,
-            cases.c.created_at >= window_start,
-            cases.c.created_at <= reference_now,
             cases.c.case_id != case_id,
+            denial_window_filter,
         )
 
         async with self._session_factory() as session:
@@ -105,61 +119,68 @@ def build_prior_case_context(
     current_case_id: UUID,
     now: datetime,
 ) -> PriorCaseContext:
-    """Compute most-recent prior case and denial count within 7 days."""
+    """Compute most-recent prior denial and denial count within the 7-day window."""
 
     window_start = now - timedelta(days=7)
 
-    scoped = [
-        candidate
-        for candidate in candidates
-        if candidate.case_id != current_case_id and candidate.created_at >= window_start
-    ]
+    scoped: list[tuple[PriorCaseCandidate, datetime, PriorCaseDecision, str | None]] = []
+    for candidate in candidates:
+        if candidate.case_id == current_case_id:
+            continue
+
+        denial_details = _select_denial_details(candidate)
+        if denial_details is None:
+            continue
+
+        decided_at, decision, reason = denial_details
+        if decided_at < window_start or decided_at > now:
+            continue
+
+        scoped.append((candidate, decided_at, decision, reason))
+
     if not scoped:
         return PriorCaseContext(prior_case=None, prior_denial_count_7d=None)
 
-    scoped.sort(key=lambda item: item.created_at, reverse=True)
-    denial_count = sum(1 for item in scoped if _is_denial(item))
+    scoped.sort(key=lambda item: item[1], reverse=True)
+    top_candidate, top_decided_at, top_decision, top_reason = scoped[0]
 
-    top = scoped[0]
     return PriorCaseContext(
         prior_case=PriorCaseSummary(
-            prior_case_id=top.case_id,
-            decided_at=_select_decided_at(top),
-            decision=_map_decision(top),
-            reason=_select_reason(top),
+            prior_case_id=top_candidate.case_id,
+            decided_at=top_decided_at,
+            decision=top_decision,
+            reason=top_reason,
         ),
-        prior_denial_count_7d=denial_count,
+        prior_denial_count_7d=len(scoped),
     )
 
 
-def _is_denial(candidate: PriorCaseCandidate) -> bool:
-    return candidate.doctor_decision == "deny" or candidate.appointment_status == "denied"
+def _select_denial_details(
+    candidate: PriorCaseCandidate,
+) -> tuple[datetime, PriorCaseDecision, str | None] | None:
+    """Return the latest denial event details for a candidate case row."""
 
+    denial_events: list[tuple[datetime, PriorCaseDecision, str | None]] = []
 
-def _map_decision(candidate: PriorCaseCandidate) -> PriorCaseDecision:
-    if candidate.doctor_decision == "deny":
-        return "deny_triage"
-    if candidate.appointment_status == "denied":
-        return "deny_appointment"
-    if candidate.status == "FAILED":
-        return "failed"
-    return "accepted"
+    if candidate.doctor_decision == "deny" and candidate.doctor_decided_at is not None:
+        denial_events.append(
+            (candidate.doctor_decided_at, "deny_triage", candidate.doctor_reason)
+        )
 
+    if candidate.appointment_status == "denied" and candidate.appointment_decided_at is not None:
+        denial_events.append(
+            (
+                candidate.appointment_decided_at,
+                "deny_appointment",
+                candidate.appointment_reason,
+            )
+        )
 
-def _select_decided_at(candidate: PriorCaseCandidate) -> datetime:
-    if candidate.doctor_decided_at is not None:
-        return candidate.doctor_decided_at
-    if candidate.appointment_decided_at is not None:
-        return candidate.appointment_decided_at
-    return candidate.created_at
+    if not denial_events:
+        return None
 
-
-def _select_reason(candidate: PriorCaseCandidate) -> str | None:
-    if candidate.doctor_reason:
-        return candidate.doctor_reason
-    if candidate.appointment_reason:
-        return candidate.appointment_reason
-    return None
+    denial_events.sort(key=lambda item: item[0], reverse=True)
+    return denial_events[0]
 
 
 def _ensure_utc(value: datetime) -> datetime:

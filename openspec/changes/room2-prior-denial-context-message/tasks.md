@@ -3,7 +3,7 @@
 ## 1. Semântica de lookup de negativa recente (7 dias)
 
 - [x] 1.1 Adicionar/ajustar testes unitários de `prior_case_queries` para falhar (red) quando a janela usar `created_at` em vez de timestamps de negativa (`doctor_decided_at`/`appointment_decided_at`).
-- [ ] 1.2 Implementar query e normalização para considerar apenas negativas na janela de 7 dias, excluindo o caso atual e classificando `deny_triage` vs `deny_appointment`.
+- [x] 1.2 Implementar query e normalização para considerar apenas negativas na janela de 7 dias, excluindo o caso atual e classificando `deny_triage` vs `deny_appointment`.
 - [ ] 1.3 Garantir fallback determinístico de motivo (`não informado`) e seleção da negativa mais recente por timestamp de desfecho.
 - [ ] 1.4 Cobrir contagem de negativas na janela (triagem + agendamento) com testes de borda (sem negativas, múltiplas negativas, motivo ausente).
 
