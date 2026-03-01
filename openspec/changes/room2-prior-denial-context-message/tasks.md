@@ -13,7 +13,7 @@
 - [x] 2.2 Adicionar teste de integração garantindo omissão do bloco quando não houver negativa recente na janela.
 - [x] 2.3 Atualizar `PostRoom2WidgetService` para propagar contexto de negativa recente para o builder de resumo sem alterar máquina de estados nem contratos de parser.
 - [x] 2.4 Atualizar templates de resumo (texto + HTML) para renderizar bloco opcional curto e determinístico de histórico recente, mantendo layout conciso existente.
-- [ ] 2.5 Garantir formatação temporal estável (BRT) no bloco exibido ao médico e validar com testes determinísticos.
+- [x] 2.5 Garantir formatação temporal estável (BRT) no bloco exibido ao médico e validar com testes determinísticos.
 
 ## 3. Auditoria, regressão e validação final
 

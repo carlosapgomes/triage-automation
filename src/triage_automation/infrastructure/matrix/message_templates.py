@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from html import escape
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 # Case-id visibility contract across Room-1/2/3 builders:
 # - structural: parser-bound templates must preserve `caso: <uuid>` line.
@@ -37,6 +38,8 @@ INFORMATIONAL_CASE_ID_TEMPLATE_BUILDERS: tuple[str, ...] = (
     "build_room1_final_denied_appointment_message",
     "build_room1_final_failure_message",
 )
+
+_ROOM2_SUMMARY_BRT_ZONE = ZoneInfo("America/Bahia")
 
 
 def build_human_identification_block(
@@ -409,15 +412,42 @@ def _format_room2_recent_denial_reason(value: object) -> str:
 
 
 def _format_room2_recent_denial_decided_at(value: object) -> str:
-    """Format recent denial timestamp for Room-2 summary block."""
+    """Format recent denial timestamp for Room-2 summary block in BRT."""
+
+    parsed = _parse_room2_recent_denial_datetime(value)
+    if parsed is None:
+        return "não informado"
+
+    localized = parsed.astimezone(_ROOM2_SUMMARY_BRT_ZONE)
+    return f"{localized.strftime('%d/%m/%Y %H:%M')} BRT"
+
+
+def _parse_room2_recent_denial_datetime(value: object) -> datetime | None:
+    """Parse recent denial datetime from typed or ISO-like values."""
 
     if isinstance(value, datetime):
-        return value.isoformat()
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
     if isinstance(value, str):
         normalized = value.strip()
-        if normalized:
-            return normalized
-    return "não informado"
+        if not normalized:
+            return None
+
+        iso_candidate = normalized
+        if iso_candidate.endswith("Z"):
+            iso_candidate = f"{iso_candidate[:-1]}+00:00"
+        try:
+            parsed = datetime.fromisoformat(iso_candidate)
+        except ValueError:
+            return None
+
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=UTC)
+        return parsed
+
+    return None
 
 
 def _build_room2_clinical_summary_lines(summary_text: str) -> list[str]:

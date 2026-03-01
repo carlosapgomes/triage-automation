@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from triage_automation.infrastructure.matrix.message_templates import (
@@ -167,6 +168,70 @@ def test_build_room2_case_summary_message_avoids_full_flattened_dump() -> None:
     assert "Achados críticos" in body
     assert "Conduta sugerida" in body
     assert "```json" not in body
+
+
+def test_build_room2_case_summary_formats_recent_denial_datetime_in_brt() -> None:
+    case_id = UUID("22222222-2222-2222-2222-222222222222")
+
+    body = build_room2_case_summary_message(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={
+            "policy_precheck": {
+                "labs_pass": "yes",
+                "ecg_present": "yes",
+                "labs_failed_items": [],
+            },
+            "eda": {
+                "labs": {"hb_g_dl": 10.2, "platelets_per_mm3": 140000, "inr": 1.2},
+                "ecg": {"report_present": "yes", "abnormal_flag": "no"},
+            },
+        },
+        summary_text="Resumo LLM1",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+        recent_denial_context={
+            "decision": "deny_triage",
+            "reason": "criterio clinico",
+            "decided_at": datetime(2026, 2, 15, 15, 30, tzinfo=UTC),
+            "prior_denial_count_7d": 2,
+        },
+    )
+
+    assert "## Histórico de negativa recente:" in body
+    assert "- Data/hora da negativa mais recente: 15/02/2026 12:30 BRT" in body
+
+
+def test_build_room2_case_summary_formatted_html_formats_recent_denial_datetime_in_brt() -> None:
+    case_id = UUID("22222222-2222-2222-2222-222222222222")
+
+    body = build_room2_case_summary_formatted_html(
+        case_id=case_id,
+        agency_record_number="12345",
+        patient_name="PACIENTE",
+        structured_data={
+            "policy_precheck": {
+                "labs_pass": "yes",
+                "ecg_present": "yes",
+                "labs_failed_items": [],
+            },
+            "eda": {
+                "labs": {"hb_g_dl": 10.2, "platelets_per_mm3": 140000, "inr": 1.2},
+                "ecg": {"report_present": "yes", "abnormal_flag": "no"},
+            },
+        },
+        summary_text="Resumo LLM1",
+        suggested_action={"suggestion": "accept", "support_recommendation": "none"},
+        recent_denial_context={
+            "decision": "deny_appointment",
+            "reason": "agenda",
+            "decided_at": datetime(2026, 2, 15, 15, 30, tzinfo=UTC),
+            "prior_denial_count_7d": 1,
+        },
+    )
+
+    assert "<h2>Histórico de negativa recente:</h2>" in body
+    assert "Data/hora da negativa mais recente: 15/02/2026 12:30 BRT" in body
 
 
 def test_build_room2_case_decision_instructions_message_has_strict_template() -> None:
