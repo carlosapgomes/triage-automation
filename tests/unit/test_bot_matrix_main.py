@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 
 import pytest
 
@@ -35,6 +36,67 @@ class _FlakySyncClient:
         return "$reply"
 
 
+class _InviteSyncClient:
+    def __init__(self, *, stop_event: asyncio.Event) -> None:
+        self._stop_event = stop_event
+        self.join_calls: list[str] = []
+
+    async def sync(self, *, since: str | None, timeout_ms: int) -> dict[str, object]:
+        _ = since, timeout_ms
+        self._stop_event.set()
+        return {
+            "next_batch": "s3",
+            "rooms": {
+                "join": {},
+                "invite": {
+                    "!room1:example.org": {"invite_state": {"events": []}},
+                    "!room2:example.org": {"invite_state": {"events": []}},
+                    "!room3:example.org": {"invite_state": {"events": []}},
+                    "!room4:example.org": {"invite_state": {"events": []}},
+                    "!other:example.org": {"invite_state": {"events": []}},
+                },
+            },
+        }
+
+    async def join_room(self, *, room_id: str) -> None:
+        self.join_calls.append(room_id)
+
+    async def reply_text(self, *, room_id: str, event_id: str, body: str) -> str:
+        _ = room_id, event_id, body
+        return "$reply"
+
+
+@dataclass
+class _CallSpy:
+    calls: int = 0
+
+    async def ingest_pdf_event(self, parsed_event: object) -> None:
+        _ = parsed_event
+        self.calls += 1
+
+    async def handle(self, parsed_event: object) -> None:
+        _ = parsed_event
+        self.calls += 1
+
+    async def handle_reply(self, parsed_event: object) -> object:
+        _ = parsed_event
+        self.calls += 1
+        return object()
+
+    async def get_case_message_by_room_event(self, *, room_id: str, event_id: str) -> None:
+        _ = room_id, event_id
+        self.calls += 1
+        return None
+
+    async def append_case_matrix_message_transcript(self, payload: object) -> None:
+        _ = payload
+        self.calls += 1
+
+    async def add_message(self, payload: object) -> None:
+        _ = payload
+        self.calls += 1
+
+
 @pytest.mark.asyncio
 async def test_room1_listener_retries_after_transport_failure(
     caplog: pytest.LogCaptureFixture,
@@ -65,6 +127,50 @@ async def test_room1_listener_retries_after_transport_failure(
     assert matrix_client.sync_calls == 2
     assert "bot_matrix_listener_started" in caplog.text
     assert "Matrix sync transport failure; retrying on next poll cycle." in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_room1_listener_autojoin_targets_only_configured_rooms_without_clinical_mutation(
+) -> None:
+    stop_event = asyncio.Event()
+    matrix_client = _InviteSyncClient(stop_event=stop_event)
+    intake_service = _CallSpy()
+    reaction_service = _CallSpy()
+    room2_reply_service = _CallSpy()
+    message_repository = _CallSpy()
+    room3_reply_service = _CallSpy()
+
+    await asyncio.wait_for(
+        run_room1_intake_listener(
+            matrix_client=matrix_client,
+            message_repository=message_repository,
+            intake_service=intake_service,
+            reaction_service=reaction_service,
+            room2_reply_service=room2_reply_service,
+            room3_reply_service=room3_reply_service,
+            room1_id="!room1:example.org",
+            room2_id="!room2:example.org",
+            room3_id="!room3:example.org",
+            room4_id="!room4:example.org",
+            bot_user_id="@bot:example.org",
+            sync_timeout_ms=30_000,
+            poll_interval_seconds=0.0,
+            stop_event=stop_event,
+        ),
+        timeout=1.0,
+    )
+
+    assert matrix_client.join_calls == [
+        "!room1:example.org",
+        "!room2:example.org",
+        "!room3:example.org",
+        "!room4:example.org",
+    ]
+    assert intake_service.calls == 0
+    assert reaction_service.calls == 0
+    assert room2_reply_service.calls == 0
+    assert message_repository.calls == 0
+    assert room3_reply_service.calls == 0
 
 
 def test_build_runtime_matrix_client_uses_sync_timeout_buffer() -> None:
