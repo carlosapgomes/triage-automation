@@ -24,5 +24,5 @@
 ## 5. Documentação operacional e validação final
 
 - [x] 5.1 Atualizar documentação operacional (`docs/` e `docs/en/`) com comportamento de autoaceite de convites para salas configuradas.
-- [ ] 5.2 Executar validações do slice: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
+- [x] 5.2 Executar validações do slice: `uv run pytest` (alvos), `uv run ruff check` (paths alterados), `uv run mypy` (paths alterados) e `markdownlint-cli2` nos artefatos OpenSpec alterados.
 - [ ] 5.3 Atualizar checklist do change com evidências de verificação e notas de rollout/rollback.
