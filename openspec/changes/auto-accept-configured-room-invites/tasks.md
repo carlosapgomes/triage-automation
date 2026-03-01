@@ -2,7 +2,7 @@
 
 ## 1. Contrato e parser de convites no sync Matrix
 
-- [ ] 1.1 Adicionar testes unitários para extração de `room_id` em `rooms.invite` no parser de sync sem regressão no comportamento atual de timeline.
+- [x] 1.1 Adicionar testes unitários para extração de `room_id` em `rooms.invite` no parser de sync sem regressão no comportamento atual de timeline.
 - [ ] 1.2 Implementar helper de parsing de convites em `sync_events` com tipagem/docstrings e retorno determinístico para payloads válidos e inválidos.
 
 ## 2. Adapter Matrix HTTP para join de sala
