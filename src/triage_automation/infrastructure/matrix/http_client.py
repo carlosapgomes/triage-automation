@@ -398,6 +398,17 @@ class MatrixHttpClient:
         membership = response.get("membership")
         return isinstance(membership, str) and membership == "join"
 
+    async def join_room(self, *, room_id: str) -> None:
+        """Join invited Matrix room using client join endpoint."""
+
+        path = f"/_matrix/client/v3/rooms/{quote(room_id, safe='')}/join"
+        await self._request_json(
+            operation="join_room",
+            method="POST",
+            path=path,
+            payload={},
+        )
+
     async def _request_json(
         self,
         *,

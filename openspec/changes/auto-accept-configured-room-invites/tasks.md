@@ -8,7 +8,7 @@
 ## 2. Adapter Matrix HTTP para join de sala
 
 - [x] 2.1 Adicionar testes unitários para `MatrixHttpClient.join_room(...)`, cobrindo sucesso, erro HTTP e erro de transporte com normalização de exceções.
-- [ ] 2.2 Implementar método `join_room(room_id)` usando `POST /_matrix/client/v3/rooms/{roomId}/join` no adapter existente.
+- [x] 2.2 Implementar método `join_room(room_id)` usando `POST /_matrix/client/v3/rooms/{roomId}/join` no adapter existente.
 
 ## 3. Runtime bot-matrix com autoaceite restrito às salas configuradas
 
